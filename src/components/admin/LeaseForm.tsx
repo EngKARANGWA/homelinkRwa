@@ -1,11 +1,13 @@
 "use client";
 
-import { PROPERTIES } from "@/lib/mock-admin-data";
+import { PROPERTIES, type Property } from "@/lib/mock-admin-data";
 
 export function LeaseForm({
+  properties = PROPERTIES,
   onSuccess,
   onCancel,
 }: {
+  properties?: Property[];
   onSuccess: () => void;
   onCancel: () => void;
 }) {
@@ -30,7 +32,7 @@ export function LeaseForm({
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
           Property
           <select className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none">
-            {PROPERTIES.map((property) => (
+            {properties.map((property) => (
               <option key={property.id}>{property.name}</option>
             ))}
           </select>

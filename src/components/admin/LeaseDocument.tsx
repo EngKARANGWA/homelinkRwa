@@ -99,12 +99,16 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
           </div>
         </div>
 
-        {property && (
+        {property && property.terms.length > 0 && (
           <div className="mt-6">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Terms &amp; Conditions
             </p>
-            <p className="mt-1 text-sm text-slate-600">{property.terms}</p>
+            <ul className="mt-1 list-disc pl-5 text-sm text-slate-600">
+              {property.terms.map((term) => (
+                <li key={term}>{term}</li>
+              ))}
+            </ul>
           </div>
         )}
 

@@ -63,7 +63,7 @@ export type Property = {
   type: "Apartment" | "House" | "Studio" | "Commercial";
   owner: string;
   rent: number;
-  terms: string;
+  terms: string[];
   availability: "Available" | "Occupied";
   approval: "Pending" | "Approved" | "Rejected";
 };
@@ -76,7 +76,7 @@ export const PROPERTIES: Property[] = [
     type: "Apartment",
     owner: "Jean Claude Uwimana",
     rent: 450000,
-    terms: "12-month lease, 2 months deposit",
+    terms: ["12-month lease", "2 months deposit"],
     availability: "Occupied",
     approval: "Approved",
   },
@@ -87,7 +87,7 @@ export const PROPERTIES: Property[] = [
     type: "House",
     owner: "Jean Claude Uwimana",
     rent: 800000,
-    terms: "12-month lease, 1 month deposit",
+    terms: ["12-month lease", "1 month deposit"],
     availability: "Available",
     approval: "Approved",
   },
@@ -98,7 +98,7 @@ export const PROPERTIES: Property[] = [
     type: "Studio",
     owner: "Aline Mukamana",
     rent: 180000,
-    terms: "6-month lease, 1 month deposit",
+    terms: ["6-month lease", "1 month deposit"],
     availability: "Available",
     approval: "Pending",
   },
@@ -109,7 +109,7 @@ export const PROPERTIES: Property[] = [
     type: "Commercial",
     owner: "Divine Ingabire",
     rent: 1200000,
-    terms: "24-month lease, 3 months deposit",
+    terms: ["24-month lease", "3 months deposit"],
     availability: "Occupied",
     approval: "Approved",
   },
@@ -120,7 +120,7 @@ export const PROPERTIES: Property[] = [
     type: "Apartment",
     owner: "Divine Ingabire",
     rent: 320000,
-    terms: "12-month lease, 2 months deposit",
+    terms: ["12-month lease", "2 months deposit"],
     availability: "Available",
     approval: "Pending",
   },
@@ -131,7 +131,7 @@ export const PROPERTIES: Property[] = [
     type: "House",
     owner: "Eric Niyonsenga",
     rent: 260000,
-    terms: "12-month lease, 1 month deposit",
+    terms: ["12-month lease", "1 month deposit"],
     availability: "Available",
     approval: "Rejected",
   },
