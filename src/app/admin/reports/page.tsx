@@ -137,7 +137,7 @@ export default function ReportsPage() {
           maintenanceActivity.map((m) => [
             m.tenant,
             m.property,
-            m.issue,
+            m.issue.join("; "),
             m.priority,
             m.status,
             m.assignedTo ?? "—",
@@ -378,7 +378,7 @@ export default function ReportsPage() {
                   <td className="px-6 py-3 font-medium text-navy">{m.tenant}</td>
                   <td className="px-6 py-3 text-slate-500">{m.property}</td>
                   <td className="max-w-xs px-6 py-3 text-slate-500">
-                    {m.issue}
+                    {m.issue.join("; ")}
                   </td>
                   <td className="px-6 py-3 text-slate-500">{m.priority}</td>
                   <td className="px-6 py-3 text-slate-500">{m.status}</td>

@@ -94,7 +94,7 @@ export default function LandlordMaintenancePage() {
                   {request.property}
                 </td>
                 <td className="max-w-xs px-6 py-3 text-slate-500">
-                  {request.issue}
+                  {request.issue.join("; ")}
                 </td>
                 <td className="px-6 py-3">
                   <span

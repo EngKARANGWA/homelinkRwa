@@ -1,0 +1,147 @@
+"use client";
+
+import { useState } from "react";
+import { CheckCircle2, Eye } from "lucide-react";
+import { LEASES, type Lease } from "@/lib/mock-admin-data";
+import { useTenant } from "@/components/tenant/TenantContext";
+import { Modal } from "@/components/admin/Modal";
+import { LeaseDocument } from "@/components/admin/LeaseDocument";
+
+const STATUS_STYLES: Record<Lease["status"], string> = {
+  Active: "bg-emerald-50 text-emerald-700",
+  "Renewal Requested": "bg-amber-50 text-amber-700",
+  "Termination Requested": "bg-amber-50 text-amber-700",
+  Terminated: "bg-red-50 text-red-700",
+  Expired: "bg-slate-100 text-slate-600",
+};
+
+export default function TenantLeasePage() {
+  const { tenantName } = useTenant();
+  const [leases, setLeases] = useState(LEASES);
+  const [viewingLease, setViewingLease] = useState<Lease | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const myLeases = leases.filter((l) => l.tenant === tenantName);
+
+  const requestChange = (
+    id: string,
+    status: "Renewal Requested" | "Termination Requested",
+  ) => {
+    setLeases((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, status } : l)),
+    );
+    setNotice(
+      status === "Renewal Requested"
+        ? "Renewal request sent to your landlord."
+        : "Termination request sent to your landlord.",
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-bold text-navy">My Lease</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Your lease agreements on HomeLink Rwanda.
+        </p>
+      </div>
+
+      {notice && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle2 className="h-4 w-4" />
+          {notice}
+        </div>
+      )}
+
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="text-xs uppercase tracking-wide text-slate-400">
+              <th className="px-6 py-3 font-medium">Property</th>
+              <th className="px-6 py-3 font-medium">Owner</th>
+              <th className="px-6 py-3 font-medium">Rent (RWF)</th>
+              <th className="px-6 py-3 font-medium">Term</th>
+              <th className="px-6 py-3 font-medium">Status</th>
+              <th className="px-6 py-3 font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {myLeases.map((lease) => (
+              <tr key={lease.id} className="border-t border-slate-100">
+                <td className="px-6 py-3 font-medium text-navy">
+                  {lease.property}
+                </td>
+                <td className="px-6 py-3 text-slate-500">{lease.owner}</td>
+                <td className="px-6 py-3 text-slate-500">
+                  {lease.rent.toLocaleString()}
+                </td>
+                <td className="px-6 py-3 text-slate-500">
+                  {lease.startDate} → {lease.endDate}
+                </td>
+                <td className="px-6 py-3">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[lease.status]}`}
+                  >
+                    {lease.status}
+                  </span>
+                </td>
+                <td className="px-6 py-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setViewingLease(lease)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      View
+                    </button>
+                    {lease.status === "Active" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            requestChange(lease.id, "Renewal Requested")
+                          }
+                          className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          Request Renewal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            requestChange(lease.id, "Termination Requested")
+                          }
+                          className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                        >
+                          Request Termination
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {myLeases.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
+                  No lease agreements on file yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {viewingLease && (
+        <Modal
+          title="Lease Agreement"
+          description={`${viewingLease.tenant} · ${viewingLease.property}`}
+          onClose={() => setViewingLease(null)}
+          maxWidthClassName="max-w-3xl"
+        >
+          <LeaseDocument lease={viewingLease} />
+        </Modal>
+      )}
+    </div>
+  );
+}

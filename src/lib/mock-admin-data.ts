@@ -267,7 +267,7 @@ export type MaintenanceRequest = {
   id: string;
   tenant: string;
   property: string;
-  issue: string;
+  issue: string[];
   priority: "Low" | "Medium" | "High";
   status: "Submitted" | "Assigned" | "In Progress" | "Completed";
   assignedTo: string | null;
@@ -288,7 +288,7 @@ export const MAINTENANCE_REQUESTS: MaintenanceRequest[] = [
     id: "1",
     tenant: "Claudine Uwase",
     property: "Kigali Heights Apartment 4B",
-    issue: "Kitchen sink is leaking under the cabinet.",
+    issue: ["Kitchen sink is leaking under the cabinet."],
     priority: "Medium",
     status: "Submitted",
     assignedTo: null,
@@ -301,7 +301,7 @@ export const MAINTENANCE_REQUESTS: MaintenanceRequest[] = [
     id: "2",
     tenant: "Emmanuel Byiringiro",
     property: "Kacyiru Office Suite",
-    issue: "Air conditioning unit not cooling on the 2nd floor.",
+    issue: ["Air conditioning unit not cooling on the 2nd floor."],
     priority: "High",
     status: "Assigned",
     assignedTo: "Faustin Gasana",
@@ -314,7 +314,7 @@ export const MAINTENANCE_REQUESTS: MaintenanceRequest[] = [
     id: "3",
     tenant: "David Mugisha",
     property: "Kacyiru Office Suite",
-    issue: "Main entrance door lock is jammed.",
+    issue: ["Main entrance door lock is jammed."],
     priority: "High",
     status: "In Progress",
     assignedTo: "Innocent Habyarimana",
@@ -327,7 +327,7 @@ export const MAINTENANCE_REQUESTS: MaintenanceRequest[] = [
     id: "4",
     tenant: "Claudine Uwase",
     property: "Kigali Heights Apartment 4B",
-    issue: "Bedroom light fixture flickering.",
+    issue: ["Bedroom light fixture flickering."],
     priority: "Low",
     status: "Completed",
     assignedTo: "Vestine Mutesi",
