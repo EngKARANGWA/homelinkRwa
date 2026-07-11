@@ -78,7 +78,7 @@ export function LeaseForm({
         </button>
         <button
           type="submit"
-          className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-gold/90"
+          className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           Create Lease
         </button>

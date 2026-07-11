@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { TENANTS } from "@/lib/mock-admin-data";
 
 type TenantContextValue = {
@@ -12,7 +13,11 @@ type TenantContextValue = {
 const TenantContext = createContext<TenantContextValue | null>(null);
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
-  const [tenantId, setTenantId] = useState(TENANTS[0].id);
+  const searchParams = useSearchParams();
+  const initialId = searchParams.get("id");
+  const [tenantId, setTenantId] = useState(
+    TENANTS.some((t) => t.id === initialId) ? initialId! : TENANTS[0].id,
+  );
   const tenantName =
     TENANTS.find((t) => t.id === tenantId)?.name ?? TENANTS[0].name;
 

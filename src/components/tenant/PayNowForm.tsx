@@ -1,6 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import type { Payment } from "@/lib/mock-admin-data";
+
+const METHODS: Payment["method"][] = [
+  "MTN Mobile Money",
+  "Airtel Money",
+  "Bank Transfer",
+  "Card / PayPal",
+];
 
 export function PayNowForm({
   amount,
@@ -11,12 +19,16 @@ export function PayNowForm({
   onSuccess: (method: Payment["method"]) => void;
   onCancel: () => void;
 }) {
+  const [method, setMethod] = useState<Payment["method"]>(METHODS[0]);
+  const isMobileMoney = method === "MTN Mobile Money" || method === "Airtel Money";
+  const isBankTransfer = method === "Bank Transfer";
+  const isCard = method === "Card / PayPal";
+
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        const formData = new FormData(e.currentTarget);
-        onSuccess(String(formData.get("method")) as Payment["method"]);
+        onSuccess(method);
       }}
     >
       <div className="flex flex-col gap-5">
@@ -33,13 +45,81 @@ export function PayNowForm({
           Payment method
           <select
             name="method"
+            value={method}
+            onChange={(e) => setMethod(e.target.value as Payment["method"])}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            <option>MTN Mobile Money</option>
-            <option>Airtel Money</option>
-            <option>Bank Transfer</option>
+            {METHODS.map((m) => (
+              <option key={m}>{m}</option>
+            ))}
           </select>
         </label>
+
+        {isMobileMoney && (
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+            Phone number
+            <input
+              type="tel"
+              required
+              placeholder="+250 7XX XXX XXX"
+              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+            />
+          </label>
+        )}
+
+        {isBankTransfer && (
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+            Account number
+            <input
+              type="text"
+              required
+              placeholder="e.g. 000123456789"
+              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+            />
+          </label>
+        )}
+
+        {isCard && (
+          <>
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+              Card number
+              <input
+                type="text"
+                required
+                inputMode="numeric"
+                maxLength={19}
+                placeholder="1234 5678 9012 3456"
+                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+              />
+            </label>
+
+            <div className="grid grid-cols-2 gap-4">
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Expiry date
+                <input
+                  type="text"
+                  required
+                  inputMode="numeric"
+                  maxLength={5}
+                  placeholder="MM/YY"
+                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+                />
+              </label>
+
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                CVV
+                <input
+                  type="text"
+                  required
+                  inputMode="numeric"
+                  maxLength={4}
+                  placeholder="123"
+                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+                />
+              </label>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="mt-6 flex justify-end gap-3">
@@ -52,7 +132,7 @@ export function PayNowForm({
         </button>
         <button
           type="submit"
-          className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-gold/90"
+          className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           Pay Now
         </button>

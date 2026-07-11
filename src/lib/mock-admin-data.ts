@@ -344,7 +344,7 @@ export type Payment = {
   property: string;
   owner: string;
   amount: number;
-  method: "MTN Mobile Money" | "Airtel Money" | "Bank Transfer";
+  method: "MTN Mobile Money" | "Airtel Money" | "Bank Transfer" | "Card / PayPal";
   status: "Paid" | "Late" | "Pending";
   dueDate: string;
   paidDate: string | null;

@@ -100,7 +100,7 @@ export default function TenantPaymentsPage() {
                       <button
                         type="button"
                         onClick={() => setPayingId(payment.id)}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1 text-xs font-semibold text-navy hover:bg-gold/90"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1 text-xs font-semibold text-white hover:bg-gold/90"
                       >
                         <Wallet className="h-3.5 w-3.5" />
                         Pay Now

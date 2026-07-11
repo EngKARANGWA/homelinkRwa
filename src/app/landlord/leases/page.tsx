@@ -53,7 +53,7 @@ export default function LandlordLeasesPage() {
         <button
           type="button"
           onClick={() => setModalOpen(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-gold/90"
+          className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           <Plus className="h-4 w-4" />
           Create Lease

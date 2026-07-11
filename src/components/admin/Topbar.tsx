@@ -1,4 +1,5 @@
-import { Bell, UserCircle } from "lucide-react";
+import Link from "next/link";
+import { Bell, LogOut, UserCircle } from "lucide-react";
 
 export function Topbar() {
   return (
@@ -18,6 +19,14 @@ export function Topbar() {
             <p className="text-xs text-slate-500">admin@homelinkrwanda.com</p>
           </div>
         </div>
+        <Link
+          href="/login"
+          aria-label="Log out"
+          className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-navy"
+        >
+          <LogOut className="h-4 w-4" strokeWidth={2} />
+          Logout
+        </Link>
       </div>
     </header>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { LANDLORDS } from "@/lib/mock-admin-data";
 
 type LandlordContextValue = {
@@ -12,7 +13,11 @@ type LandlordContextValue = {
 const LandlordContext = createContext<LandlordContextValue | null>(null);
 
 export function LandlordProvider({ children }: { children: React.ReactNode }) {
-  const [landlordId, setLandlordId] = useState(LANDLORDS[0].id);
+  const searchParams = useSearchParams();
+  const initialId = searchParams.get("id");
+  const [landlordId, setLandlordId] = useState(
+    LANDLORDS.some((l) => l.id === initialId) ? initialId! : LANDLORDS[0].id,
+  );
   const landlordName =
     LANDLORDS.find((l) => l.id === landlordId)?.name ?? LANDLORDS[0].name;
 
