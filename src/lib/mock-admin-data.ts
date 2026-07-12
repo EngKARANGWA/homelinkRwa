@@ -60,11 +60,13 @@ export type Property = {
   id: string;
   name: string;
   address: string;
+  upi: string;
   type: "Apartment" | "House" | "Studio" | "Commercial";
   owner: string;
   rent: number;
   terms: string[];
   availability: "Available" | "Occupied";
+  vacantSince: string | null;
   approval: "Pending" | "Approved" | "Rejected";
 };
 
@@ -73,69 +75,89 @@ export const PROPERTIES: Property[] = [
     id: "1",
     name: "Kigali Heights Apartment 4B",
     address: "KG 7 Ave, Nyarutarama, Kigali",
+    upi: "1/01/03/02/1156",
     type: "Apartment",
     owner: "Jean Claude Uwimana",
     rent: 450000,
     terms: ["12-month lease", "2 months deposit"],
     availability: "Occupied",
+    vacantSince: null,
     approval: "Approved",
   },
   {
     id: "2",
     name: "Kimihurura Family House",
     address: "KG 213 St, Kimihurura, Kigali",
+    upi: "1/01/04/01/0872",
     type: "House",
     owner: "Jean Claude Uwimana",
     rent: 800000,
     terms: ["12-month lease", "1 month deposit"],
     availability: "Available",
+    vacantSince: "2026-06-20",
     approval: "Approved",
   },
   {
     id: "3",
     name: "Remera Studio 12",
     address: "KG 11 Ave, Remera, Kigali",
+    upi: "1/01/02/05/0341",
     type: "Studio",
     owner: "Aline Mukamana",
     rent: 180000,
     terms: ["6-month lease", "1 month deposit"],
     availability: "Available",
+    vacantSince: "2026-05-15",
     approval: "Pending",
   },
   {
     id: "4",
     name: "Kacyiru Office Suite",
     address: "KG 5 Ave, Kacyiru, Kigali",
+    upi: "1/01/01/03/0459",
     type: "Commercial",
     owner: "Divine Ingabire",
     rent: 1200000,
     terms: ["24-month lease", "3 months deposit"],
     availability: "Occupied",
+    vacantSince: null,
     approval: "Approved",
   },
   {
     id: "5",
     name: "Kibagabaga Apartment 2A",
     address: "KG 63 St, Kibagabaga, Kigali",
+    upi: "1/01/05/02/0217",
     type: "Apartment",
     owner: "Divine Ingabire",
     rent: 320000,
     terms: ["12-month lease", "2 months deposit"],
     availability: "Available",
+    vacantSince: "2026-07-01",
     approval: "Pending",
   },
   {
     id: "6",
     name: "Nyamirambo Family House",
     address: "KG 2 St, Nyamirambo, Kigali",
+    upi: "1/02/02/04/0688",
     type: "House",
     owner: "Eric Niyonsenga",
     rent: 260000,
     terms: ["12-month lease", "1 month deposit"],
     availability: "Available",
+    vacantSince: "2026-04-10",
     approval: "Rejected",
   },
 ];
+
+export const TODAY = "2026-07-10";
+
+export function daysVacant(vacantSince: string | null): number | null {
+  if (!vacantSince) return null;
+  const diffMs = new Date(TODAY).getTime() - new Date(vacantSince).getTime();
+  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+}
 
 export type Lease = {
   id: string;
@@ -143,6 +165,8 @@ export type Lease = {
   property: string;
   owner: string;
   rent: number;
+  deposit: number;
+  momoNumber: string;
   startDate: string;
   endDate: string;
   status:
@@ -160,6 +184,8 @@ export const LEASES: Lease[] = [
     property: "Kigali Heights Apartment 4B",
     owner: "Jean Claude Uwimana",
     rent: 450000,
+    deposit: 900000,
+    momoNumber: "+250 788 111 222",
     startDate: "2025-08-01",
     endDate: "2026-07-31",
     status: "Renewal Requested",
@@ -170,6 +196,8 @@ export const LEASES: Lease[] = [
     property: "Kacyiru Office Suite",
     owner: "Divine Ingabire",
     rent: 1200000,
+    deposit: 3600000,
+    momoNumber: "+250 788 222 333",
     startDate: "2025-01-15",
     endDate: "2027-01-14",
     status: "Active",
@@ -180,6 +208,8 @@ export const LEASES: Lease[] = [
     property: "Kigali Heights Apartment 4B",
     owner: "Jean Claude Uwimana",
     rent: 450000,
+    deposit: 450000,
+    momoNumber: "+250 788 333 444",
     startDate: "2024-03-01",
     endDate: "2025-02-28",
     status: "Expired",
@@ -190,6 +220,8 @@ export const LEASES: Lease[] = [
     property: "Kacyiru Office Suite",
     owner: "Divine Ingabire",
     rent: 1200000,
+    deposit: 1200000,
+    momoNumber: "+250 788 444 555",
     startDate: "2024-06-01",
     endDate: "2026-05-31",
     status: "Termination Requested",

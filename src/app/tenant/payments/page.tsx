@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Eye, Wallet } from "lucide-react";
+import { CheckCircle2, Download, Eye, Wallet } from "lucide-react";
 import { PAYMENTS, type Payment } from "@/lib/mock-admin-data";
 import { useTenant } from "@/components/tenant/TenantContext";
 import { Modal } from "@/components/admin/Modal";
 import { PaymentReceipt } from "@/components/admin/PaymentReceipt";
 import { PayNowForm } from "@/components/tenant/PayNowForm";
+import { downloadCSV } from "@/lib/csv";
 
 const STATUS_STYLES: Record<Payment["status"], string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -36,13 +37,37 @@ export default function TenantPaymentsPage() {
     setNotice("Payment successful. Your receipt is ready to view.");
   };
 
+  const handleDownloadStatement = () => {
+    downloadCSV(
+      "my-rent-statement.csv",
+      ["Property", "Amount", "Method", "Due Date", "Status"],
+      myPayments.map((p) => [
+        p.property,
+        p.amount,
+        p.method,
+        p.dueDate,
+        p.status,
+      ]),
+    );
+  };
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-navy">Payments</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Your rent payment history.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-navy">Payments</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Your rent payment history.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleDownloadStatement}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+        >
+          <Download className="h-4 w-4" />
+          Download Statement
+        </button>
       </div>
 
       {notice && (

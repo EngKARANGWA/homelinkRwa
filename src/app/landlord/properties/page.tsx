@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { CheckCircle2, Pencil, Plus } from "lucide-react";
-import { PROPERTIES, type Property } from "@/lib/mock-admin-data";
+import {
+  PROPERTIES,
+  TODAY,
+  daysVacant,
+  type Property,
+} from "@/lib/mock-admin-data";
 import { useLandlord } from "@/components/landlord/LandlordContext";
 import { Modal } from "@/components/admin/Modal";
 import {
@@ -35,6 +40,7 @@ export default function LandlordPropertiesPage() {
       id: String(Date.now()),
       owner: landlordName,
       approval: "Pending",
+      vacantSince: values.availability === "Available" ? TODAY : null,
       ...values,
     };
     setProperties((prev) => [newProperty, ...prev]);
@@ -44,7 +50,14 @@ export default function LandlordPropertiesPage() {
 
   const editProperty = (id: string, values: PropertyFormValues) => {
     setProperties((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...values } : p)),
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        const vacantSince =
+          values.availability === "Available"
+            ? (p.vacantSince ?? TODAY)
+            : null;
+        return { ...p, ...values, vacantSince };
+      }),
     );
     setEditingProperty(null);
     setJustSaved(true);
@@ -81,9 +94,11 @@ export default function LandlordPropertiesPage() {
           <thead>
             <tr className="text-xs uppercase tracking-wide text-slate-400">
               <th className="px-6 py-3 font-medium">Property</th>
+              <th className="px-6 py-3 font-medium">UPI</th>
               <th className="px-6 py-3 font-medium">Type</th>
               <th className="px-6 py-3 font-medium">Rent (RWF)</th>
               <th className="px-6 py-3 font-medium">Availability</th>
+              <th className="px-6 py-3 font-medium">Days Vacant</th>
               <th className="px-6 py-3 font-medium">Approval</th>
               <th className="px-6 py-3 font-medium">Actions</th>
             </tr>
@@ -95,6 +110,7 @@ export default function LandlordPropertiesPage() {
                   <p className="font-medium text-navy">{property.name}</p>
                   <p className="text-xs text-slate-400">{property.address}</p>
                 </td>
+                <td className="px-6 py-3 text-slate-500">{property.upi}</td>
                 <td className="px-6 py-3 text-slate-500">{property.type}</td>
                 <td className="px-6 py-3 text-slate-500">
                   {property.rent.toLocaleString()}
@@ -105,6 +121,9 @@ export default function LandlordPropertiesPage() {
                   >
                     {property.availability}
                   </span>
+                </td>
+                <td className="px-6 py-3 text-slate-500">
+                  {daysVacant(property.vacantSince) ?? "—"}
                 </td>
                 <td className="px-6 py-3">
                   <span
@@ -127,7 +146,7 @@ export default function LandlordPropertiesPage() {
             ))}
             {myProperties.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-6 py-8 text-center text-slate-400">
                   No properties registered yet.
                 </td>
               </tr>

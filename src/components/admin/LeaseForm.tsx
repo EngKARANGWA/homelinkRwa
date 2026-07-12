@@ -56,13 +56,34 @@ export function LeaseForm({
           />
         </label>
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
           Monthly rent (RWF)
           <input
             type="number"
             min={0}
             required
             placeholder="e.g. 450000"
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          Security deposit (RWF)
+          <input
+            type="number"
+            min={0}
+            required
+            placeholder="e.g. 900000"
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
+          Rent MoMo number
+          <input
+            type="tel"
+            required
+            placeholder="+250 7XX XXX XXX"
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>

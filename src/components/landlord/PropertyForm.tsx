@@ -7,6 +7,7 @@ import type { Property } from "@/lib/mock-admin-data";
 export type PropertyFormValues = {
   name: string;
   address: string;
+  upi: string;
   type: Property["type"];
   rent: number;
   availability: Property["availability"];
@@ -44,6 +45,7 @@ export function PropertyForm({
         onSuccess({
           name: String(formData.get("name")),
           address: String(formData.get("address")),
+          upi: String(formData.get("upi")),
           type: String(formData.get("type")) as Property["type"],
           rent: Number(formData.get("rent")) || 0,
           availability: String(
@@ -74,6 +76,18 @@ export function PropertyForm({
             required
             defaultValue={initialProperty?.address}
             placeholder="District, Sector, Cell"
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
+          UPI (Unique Parcel Identifier)
+          <input
+            name="upi"
+            type="text"
+            required
+            defaultValue={initialProperty?.upi}
+            placeholder="e.g. 1/01/03/02/1156"
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>

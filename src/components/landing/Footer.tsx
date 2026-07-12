@@ -2,10 +2,11 @@ import Link from "next/link";
 import { Home } from "lucide-react";
 
 const QUICK_LINKS = [
-  { label: "Home", href: "#home" },
-  { label: "Features", href: "#features" },
-  { label: "How it works", href: "#how-it-works" },
-  { label: "Contact", href: "#contact" },
+  { label: "Home", href: "/#home" },
+  { label: "Features", href: "/features" },
+  { label: "How it works", href: "/how-it-works" },
+  { label: "About us", href: "/about" },
+  { label: "Contact", href: "/contact" },
 ];
 
 const LEGAL_LINKS = [

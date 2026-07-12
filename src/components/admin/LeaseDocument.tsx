@@ -97,6 +97,20 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
               {lease.rent.toLocaleString()} RWF
             </p>
           </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Security Deposit
+            </p>
+            <p className="mt-1 font-medium text-navy">
+              {lease.deposit.toLocaleString()} RWF
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Rent MoMo Number
+            </p>
+            <p className="mt-1 font-medium text-navy">{lease.momoNumber}</p>
+          </div>
         </div>
 
         {property && property.terms.length > 0 && (

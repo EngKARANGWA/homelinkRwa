@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check, CheckCircle2, Plus, X } from "lucide-react";
-import { PROPERTIES, type Property } from "@/lib/mock-admin-data";
+import { PROPERTIES, daysVacant, type Property } from "@/lib/mock-admin-data";
 import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
 
@@ -59,10 +59,12 @@ export default function PropertiesPage() {
           <thead>
             <tr className="text-xs uppercase tracking-wide text-slate-400">
               <th className="px-6 py-3 font-medium">Property</th>
+              <th className="px-6 py-3 font-medium">UPI</th>
               <th className="px-6 py-3 font-medium">Owner</th>
               <th className="px-6 py-3 font-medium">Type</th>
               <th className="px-6 py-3 font-medium">Rent (RWF)</th>
               <th className="px-6 py-3 font-medium">Availability</th>
+              <th className="px-6 py-3 font-medium">Days Vacant</th>
               <th className="px-6 py-3 font-medium">Approval</th>
               <th className="px-6 py-3 font-medium">Actions</th>
             </tr>
@@ -74,6 +76,7 @@ export default function PropertiesPage() {
                   <p className="font-medium text-navy">{property.name}</p>
                   <p className="text-xs text-slate-400">{property.address}</p>
                 </td>
+                <td className="px-6 py-3 text-slate-500">{property.upi}</td>
                 <td className="px-6 py-3 text-slate-500">{property.owner}</td>
                 <td className="px-6 py-3 text-slate-500">{property.type}</td>
                 <td className="px-6 py-3 text-slate-500">
@@ -85,6 +88,9 @@ export default function PropertiesPage() {
                   >
                     {property.availability}
                   </span>
+                </td>
+                <td className="px-6 py-3 text-slate-500">
+                  {daysVacant(property.vacantSince) ?? "—"}
                 </td>
                 <td className="px-6 py-3">
                   <span
