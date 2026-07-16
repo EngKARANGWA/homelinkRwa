@@ -1,10 +1,19 @@
 import Link from "next/link";
-import { Bell, LogOut, UserCircle } from "lucide-react";
+import { Bell, LogOut, Menu, UserCircle } from "lucide-react";
 
-export function Topbar() {
+export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   return (
-    <header className="flex items-center justify-end border-b border-slate-200 bg-white px-6 py-4 lg:px-10">
-      <div className="flex items-center gap-4">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4 lg:justify-end lg:px-10">
+      <button
+        type="button"
+        onClick={onMenuClick}
+        aria-label="Open menu"
+        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-navy lg:hidden"
+      >
+        <Menu className="h-5 w-5" strokeWidth={2} />
+      </button>
+
+      <div className="flex flex-wrap items-center gap-4">
         <button
           type="button"
           aria-label="Notifications"
@@ -16,7 +25,9 @@ export function Topbar() {
           <UserCircle className="h-8 w-8 text-slate-400" strokeWidth={1.5} />
           <div className="leading-tight">
             <p className="text-sm font-semibold text-navy">Super Admin</p>
-            <p className="text-xs text-slate-500">admin@homelinkrwanda.com</p>
+            <p className="hidden text-xs text-slate-500 sm:block">
+              admin@homelinkrwanda.com
+            </p>
           </div>
         </div>
         <Link
