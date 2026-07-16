@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { Check, CheckCircle2, Plus, X } from "lucide-react";
-import { PROPERTIES, daysVacant, type Property } from "@/lib/mock-admin-data";
+import { PROPERTIES, TODAY, daysVacant, type Property } from "@/lib/mock-admin-data";
 import { Modal } from "@/components/admin/Modal";
-import { PropertyForm } from "@/components/admin/PropertyForm";
+import { PropertyForm, type PropertyFormValues } from "@/components/admin/PropertyForm";
 
 const APPROVAL_STYLES: Record<Property["approval"], string> = {
   Approved: "bg-emerald-50 text-emerald-700",
@@ -26,6 +26,18 @@ export default function PropertiesPage() {
     setProperties((prev) =>
       prev.map((p) => (p.id === id ? { ...p, approval } : p)),
     );
+  };
+
+  const addProperty = (values: PropertyFormValues) => {
+    const newProperty: Property = {
+      id: String(Date.now()),
+      approval: "Pending",
+      vacantSince: values.availability === "Available" ? TODAY : null,
+      ...values,
+    };
+    setProperties((prev) => [newProperty, ...prev]);
+    setModalOpen(false);
+    setJustAdded(true);
   };
 
   return (
@@ -137,10 +149,7 @@ export default function PropertiesPage() {
         >
           <PropertyForm
             onCancel={() => setModalOpen(false)}
-            onSuccess={() => {
-              setModalOpen(false);
-              setJustAdded(true);
-            }}
+            onSuccess={addProperty}
           />
         </Modal>
       )}

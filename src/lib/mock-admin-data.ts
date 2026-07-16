@@ -56,15 +56,35 @@ export const LANDLORDS: Landlord[] = [
   },
 ];
 
+export type BuildingType = "Residential" | "Commercial";
+
+export type PropertyType =
+  | "Apartment"
+  | "House"
+  | "Studio"
+  | "Office"
+  | "Shop"
+  | "Warehouse"
+  | "Showroom";
+
+export const PROPERTY_TYPES_BY_BUILDING: Record<BuildingType, PropertyType[]> = {
+  Residential: ["Apartment", "House", "Studio"],
+  Commercial: ["Office", "Shop", "Warehouse", "Showroom"],
+};
+
+export type PropertyAttribute = { label: string; value: string };
+
 export type Property = {
   id: string;
   name: string;
   address: string;
   upi: string;
-  type: "Apartment" | "House" | "Studio" | "Commercial";
+  buildingType: BuildingType;
+  type: PropertyType;
   owner: string;
   rent: number;
   terms: string[];
+  attributes: PropertyAttribute[];
   availability: "Available" | "Occupied";
   vacantSince: string | null;
   approval: "Pending" | "Approved" | "Rejected";
@@ -76,10 +96,15 @@ export const PROPERTIES: Property[] = [
     name: "Kigali Heights Apartment 4B",
     address: "KG 7 Ave, Nyarutarama, Kigali",
     upi: "1/01/03/02/1156",
+    buildingType: "Residential",
     type: "Apartment",
     owner: "Jean Claude Uwimana",
     rent: 450000,
     terms: ["12-month lease", "2 months deposit"],
+    attributes: [
+      { label: "Floor", value: "3rd Floor" },
+      { label: "Entrance", value: "Shared corridor, no street access" },
+    ],
     availability: "Occupied",
     vacantSince: null,
     approval: "Approved",
@@ -89,10 +114,12 @@ export const PROPERTIES: Property[] = [
     name: "Kimihurura Family House",
     address: "KG 213 St, Kimihurura, Kigali",
     upi: "1/01/04/01/0872",
+    buildingType: "Residential",
     type: "House",
     owner: "Jean Claude Uwimana",
     rent: 800000,
     terms: ["12-month lease", "1 month deposit"],
+    attributes: [],
     availability: "Available",
     vacantSince: "2026-06-20",
     approval: "Approved",
@@ -102,10 +129,12 @@ export const PROPERTIES: Property[] = [
     name: "Remera Studio 12",
     address: "KG 11 Ave, Remera, Kigali",
     upi: "1/01/02/05/0341",
+    buildingType: "Residential",
     type: "Studio",
     owner: "Aline Mukamana",
     rent: 180000,
     terms: ["6-month lease", "1 month deposit"],
+    attributes: [{ label: "Floor", value: "Ground Floor" }],
     availability: "Available",
     vacantSince: "2026-05-15",
     approval: "Pending",
@@ -115,10 +144,15 @@ export const PROPERTIES: Property[] = [
     name: "Kacyiru Office Suite",
     address: "KG 5 Ave, Kacyiru, Kigali",
     upi: "1/01/01/03/0459",
-    type: "Commercial",
+    buildingType: "Commercial",
+    type: "Office",
     owner: "Divine Ingabire",
     rent: 1200000,
     terms: ["24-month lease", "3 months deposit"],
+    attributes: [
+      { label: "Floor", value: "Ground Floor" },
+      { label: "Street Frontage", value: "Direct entrance facing main road" },
+    ],
     availability: "Occupied",
     vacantSince: null,
     approval: "Approved",
@@ -128,10 +162,12 @@ export const PROPERTIES: Property[] = [
     name: "Kibagabaga Apartment 2A",
     address: "KG 63 St, Kibagabaga, Kigali",
     upi: "1/01/05/02/0217",
+    buildingType: "Residential",
     type: "Apartment",
     owner: "Divine Ingabire",
     rent: 320000,
     terms: ["12-month lease", "2 months deposit"],
+    attributes: [{ label: "Floor", value: "1st Floor" }],
     availability: "Available",
     vacantSince: "2026-07-01",
     approval: "Pending",
@@ -141,10 +177,12 @@ export const PROPERTIES: Property[] = [
     name: "Nyamirambo Family House",
     address: "KG 2 St, Nyamirambo, Kigali",
     upi: "1/02/02/04/0688",
+    buildingType: "Residential",
     type: "House",
     owner: "Eric Niyonsenga",
     rent: 260000,
     terms: ["12-month lease", "1 month deposit"],
+    attributes: [],
     availability: "Available",
     vacantSince: "2026-04-10",
     approval: "Rejected",

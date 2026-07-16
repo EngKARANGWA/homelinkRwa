@@ -85,7 +85,7 @@ export default function TenantOverviewPage() {
       label: "Monthly Rent",
       value: currentLease
         ? `${currentLease.rent.toLocaleString()} RWF`
-        : "—",
+        : "-",
     },
     {
       label: "Pending Maintenance",
@@ -121,7 +121,7 @@ export default function TenantOverviewPage() {
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-gold/30 bg-gold/5 p-5 shadow-sm">
           <div>
             <p className="font-semibold text-navy">
-              Rent pending — {nextPayment.amount.toLocaleString()} RWF
+              Rent pending - {nextPayment.amount.toLocaleString()} RWF
             </p>
             <p className="mt-1 text-sm text-slate-500">
               {nextPayment.property} · due {nextPayment.dueDate}
