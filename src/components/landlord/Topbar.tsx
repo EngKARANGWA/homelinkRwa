@@ -1,12 +1,25 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, LogOut, Menu, UserCircle } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu, UserCircle } from "lucide-react";
 import { LANDLORDS } from "@/lib/mock-admin-data";
 import { useLandlord } from "./LandlordContext";
 
 export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const { landlordId, setLandlordId, landlordName } = useLandlord();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4 lg:px-10">
@@ -44,23 +57,40 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
         >
           <Bell className="h-5 w-5" strokeWidth={2} />
         </button>
-        <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
-          <UserCircle className="h-8 w-8 text-slate-400" strokeWidth={1.5} />
-          <div className="leading-tight">
-            <p className="text-sm font-semibold text-navy">{landlordName}</p>
-            <p className="hidden text-xs text-slate-500 sm:block">
-              Property Owner
-            </p>
-          </div>
+
+        <div className="relative border-l border-slate-200 pl-4" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-label="Account menu"
+            className="flex items-center gap-2 rounded-lg px-1 py-1 hover:bg-slate-50"
+          >
+            <UserCircle className="h-8 w-8 text-slate-400" strokeWidth={1.5} />
+            <div className="leading-tight text-left">
+              <p className="text-sm font-semibold text-navy">{landlordName}</p>
+              <p className="hidden text-xs text-slate-500 sm:block">
+                Property Owner
+              </p>
+            </div>
+            <ChevronDown
+              className={`h-4 w-4 text-slate-400 transition-transform ${menuOpen ? "rotate-180" : ""}`}
+              strokeWidth={2}
+            />
+          </button>
+
+          {menuOpen && (
+            <div className="absolute right-0 top-full z-20 mt-2 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+              <Link
+                href="/login"
+                aria-label="Log out"
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <LogOut className="h-4 w-4" strokeWidth={2} />
+                Logout
+              </Link>
+            </div>
+          )}
         </div>
-        <Link
-          href="/login"
-          aria-label="Log out"
-          className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-navy"
-        >
-          <LogOut className="h-4 w-4" strokeWidth={2} />
-          Logout
-        </Link>
       </div>
     </header>
   );
