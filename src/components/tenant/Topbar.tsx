@@ -3,11 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, ChevronDown, LogOut, Menu, UserCircle } from "lucide-react";
-import { TENANTS } from "@/lib/mock-admin-data";
 import { useTenant } from "./TenantContext";
 
 export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
-  const { tenantId, setTenantId, tenantName } = useTenant();
+  const { tenantName } = useTenant();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -22,32 +21,15 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   }, []);
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4 lg:px-10">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onMenuClick}
-          aria-label="Open menu"
-          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-navy lg:hidden"
-        >
-          <Menu className="h-5 w-5" strokeWidth={2} />
-        </button>
-
-        <label className="flex items-center gap-2 text-sm text-slate-500">
-          <span className="hidden sm:inline">Viewing as</span>
-          <select
-            value={tenantId}
-            onChange={(e) => setTenantId(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-navy focus:border-gold focus:outline-none"
-          >
-            {TENANTS.map((tenant) => (
-              <option key={tenant.id} value={tenant.id}>
-                {tenant.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4 lg:justify-end lg:px-10">
+      <button
+        type="button"
+        onClick={onMenuClick}
+        aria-label="Open menu"
+        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-navy lg:hidden"
+      >
+        <Menu className="h-5 w-5" strokeWidth={2} />
+      </button>
 
       <div className="flex flex-wrap items-center gap-4">
         <button
