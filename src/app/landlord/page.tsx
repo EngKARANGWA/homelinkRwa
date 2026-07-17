@@ -83,12 +83,12 @@ export default function LandlordOverviewPage() {
     },
   ];
 
-  const paymentStatusData = (["Paid", "Late", "Pending"] as const).map(
-    (status) => ({
-      name: status,
-      value: myPayments.filter((p) => p.status === status).length,
-    }),
-  );
+  const paymentStatusData = (
+    ["Paid", "Late", "Pending", "Pending Approval"] as const
+  ).map((status) => ({
+    name: status,
+    value: myPayments.filter((p) => p.status === status).length,
+  }));
 
   const rentByProperty = myProperties.map((p) => ({
     name: p.name.length > 16 ? `${p.name.slice(0, 16)}…` : p.name,

@@ -10,6 +10,7 @@ const STATUS_STYLES: Record<Payment["status"], string> = {
   Paid: "bg-emerald-50 text-emerald-700",
   Late: "bg-red-50 text-red-700",
   Pending: "bg-amber-50 text-amber-700",
+  "Pending Approval": "bg-sky-50 text-sky-700",
 };
 
 const TODAY = "2026-07-08";

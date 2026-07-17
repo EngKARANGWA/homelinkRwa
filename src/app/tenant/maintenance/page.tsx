@@ -50,9 +50,10 @@ export default function TenantMaintenancePage() {
       issue,
       priority,
       status: "Submitted",
-      assignedTo: null,
+      laborers: [],
       workDone: null,
       laborCost: null,
+      itemCost: null,
       feedback: null,
       submittedAt: new Date().toISOString().slice(0, 10),
     };
@@ -125,7 +126,9 @@ export default function TenantMaintenancePage() {
                   </span>
                 </td>
                 <td className="px-6 py-3 text-slate-500">
-                  {request.assignedTo ?? "—"}
+                  {request.laborers.length > 0
+                    ? `${request.laborers.length} worker${request.laborers.length === 1 ? "" : "s"}`
+                    : "—"}
                 </td>
                 <td className="px-6 py-3">
                   <span

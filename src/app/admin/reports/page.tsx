@@ -97,7 +97,7 @@ export default function ReportsPage() {
             l.owner,
             l.rent,
             l.startDate,
-            l.endDate,
+            l.endDate ?? "Open-ended",
             l.status,
           ]),
         );
@@ -140,7 +140,7 @@ export default function ReportsPage() {
             m.issue.join("; "),
             m.priority,
             m.status,
-            m.assignedTo ?? "—",
+            m.laborers.map((l) => l.name).join("; ") || "—",
             m.submittedAt,
           ]),
         );
@@ -270,7 +270,9 @@ export default function ReportsPage() {
                     {l.rent.toLocaleString()}
                   </td>
                   <td className="px-6 py-3 text-slate-500">{l.startDate}</td>
-                  <td className="px-6 py-3 text-slate-500">{l.endDate}</td>
+                  <td className="px-6 py-3 text-slate-500">
+                    {l.endDate ?? "Open-ended"}
+                  </td>
                   <td className="px-6 py-3 text-slate-500">{l.status}</td>
                 </tr>
               ))}
@@ -383,7 +385,9 @@ export default function ReportsPage() {
                   <td className="px-6 py-3 text-slate-500">{m.priority}</td>
                   <td className="px-6 py-3 text-slate-500">{m.status}</td>
                   <td className="px-6 py-3 text-slate-500">
-                    {m.assignedTo ?? "—"}
+                    {m.laborers.length > 0
+                      ? `${m.laborers.length} worker${m.laborers.length === 1 ? "" : "s"}`
+                      : "—"}
                   </td>
                   <td className="px-6 py-3 text-slate-500">
                     {m.submittedAt}

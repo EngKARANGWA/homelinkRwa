@@ -4,7 +4,7 @@ export function CompleteRequestForm({
   onSuccess,
   onCancel,
 }: {
-  onSuccess: (workDone: string, laborCost: number) => void;
+  onSuccess: (workDone: string, itemCost: number) => void;
   onCancel: () => void;
 }) {
   return (
@@ -14,7 +14,7 @@ export function CompleteRequestForm({
         const formData = new FormData(e.currentTarget);
         onSuccess(
           String(formData.get("workDone")),
-          Number(formData.get("laborCost")) || 0,
+          Number(formData.get("itemCost")) || 0,
         );
       }}
     >
@@ -31,15 +31,17 @@ export function CompleteRequestForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Labor cost (RWF)
+          Item / materials cost (RWF)
           <input
             type="number"
-            name="laborCost"
+            name="itemCost"
             min={0}
-            required
-            placeholder="e.g. 15000"
+            placeholder="e.g. 5000 (leave blank if none)"
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
+          <p className="text-xs font-normal text-slate-400">
+            Separate from labor cost, which was set when this request was assigned.
+          </p>
         </label>
       </div>
 

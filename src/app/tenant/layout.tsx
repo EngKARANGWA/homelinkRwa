@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { Sidebar } from "@/components/tenant/Sidebar";
 import { Topbar } from "@/components/tenant/Topbar";
 import { TenantProvider } from "@/components/tenant/TenantContext";
+import { useIdleLogout } from "@/lib/useIdleLogout";
 
 export default function TenantLayout({
   children,
@@ -11,6 +12,7 @@ export default function TenantLayout({
   children: React.ReactNode;
 }) {
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+  useIdleLogout();
 
   return (
     <Suspense fallback={null}>

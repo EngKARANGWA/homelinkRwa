@@ -76,7 +76,7 @@ export default function TenantLeasePage() {
                   {lease.rent.toLocaleString()}
                 </td>
                 <td className="px-6 py-3 text-slate-500">
-                  {lease.startDate} → {lease.endDate}
+                  {lease.startDate} → {lease.endDate ?? "Open-ended"}
                 </td>
                 <td className="px-6 py-3">
                   <span

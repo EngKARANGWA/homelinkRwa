@@ -29,6 +29,7 @@ const STATUS_COLORS: Record<string, string> = {
   Paid: "#10b981",
   Late: "#f43f5e",
   Pending: "#f59e0b",
+  "Pending Approval": "#0ea5e9",
 };
 
 const STAT_LINKS: Record<string, string> = {
@@ -60,20 +61,30 @@ export default function TenantOverviewPage() {
   );
   const myPayments = payments.filter((p) => p.tenant === tenantName);
   const nextPayment = myPayments
-    .filter((p) => p.status !== "Paid")
+    .filter((p) => p.status !== "Paid" && p.status !== "Pending Approval")
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
 
   const payNow = (method: Payment["method"]) => {
     if (!nextPayment) return;
+    const needsApproval = method === "Cash" || method === "Bank Transfer";
     setPayments((prev) =>
       prev.map((p) =>
         p.id === nextPayment.id
-          ? { ...p, status: "Paid", method, paidDate: TODAY }
+          ? {
+              ...p,
+              status: needsApproval ? "Pending Approval" : "Paid",
+              method,
+              paidDate: needsApproval ? null : TODAY,
+            }
           : p,
       ),
     );
     setPaying(false);
-    setNotice("Payment successful. Your receipt is available on the Payments page.");
+    setNotice(
+      needsApproval
+        ? "Payment submitted. Awaiting your landlord's approval."
+        : "Payment successful. Your receipt is available on the Payments page.",
+    );
   };
 
   const stats = [

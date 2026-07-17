@@ -3,7 +3,8 @@
 import { Printer } from "lucide-react";
 import { type Lease, PROPERTIES } from "@/lib/mock-admin-data";
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string | null) {
+  if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
@@ -86,7 +87,15 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
               Lease End
             </p>
             <p className="mt-1 font-medium text-navy">
-              {formatDate(lease.endDate)}
+              {lease.endDate ? formatDate(lease.endDate) : "Open-ended"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Payment Date
+            </p>
+            <p className="mt-1 font-medium text-navy">
+              {formatDate(lease.paymentDate)}
             </p>
           </div>
           <div>
@@ -112,6 +121,15 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
             <p className="mt-1 font-medium text-navy">{lease.momoNumber}</p>
           </div>
         </div>
+
+        {lease.leasePeriodNote && (
+          <div className="mt-6">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Lease Period
+            </p>
+            <p className="mt-1 text-sm text-slate-600">{lease.leasePeriodNote}</p>
+          </div>
+        )}
 
         {property && property.terms.length > 0 && (
           <div className="mt-6">

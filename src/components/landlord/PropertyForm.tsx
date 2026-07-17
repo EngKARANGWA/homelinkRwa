@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Plus, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Upload, X } from "lucide-react";
 import {
   PROPERTY_TYPES_BY_BUILDING,
   type BuildingType,
@@ -16,13 +16,21 @@ export type PropertyFormValues = {
   upi: string;
   buildingType: BuildingType;
   type: PropertyType;
+  size: string | null;
   rent: number;
   availability: Property["availability"];
   terms: string[];
   attributes: PropertyAttribute[];
+  documentName: string | null;
 };
 
-const STEPS = ["Basic Info", "Type & Rent", "Rent Conditions", "Additional Details"];
+const STEPS = [
+  "Basic Info",
+  "Type & Rent",
+  "Rent Conditions",
+  "Additional Details",
+  "Documents & Confirm",
+];
 
 export function PropertyForm({
   initialProperty,
@@ -49,6 +57,11 @@ export function PropertyForm({
   const [propertyType, setPropertyType] = useState<PropertyType>(
     initialProperty?.type ?? PROPERTY_TYPES_BY_BUILDING.Residential[0],
   );
+  const [size, setSize] = useState(initialProperty?.size ?? "");
+  const [documentName, setDocumentName] = useState<string | null>(
+    initialProperty?.documentName ?? null,
+  );
+  const [confirmed, setConfirmed] = useState(false);
   const [conditions, setConditions] = useState<string[]>(
     initialProperty?.terms && initialProperty.terms.length > 0
       ? initialProperty.terms
@@ -110,18 +123,25 @@ export function PropertyForm({
   };
 
   const submitForm = () => {
+    if (!confirmed) {
+      setStepError("Please confirm the details above are accurate before submitting.");
+      return;
+    }
+    setStepError(null);
     onSuccess({
       name: name.trim(),
       address: address.trim(),
       upi: upi.trim(),
       buildingType,
       type: propertyType,
+      size: buildingType === "Commercial" ? size.trim() || null : null,
       rent: Number(rent) || 0,
       availability,
       terms: conditions.map((c) => c.trim()).filter(Boolean),
       attributes: attributes
         .map((a) => ({ label: a.label.trim(), value: a.value.trim() }))
         .filter((a) => a.label && a.value),
+      documentName,
     });
   };
 
@@ -236,6 +256,19 @@ export function PropertyForm({
             </select>
           </label>
 
+          {buildingType === "Commercial" && (
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+              Size
+              <input
+                type="text"
+                value={size}
+                onChange={(e) => setSize(e.target.value)}
+                placeholder="e.g. 85 sqm"
+                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+              />
+            </label>
+          )}
+
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
             Monthly rent (RWF)
             <input
@@ -348,6 +381,43 @@ export function PropertyForm({
             <Plus className="h-3.5 w-3.5" />
             Add detail
           </button>
+        </div>
+      )}
+
+      {step === 5 && (
+        <div className="flex flex-col gap-5">
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+            Property document (optional)
+            <p className="text-xs font-normal text-slate-400">
+              Upload a scan or photo of the title deed / physical document, if you have one.
+            </p>
+            <div className="flex items-center gap-3">
+              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
+                <Upload className="h-4 w-4" />
+                Choose file
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={(e) =>
+                    setDocumentName(e.target.files?.[0]?.name ?? null)
+                  }
+                />
+              </label>
+              {documentName && (
+                <span className="text-sm text-slate-600">{documentName}</span>
+              )}
+            </div>
+          </label>
+
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={confirmed}
+              onChange={(e) => setConfirmed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-gold"
+            />
+            I confirm the details entered for this property are accurate.
+          </label>
         </div>
       )}
 

@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { Sidebar } from "@/components/landlord/Sidebar";
 import { Topbar } from "@/components/landlord/Topbar";
 import { LandlordProvider } from "@/components/landlord/LandlordContext";
+import { useIdleLogout } from "@/lib/useIdleLogout";
 
 export default function LandlordLayout({
   children,
@@ -11,6 +12,7 @@ export default function LandlordLayout({
   children: React.ReactNode;
 }) {
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+  useIdleLogout();
 
   return (
     <Suspense fallback={null}>

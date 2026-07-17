@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Eye } from "lucide-react";
-import { PAYMENTS, type Payment } from "@/lib/mock-admin-data";
+import { Check, CheckCircle2, Download, Eye, X } from "lucide-react";
+import { PAYMENTS, TODAY, type Payment } from "@/lib/mock-admin-data";
 import { useLandlord } from "@/components/landlord/LandlordContext";
 import { Modal } from "@/components/admin/Modal";
 import { PaymentReceipt } from "@/components/admin/PaymentReceipt";
@@ -12,16 +12,38 @@ const STATUS_STYLES: Record<Payment["status"], string> = {
   Paid: "bg-emerald-50 text-emerald-700",
   Late: "bg-red-50 text-red-700",
   Pending: "bg-amber-50 text-amber-700",
+  "Pending Approval": "bg-sky-50 text-sky-700",
 };
 
 export default function LandlordPaymentsPage() {
   const { landlordName } = useLandlord();
+  const [payments, setPayments] = useState(PAYMENTS);
   const [viewingPayment, setViewingPayment] = useState<Payment | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const myPayments = PAYMENTS.filter((p) => p.owner === landlordName);
+  const myPayments = payments.filter((p) => p.owner === landlordName);
   const outstanding = myPayments
     .filter((p) => p.status !== "Paid")
     .reduce((sum, p) => sum + p.amount, 0);
+
+  const resolvePayment = (id: string, approve: boolean) => {
+    setPayments((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              status: approve ? "Paid" : "Pending",
+              paidDate: approve ? TODAY : null,
+            }
+          : p,
+      ),
+    );
+    setNotice(
+      approve
+        ? "Payment approved and marked as paid."
+        : "Payment sent back to pending.",
+    );
+  };
 
   const handleDownloadStatement = () => {
     downloadCSV(
@@ -56,6 +78,13 @@ export default function LandlordPaymentsPage() {
           Download Statement
         </button>
       </div>
+
+      {notice && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle2 className="h-4 w-4" />
+          {notice}
+        </div>
+      )}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -110,15 +139,37 @@ export default function LandlordPaymentsPage() {
                     {payment.status}
                   </span>
                 </td>
-                <td className="px-6 py-3">
-                  <button
-                    type="button"
-                    onClick={() => setViewingPayment(payment)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    View
-                  </button>
+                <td className="whitespace-nowrap px-6 py-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setViewingPayment(payment)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      View
+                    </button>
+                    {payment.status === "Pending Approval" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => resolvePayment(payment.id, true)}
+                          aria-label={`Approve payment from ${payment.tenant}`}
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => resolvePayment(payment.id, false)}
+                          aria-label={`Reject payment from ${payment.tenant}`}
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

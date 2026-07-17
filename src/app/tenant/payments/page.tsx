@@ -13,6 +13,7 @@ const STATUS_STYLES: Record<Payment["status"], string> = {
   Paid: "bg-emerald-50 text-emerald-700",
   Late: "bg-red-50 text-red-700",
   Pending: "bg-amber-50 text-amber-700",
+  "Pending Approval": "bg-sky-50 text-sky-700",
 };
 
 const TODAY = "2026-07-08";
@@ -28,13 +29,25 @@ export default function TenantPaymentsPage() {
   const payingPayment = myPayments.find((p) => p.id === payingId);
 
   const payNow = (id: string, method: Payment["method"]) => {
+    const needsApproval = method === "Cash" || method === "Bank Transfer";
     setPayments((prev) =>
       prev.map((p) =>
-        p.id === id ? { ...p, status: "Paid", method, paidDate: TODAY } : p,
+        p.id === id
+          ? {
+              ...p,
+              status: needsApproval ? "Pending Approval" : "Paid",
+              method,
+              paidDate: needsApproval ? null : TODAY,
+            }
+          : p,
       ),
     );
     setPayingId(null);
-    setNotice("Payment successful. Your receipt is ready to view.");
+    setNotice(
+      needsApproval
+        ? "Payment submitted. Awaiting your landlord's approval."
+        : "Payment successful. Your receipt is ready to view.",
+    );
   };
 
   const handleDownloadStatement = () => {
@@ -121,7 +134,8 @@ export default function TenantPaymentsPage() {
                       <Eye className="h-3.5 w-3.5" />
                       View
                     </button>
-                    {payment.status !== "Paid" && (
+                    {payment.status !== "Paid" &&
+                      payment.status !== "Pending Approval" && (
                       <button
                         type="button"
                         onClick={() => setPayingId(payment.id)}

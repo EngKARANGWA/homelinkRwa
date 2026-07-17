@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { Topbar } from "@/components/admin/Topbar";
+import { useIdleLogout } from "@/lib/useIdleLogout";
 
 export default function AdminLayout({
   children,
@@ -10,6 +11,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+  useIdleLogout();
 
   return (
     <div className="min-h-screen bg-slate-50">

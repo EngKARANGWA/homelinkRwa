@@ -8,6 +8,7 @@ const METHODS: Payment["method"][] = [
   "Airtel Money",
   "Bank Transfer",
   "Card / PayPal",
+  "Cash",
 ];
 
 export function PayNowForm({
@@ -23,6 +24,8 @@ export function PayNowForm({
   const isMobileMoney = method === "MTN Mobile Money" || method === "Airtel Money";
   const isBankTransfer = method === "Bank Transfer";
   const isCard = method === "Card / PayPal";
+  const isCash = method === "Cash";
+  const needsApproval = isBankTransfer || isCash;
 
   return (
     <form
@@ -120,6 +123,14 @@ export function PayNowForm({
             </div>
           </>
         )}
+
+        {needsApproval && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            {isCash
+              ? "Pay your landlord directly in cash, then submit this to notify them. They'll confirm receipt before it's marked paid."
+              : "Bank transfers are confirmed manually. Your landlord will approve this once they've verified receipt."}
+          </p>
+        )}
       </div>
 
       <div className="mt-6 flex justify-end gap-3">
@@ -134,7 +145,7 @@ export function PayNowForm({
           type="submit"
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
-          Pay Now
+          {needsApproval ? "Submit for Approval" : "Pay Now"}
         </button>
       </div>
     </form>

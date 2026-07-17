@@ -5,7 +5,7 @@ import { Check, CheckCircle2, Eye, Plus, X } from "lucide-react";
 import { LEASES, PROPERTIES, type Lease } from "@/lib/mock-admin-data";
 import { useLandlord } from "@/components/landlord/LandlordContext";
 import { Modal } from "@/components/admin/Modal";
-import { LeaseForm } from "@/components/admin/LeaseForm";
+import { LeaseForm, type LeaseFormValues } from "@/components/admin/LeaseForm";
 import { LeaseDocument } from "@/components/admin/LeaseDocument";
 
 const STATUS_STYLES: Record<Lease["status"], string> = {
@@ -25,6 +25,17 @@ export default function LandlordLeasesPage() {
 
   const myLeases = leases.filter((l) => l.owner === landlordName);
   const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
+
+  const addLease = (values: LeaseFormValues) => {
+    const newLease: Lease = {
+      id: String(Date.now()),
+      status: "Active",
+      ...values,
+    };
+    setLeases((prev) => [newLease, ...prev]);
+    setModalOpen(false);
+    setJustCreated(true);
+  };
 
   const resolveRequest = (id: string, approve: boolean) => {
     setLeases((prev) =>
@@ -90,7 +101,7 @@ export default function LandlordLeasesPage() {
                   {lease.rent.toLocaleString()}
                 </td>
                 <td className="px-6 py-3 text-slate-500">
-                  {lease.startDate} → {lease.endDate}
+                  {lease.startDate} → {lease.endDate ?? "Open-ended"}
                 </td>
                 <td className="px-6 py-3">
                   <span
@@ -155,10 +166,7 @@ export default function LandlordLeasesPage() {
           <LeaseForm
             properties={myProperties}
             onCancel={() => setModalOpen(false)}
-            onSuccess={() => {
-              setModalOpen(false);
-              setJustCreated(true);
-            }}
+            onSuccess={addLease}
           />
         </Modal>
       )}

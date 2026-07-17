@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { PlayCircle, UserPlus, Wrench } from "lucide-react";
+import { Eye, PlayCircle, UserPlus, Wrench } from "lucide-react";
 import {
   MAINTENANCE_REQUESTS,
   PROPERTIES,
+  type Laborer,
   type MaintenanceRequest,
 } from "@/lib/mock-admin-data";
 import { useLandlord } from "@/components/landlord/LandlordContext";
 import { Modal } from "@/components/admin/Modal";
 import { AssignHandlerForm } from "@/components/admin/AssignHandlerForm";
 import { CompleteRequestForm } from "@/components/admin/CompleteRequestForm";
+import { MaintenanceDetail } from "@/components/admin/MaintenanceDetail";
 
 const STATUS_STYLES: Record<MaintenanceRequest["status"], string> = {
   Submitted: "bg-amber-50 text-amber-700",
@@ -30,6 +32,7 @@ export default function LandlordMaintenancePage() {
   const [requests, setRequests] = useState(MAINTENANCE_REQUESTS);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
+  const [viewingRequest, setViewingRequest] = useState<MaintenanceRequest | null>(null);
 
   const myPropertyNames = PROPERTIES.filter(
     (p) => p.owner === landlordName,
@@ -44,19 +47,20 @@ export default function LandlordMaintenancePage() {
     );
   };
 
-  const assignHandler = (id: string, handler: string) => {
+  const assignHandler = (id: string, laborers: Laborer[]) => {
+    const laborCost = laborers.reduce((sum, l) => sum + l.amount, 0);
     setRequests((prev) =>
       prev.map((r) =>
-        r.id === id ? { ...r, status: "Assigned", assignedTo: handler } : r,
+        r.id === id ? { ...r, status: "Assigned", laborers, laborCost } : r,
       ),
     );
     setAssigningId(null);
   };
 
-  const completeRequest = (id: string, workDone: string, laborCost: number) => {
+  const completeRequest = (id: string, workDone: string, itemCost: number) => {
     setRequests((prev) =>
       prev.map((r) =>
-        r.id === id ? { ...r, status: "Completed", workDone, laborCost } : r,
+        r.id === id ? { ...r, status: "Completed", workDone, itemCost } : r,
       ),
     );
     setCompletingId(null);
@@ -104,7 +108,9 @@ export default function LandlordMaintenancePage() {
                   </span>
                 </td>
                 <td className="px-6 py-3 text-slate-500">
-                  {request.assignedTo ?? "—"}
+                  {request.laborers.length > 0
+                    ? `${request.laborers.length} worker${request.laborers.length === 1 ? "" : "s"}`
+                    : "—"}
                 </td>
                 <td className="px-6 py-3">
                   <span
@@ -113,40 +119,47 @@ export default function LandlordMaintenancePage() {
                     {request.status}
                   </span>
                 </td>
-                <td className="px-6 py-3">
-                  {request.status === "Submitted" && (
+                <td className="whitespace-nowrap px-6 py-3">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setAssigningId(request.id)}
+                      onClick={() => setViewingRequest(request)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                     >
-                      <UserPlus className="h-3.5 w-3.5" />
-                      Assign
+                      <Eye className="h-3.5 w-3.5" />
+                      View
                     </button>
-                  )}
-                  {request.status === "Assigned" && (
-                    <button
-                      type="button"
-                      onClick={() => startProgress(request.id)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                    >
-                      <PlayCircle className="h-3.5 w-3.5" />
-                      Start
-                    </button>
-                  )}
-                  {request.status === "In Progress" && (
-                    <button
-                      type="button"
-                      onClick={() => setCompletingId(request.id)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
-                    >
-                      <Wrench className="h-3.5 w-3.5" />
-                      Mark Completed
-                    </button>
-                  )}
-                  {request.status === "Completed" && (
-                    <span className="text-xs text-slate-400">—</span>
-                  )}
+                    {request.status === "Submitted" && (
+                      <button
+                        type="button"
+                        onClick={() => setAssigningId(request.id)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        <UserPlus className="h-3.5 w-3.5" />
+                        Assign
+                      </button>
+                    )}
+                    {request.status === "Assigned" && (
+                      <button
+                        type="button"
+                        onClick={() => startProgress(request.id)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        <PlayCircle className="h-3.5 w-3.5" />
+                        Start
+                      </button>
+                    )}
+                    {request.status === "In Progress" && (
+                      <button
+                        type="button"
+                        onClick={() => setCompletingId(request.id)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                      >
+                        <Wrench className="h-3.5 w-3.5" />
+                        Mark Completed
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -161,15 +174,25 @@ export default function LandlordMaintenancePage() {
         </table>
       </div>
 
+      {viewingRequest && (
+        <Modal
+          title="Maintenance Request"
+          description={`${viewingRequest.tenant} · ${viewingRequest.property}`}
+          onClose={() => setViewingRequest(null)}
+        >
+          <MaintenanceDetail request={viewingRequest} />
+        </Modal>
+      )}
+
       {assigningId && (
         <Modal
           title="Assign Handler"
-          description="Choose who will handle this maintenance request."
+          description="Add the laborers who will handle this request and what each will be paid."
           onClose={() => setAssigningId(null)}
         >
           <AssignHandlerForm
             onCancel={() => setAssigningId(null)}
-            onSuccess={(handler) => assignHandler(assigningId, handler)}
+            onSuccess={(laborers) => assignHandler(assigningId, laborers)}
           />
         </Modal>
       )}
@@ -177,13 +200,13 @@ export default function LandlordMaintenancePage() {
       {completingId && (
         <Modal
           title="Complete Request"
-          description="Confirm the work done and labor cost."
+          description="Confirm the work that was done."
           onClose={() => setCompletingId(null)}
         >
           <CompleteRequestForm
             onCancel={() => setCompletingId(null)}
-            onSuccess={(workDone, laborCost) =>
-              completeRequest(completingId, workDone, laborCost)
+            onSuccess={(workDone, itemCost) =>
+              completeRequest(completingId, workDone, itemCost)
             }
           />
         </Modal>
