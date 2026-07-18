@@ -1,12 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle2, Eye, Plus } from "lucide-react";
-import { LANDLORDS, type Landlord } from "@/lib/mock-admin-data";
+import { useEffect, useState } from "react";
+import { AlertCircle, CheckCircle2, Plus } from "lucide-react";
+import {
+  countPropertiesForOwner,
+  createHouseOwner,
+  listUsers,
+  type CreateHouseOwnerInput,
+} from "@/lib/api/admin";
+import { ApiError } from "@/lib/api/client";
+import type { User } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
 import { LandlordForm } from "@/components/admin/LandlordForm";
-import { LandlordDetail } from "@/components/admin/LandlordDetail";
-import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const STATUS_STYLES: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -14,10 +20,57 @@ const STATUS_STYLES: Record<string, string> = {
   Suspended: "bg-red-50 text-red-700",
 };
 
+function statusFor(user: User): "Active" | "Pending" | "Suspended" {
+  if (!user.isApproved) return "Pending";
+  if (!user.isActive) return "Suspended";
+  return "Active";
+}
+
 export default function LandlordsPage() {
+  const [landlords, setLandlords] = useState<User[]>([]);
+  const [propertyCounts, setPropertyCounts] = useState<Record<string, number>>({});
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
+  const [isSubmitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [justRegistered, setJustRegistered] = useState(false);
-  const [viewingLandlord, setViewingLandlord] = useState<Landlord | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    setError(null);
+    listUsers({ role: "owner", limit: 100 })
+      .then(async (res) => {
+        setLandlords(res.data);
+        const counts = await Promise.all(
+          res.data.map((u) => countPropertiesForOwner(u.id)),
+        );
+        setPropertyCounts(
+          Object.fromEntries(res.data.map((u, i) => [u.id, counts[i]])),
+        );
+      })
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : "Failed to load landlords."),
+      )
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, []);
+
+  const registerLandlord = async (values: CreateHouseOwnerInput) => {
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await createHouseOwner(values);
+      setModalOpen(false);
+      setJustRegistered(true);
+      load();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Failed to register landlord.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -45,6 +98,18 @@ export default function LandlordsPage() {
         </div>
       )}
 
+      {error && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            {error}
+          </span>
+          <button type="button" onClick={load} className="underline hover:no-underline">
+            Retry
+          </button>
+        </div>
+      )}
+
       <Table variant="standalone">
         <THead>
           <Tr>
@@ -54,54 +119,49 @@ export default function LandlordsPage() {
             <Th className="hidden px-6 py-3 sm:table-cell">Properties</Th>
             <Th className="px-4 py-3 sm:px-6">Status</Th>
             <Th className="hidden px-6 py-3 md:table-cell">Registered</Th>
-            <Th className="px-4 py-3 text-right sm:px-6">Actions</Th>
           </Tr>
         </THead>
         <TBody>
-          {LANDLORDS.map((landlord) => (
-            <Tr key={landlord.id}>
-              <Td className="max-w-[9rem] px-4 py-3 font-medium text-navy sm:max-w-none sm:px-6">
-                <p className="truncate sm:overflow-visible sm:whitespace-normal">
-                  {landlord.name}
-                </p>
-                <p className="truncate text-xs font-normal text-slate-400 md:hidden sm:overflow-visible sm:whitespace-normal">
+          {isLoading ? (
+            <EmptyRow colSpan={6}>Loading landlords...</EmptyRow>
+          ) : landlords.length === 0 ? (
+            <EmptyRow colSpan={6}>No landlords registered yet.</EmptyRow>
+          ) : (
+            landlords.map((landlord) => (
+              <Tr key={landlord.id}>
+                <Td className="max-w-[9rem] px-4 py-3 font-medium text-navy sm:max-w-none sm:px-6">
+                  <p className="truncate sm:overflow-visible sm:whitespace-normal">
+                    {landlord.firstName} {landlord.lastName}
+                  </p>
+                  <p className="truncate text-xs font-normal text-slate-400 md:hidden sm:overflow-visible sm:whitespace-normal">
+                    {landlord.email}
+                  </p>
+                  <p className="text-xs font-normal text-slate-400 sm:hidden">
+                    {propertyCounts[landlord.id] ?? "—"} properties
+                  </p>
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                   {landlord.email}
-                </p>
-                <p className="text-xs font-normal text-slate-400 sm:hidden">
-                  {landlord.properties} properties
-                </p>
-              </Td>
-              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                {landlord.email}
-              </Td>
-              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                {landlord.phone}
-              </Td>
-              <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                {landlord.properties}
-              </Td>
-              <Td className="px-4 py-3 sm:px-6">
-                <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[landlord.status]}`}
-                >
-                  {landlord.status}
-                </span>
-              </Td>
-              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                {landlord.registeredAt}
-              </Td>
-              <Td className="whitespace-nowrap px-4 py-3 text-right sm:px-6">
-                <button
-                  type="button"
-                  onClick={() => setViewingLandlord(landlord)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  View
-                </button>
-              </Td>
-            </Tr>
-          ))}
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                  {landlord.phone}
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
+                  {propertyCounts[landlord.id] ?? "—"}
+                </Td>
+                <Td className="px-4 py-3 sm:px-6">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[statusFor(landlord)]}`}
+                  >
+                    {statusFor(landlord)}
+                  </span>
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                  {landlord.createdAt?.slice(0, 10)}
+                </Td>
+              </Tr>
+            ))
+          )}
         </TBody>
       </Table>
 
@@ -111,23 +171,17 @@ export default function LandlordsPage() {
           description="Add a new property owner to the platform."
           onClose={() => setModalOpen(false)}
         >
-          <LandlordForm
-            onCancel={() => setModalOpen(false)}
-            onSuccess={() => {
-              setModalOpen(false);
-              setJustRegistered(true);
-            }}
-          />
-        </Modal>
-      )}
-
-      {viewingLandlord && (
-        <Modal
-          title="Landlord Details"
-          description={viewingLandlord.name}
-          onClose={() => setViewingLandlord(null)}
-        >
-          <LandlordDetail landlord={viewingLandlord} />
+          {formError && (
+            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {formError}
+            </p>
+          )}
+          <fieldset disabled={isSubmitting}>
+            <LandlordForm
+              onCancel={() => setModalOpen(false)}
+              onSuccess={registerLandlord}
+            />
+          </fieldset>
         </Modal>
       )}
     </div>

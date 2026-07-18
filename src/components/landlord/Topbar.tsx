@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bell, ChevronDown, LogOut, Menu, UserCircle } from "lucide-react";
-import { useLandlord } from "./LandlordContext";
+import { useAuth } from "@/components/auth/AuthContext";
 
 export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
-  const { landlordName } = useLandlord();
+  const { user, signOut } = useAuth();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -49,7 +50,9 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
           >
             <UserCircle className="h-8 w-8 text-slate-400" strokeWidth={1.5} />
             <div className="leading-tight text-left">
-              <p className="text-sm font-semibold text-navy">{landlordName}</p>
+              <p className="text-sm font-semibold text-navy">
+                {user ? `${user.firstName} ${user.lastName}` : ""}
+              </p>
               <p className="hidden text-xs text-slate-500 sm:block">
                 Property Owner
               </p>
@@ -62,14 +65,18 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
 
           {menuOpen && (
             <div className="absolute right-0 top-full z-20 mt-2 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
-              <Link
-                href="/login"
+              <button
+                type="button"
+                onClick={async () => {
+                  await signOut();
+                  router.push("/login");
+                }}
                 aria-label="Log out"
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 <LogOut className="h-4 w-4" strokeWidth={2} />
                 Logout
-              </Link>
+              </button>
             </div>
           )}
         </div>

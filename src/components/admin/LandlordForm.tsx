@@ -1,43 +1,54 @@
 "use client";
 
+import type { CreateHouseOwnerInput } from "@/lib/api/admin";
+
 export function LandlordForm({
   onSuccess,
   onCancel,
 }: {
-  onSuccess: () => void;
+  onSuccess: (values: CreateHouseOwnerInput) => void;
   onCancel: () => void;
 }) {
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        onSuccess();
+        const formData = new FormData(e.currentTarget);
+        onSuccess({
+          firstName: String(formData.get("firstName")).trim(),
+          lastName: String(formData.get("lastName")).trim(),
+          email: String(formData.get("email")).trim(),
+          phone: String(formData.get("phone")).trim(),
+        });
       }}
     >
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Full name
+          First name
           <input
+            name="firstName"
             type="text"
             required
-            placeholder="e.g. Jean Claude Uwimana"
+            placeholder="e.g. Jean Claude"
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          National ID
+          Last name
           <input
+            name="lastName"
             type="text"
             required
-            placeholder="1 1998 8 0123456 0 12"
+            placeholder="e.g. Uwimana"
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
           Email address
           <input
+            name="email"
             type="email"
             required
             placeholder="landlord@example.com"
@@ -45,50 +56,13 @@ export function LandlordForm({
           />
         </label>
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
           Phone number
           <input
+            name="phone"
             type="tel"
             required
             placeholder="+250 7XX XXX XXX"
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-          Address
-          <input
-            type="text"
-            required
-            placeholder="District, Sector, Cell"
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Number of properties
-          <input
-            type="number"
-            min={0}
-            defaultValue={0}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Status
-          <select className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none">
-            <option>Active</option>
-            <option>Pending</option>
-            <option>Suspended</option>
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-          Notes
-          <textarea
-            rows={3}
-            placeholder="Optional notes about this landlord"
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
