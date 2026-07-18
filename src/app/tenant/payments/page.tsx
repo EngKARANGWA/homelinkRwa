@@ -94,38 +94,43 @@ export default function TenantPaymentsPage() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-6 py-3 font-medium">Property</th>
-              <th className="px-6 py-3 font-medium">Amount (RWF)</th>
-              <th className="px-6 py-3 font-medium">Method</th>
-              <th className="px-6 py-3 font-medium">Due Date</th>
-              <th className="px-6 py-3 font-medium">Status</th>
-              <th className="px-6 py-3 font-medium">Actions</th>
+              <th className="max-w-[9rem] px-4 py-3 font-medium sm:px-6">Property</th>
+              <th className="hidden px-6 py-3 font-medium sm:table-cell">Amount (RWF)</th>
+              <th className="hidden px-6 py-3 font-medium lg:table-cell">Method</th>
+              <th className="hidden px-6 py-3 font-medium md:table-cell">Due Date</th>
+              <th className="px-4 py-3 font-medium sm:px-6">Status</th>
+              <th className="px-4 py-3 font-medium sm:px-6">Actions</th>
             </tr>
           </thead>
           <tbody>
             {myPayments.map((payment) => (
               <tr key={payment.id} className="border-t border-slate-100">
-                <td className="px-6 py-3 font-medium text-navy">
-                  {payment.property}
+                <td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
+                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                    {payment.property}
+                  </p>
+                  <p className="text-xs text-slate-400 sm:hidden">
+                    {payment.amount.toLocaleString()} RWF
+                  </p>
                 </td>
-                <td className="px-6 py-3 text-slate-500">
+                <td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
                   {payment.amount.toLocaleString()}
                 </td>
-                <td className="px-6 py-3 text-slate-500">
+                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                   {payment.method}
                 </td>
-                <td className="px-6 py-3 text-slate-500">
+                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                   {payment.dueDate}
                 </td>
-                <td className="px-6 py-3">
+                <td className="px-4 py-3 sm:px-6">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[payment.status]}`}
                   >
                     {payment.status}
                   </span>
                 </td>
-                <td className="px-6 py-3">
-                  <div className="flex items-center gap-2">
+                <td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setViewingPayment(payment)}
@@ -139,10 +144,11 @@ export default function TenantPaymentsPage() {
                       <button
                         type="button"
                         onClick={() => setPayingId(payment.id)}
+                        aria-label={`Pay now for ${payment.property}`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1 text-xs font-semibold text-white hover:bg-gold/90"
                       >
                         <Wallet className="h-3.5 w-3.5" />
-                        Pay Now
+                        <span className="hidden sm:inline">Pay Now</span>
                       </button>
                     )}
                   </div>

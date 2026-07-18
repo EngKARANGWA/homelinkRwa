@@ -101,51 +101,60 @@ export default function TenantMaintenancePage() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-6 py-3 font-medium">Property</th>
-              <th className="px-6 py-3 font-medium">Issue</th>
-              <th className="px-6 py-3 font-medium">Priority</th>
-              <th className="px-6 py-3 font-medium">Assigned To</th>
-              <th className="px-6 py-3 font-medium">Status</th>
-              <th className="px-6 py-3 font-medium">Actions</th>
+              <th className="max-w-[9rem] px-4 py-3 font-medium sm:px-6">Property</th>
+              <th className="hidden max-w-xs px-6 py-3 font-medium lg:table-cell">Issue</th>
+              <th className="hidden px-6 py-3 font-medium sm:table-cell">Priority</th>
+              <th className="hidden px-6 py-3 font-medium lg:table-cell">Assigned To</th>
+              <th className="px-4 py-3 font-medium sm:px-6">Status</th>
+              <th className="px-4 py-3 font-medium sm:px-6">Actions</th>
             </tr>
           </thead>
           <tbody>
             {myRequests.map((request) => (
               <tr key={request.id} className="border-t border-slate-100">
-                <td className="px-6 py-3 text-slate-500">
-                  {request.property}
+                <td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
+                  <p className="truncate text-slate-500 sm:overflow-visible sm:whitespace-normal">
+                    {request.property}
+                  </p>
+                  <p className="truncate text-xs text-slate-400 lg:hidden">
+                    {request.issue.join("; ")}
+                  </p>
+                  <p className="text-xs text-slate-400 sm:hidden">
+                    {request.priority} priority
+                  </p>
                 </td>
-                <td className="max-w-xs px-6 py-3 text-slate-500">
+                <td className="hidden max-w-xs px-6 py-3 text-slate-500 lg:table-cell">
                   {request.issue.join("; ")}
                 </td>
-                <td className="px-6 py-3">
+                <td className="hidden px-6 py-3 sm:table-cell">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[request.priority]}`}
                   >
                     {request.priority}
                   </span>
                 </td>
-                <td className="px-6 py-3 text-slate-500">
+                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                   {request.laborers.length > 0
                     ? `${request.laborers.length} worker${request.laborers.length === 1 ? "" : "s"}`
                     : "—"}
                 </td>
-                <td className="px-6 py-3">
+                <td className="px-4 py-3 sm:px-6">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[request.status]}`}
                   >
                     {request.status}
                   </span>
                 </td>
-                <td className="px-6 py-3">
+                <td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
                   {request.status === "Completed" && !request.feedback ? (
                     <button
                       type="button"
                       onClick={() => setFeedbackId(request.id)}
+                      aria-label={`Leave feedback for ${request.property}`}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                     >
                       <MessageSquarePlus className="h-3.5 w-3.5" />
-                      Leave Feedback
+                      <span className="hidden sm:inline">Leave Feedback</span>
                     </button>
                   ) : request.feedback ? (
                     <span className="text-xs italic text-slate-400">

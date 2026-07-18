@@ -209,53 +209,60 @@ export default function LandlordOverviewPage() {
           </Link>
         </div>
 
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-6 py-3 font-medium">Property</th>
-              <th className="px-6 py-3 font-medium">Type</th>
-              <th className="px-6 py-3 font-medium">Rent (RWF)</th>
-              <th className="px-6 py-3 font-medium">Availability</th>
-              <th className="px-6 py-3 text-right font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {myProperties.slice(0, 3).map((property) => (
-              <tr key={property.id} className="border-t border-slate-100">
-                <td className="px-6 py-3 font-medium text-navy">
-                  {property.name}
-                </td>
-                <td className="px-6 py-3 text-slate-500">{property.type}</td>
-                <td className="px-6 py-3 text-slate-500">
-                  {property.rent.toLocaleString()}
-                </td>
-                <td className="px-6 py-3">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${AVAILABILITY_STYLES[property.availability]}`}
-                  >
-                    {property.availability}
-                  </span>
-                </td>
-                <td className="px-6 py-3 text-right">
-                  <Link
-                    href="/landlord/properties"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    View
-                  </Link>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="text-xs uppercase tracking-wide text-slate-400">
+                <th className="px-4 py-3 font-medium sm:px-6">Property</th>
+                <th className="hidden px-6 py-3 font-medium md:table-cell">Type</th>
+                <th className="hidden px-6 py-3 font-medium sm:table-cell">Rent (RWF)</th>
+                <th className="px-4 py-3 font-medium sm:px-6">Availability</th>
+                <th className="px-4 py-3 text-right font-medium sm:px-6">Actions</th>
               </tr>
-            ))}
-            {myProperties.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
-                  No properties registered yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {myProperties.slice(0, 3).map((property) => (
+                <tr key={property.id} className="border-t border-slate-100">
+                  <td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
+                    <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                      {property.name}
+                    </p>
+                    <p className="truncate text-xs text-slate-400 md:hidden">
+                      {property.type}
+                    </p>
+                  </td>
+                  <td className="hidden px-6 py-3 text-slate-500 md:table-cell">{property.type}</td>
+                  <td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
+                    {property.rent.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 sm:px-6">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${AVAILABILITY_STYLES[property.availability]}`}
+                    >
+                      {property.availability}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right sm:px-6">
+                    <Link
+                      href="/landlord/properties"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      View
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+              {myProperties.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
+                    No properties registered yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

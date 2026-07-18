@@ -77,40 +77,45 @@ export default function LeasesPage() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-6 py-3 font-medium">Tenant</th>
-              <th className="px-6 py-3 font-medium">Property</th>
-              <th className="px-6 py-3 font-medium">Owner</th>
-              <th className="px-6 py-3 font-medium">Rent (RWF)</th>
-              <th className="px-6 py-3 font-medium">Term</th>
-              <th className="px-6 py-3 font-medium">Status</th>
-              <th className="px-6 py-3 font-medium">Actions</th>
+              <th className="max-w-[10rem] px-4 py-3 font-medium sm:px-6">Tenant</th>
+              <th className="hidden px-6 py-3 font-medium md:table-cell">Property</th>
+              <th className="hidden px-6 py-3 font-medium lg:table-cell">Owner</th>
+              <th className="hidden px-6 py-3 font-medium md:table-cell">Rent (RWF)</th>
+              <th className="hidden px-6 py-3 font-medium lg:table-cell">Term</th>
+              <th className="px-4 py-3 font-medium sm:px-6">Status</th>
+              <th className="px-4 py-3 font-medium sm:px-6">Actions</th>
             </tr>
           </thead>
           <tbody>
             {leases.map((lease) => (
               <tr key={lease.id} className="border-t border-slate-100">
-                <td className="px-6 py-3 font-medium text-navy">
-                  {lease.tenant}
+                <td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                    {lease.tenant}
+                  </p>
+                  <p className="truncate text-xs text-slate-400 md:hidden">
+                    {lease.property} · {lease.rent.toLocaleString()} RWF
+                  </p>
                 </td>
-                <td className="px-6 py-3 text-slate-500">
+                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                   {lease.property}
                 </td>
-                <td className="px-6 py-3 text-slate-500">{lease.owner}</td>
-                <td className="px-6 py-3 text-slate-500">
+                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{lease.owner}</td>
+                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                   {lease.rent.toLocaleString()}
                 </td>
-                <td className="px-6 py-3 text-slate-500">
+                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                   {lease.startDate} → {lease.endDate ?? "Open-ended"}
                 </td>
-                <td className="px-6 py-3">
+                <td className="px-4 py-3 sm:px-6">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[lease.status]}`}
                   >
                     {lease.status}
                   </span>
                 </td>
-                <td className="px-6 py-3">
-                  <div className="flex items-center gap-2">
+                <td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setViewingLease(lease)}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Pencil, Plus } from "lucide-react";
+import { CheckCircle2, Eye, Pencil, Plus } from "lucide-react";
 import {
   PROPERTIES,
   TODAY,
@@ -14,6 +14,7 @@ import {
   PropertyForm,
   type PropertyFormValues,
 } from "@/components/landlord/PropertyForm";
+import { PropertyDetail } from "@/components/admin/PropertyDetail";
 
 const AVAILABILITY_STYLES: Record<Property["availability"], string> = {
   Available: "bg-emerald-50 text-emerald-700",
@@ -31,6 +32,7 @@ export default function LandlordPropertiesPage() {
   const [properties, setProperties] = useState(PROPERTIES);
   const [isAdding, setAdding] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [viewingProperty, setViewingProperty] = useState<Property | null>(null);
   const [justSaved, setJustSaved] = useState(false);
 
   const myProperties = properties.filter((p) => p.owner === landlordName);
@@ -93,54 +95,76 @@ export default function LandlordPropertiesPage() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-6 py-3 font-medium">Property</th>
-              <th className="px-6 py-3 font-medium">UPI</th>
-              <th className="px-6 py-3 font-medium">Type</th>
-              <th className="px-6 py-3 font-medium">Rent (RWF)</th>
-              <th className="px-6 py-3 font-medium">Availability</th>
-              <th className="px-6 py-3 font-medium">Days Vacant</th>
-              <th className="px-6 py-3 font-medium">Approval</th>
-              <th className="px-6 py-3 font-medium">Actions</th>
+              <th className="px-4 py-3 font-medium sm:px-6">Property</th>
+              <th className="hidden px-6 py-3 font-medium lg:table-cell">UPI</th>
+              <th className="hidden px-6 py-3 font-medium md:table-cell">Type</th>
+              <th className="hidden px-6 py-3 font-medium md:table-cell">Rent (RWF)</th>
+              <th className="hidden px-6 py-3 font-medium sm:table-cell">Availability</th>
+              <th className="hidden px-6 py-3 font-medium lg:table-cell">Days Vacant</th>
+              <th className="px-4 py-3 font-medium sm:px-6">Approval</th>
+              <th className="px-4 py-3 font-medium sm:px-6">Actions</th>
             </tr>
           </thead>
           <tbody>
             {myProperties.map((property) => (
               <tr key={property.id} className="border-t border-slate-100">
-                <td className="px-6 py-3">
-                  <p className="font-medium text-navy">{property.name}</p>
-                  <p className="text-xs text-slate-400">{property.address}</p>
+                <td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                    {property.name}
+                  </p>
+                  <p className="hidden text-xs text-slate-400 sm:block">
+                    {property.address}
+                  </p>
+                  <p className="truncate text-xs text-slate-400 md:hidden">
+                    {property.type} · {property.rent.toLocaleString()} RWF
+                  </p>
                 </td>
-                <td className="px-6 py-3 text-slate-500">{property.upi}</td>
-                <td className="px-6 py-3 text-slate-500">{property.type}</td>
-                <td className="px-6 py-3 text-slate-500">
+                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                  {property.upi}
+                </td>
+                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                  {property.type}
+                </td>
+                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                   {property.rent.toLocaleString()}
                 </td>
-                <td className="px-6 py-3">
+                <td className="hidden px-6 py-3 sm:table-cell">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${AVAILABILITY_STYLES[property.availability]}`}
                   >
                     {property.availability}
                   </span>
                 </td>
-                <td className="px-6 py-3 text-slate-500">
+                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                   {daysVacant(property.vacantSince) ?? "—"}
                 </td>
-                <td className="px-6 py-3">
+                <td className="px-4 py-3 sm:px-6">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${APPROVAL_STYLES[property.approval]}`}
                   >
                     {property.approval}
                   </span>
                 </td>
-                <td className="px-6 py-3">
-                  <button
-                    type="button"
-                    onClick={() => setEditingProperty(property)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Edit
-                  </button>
+                <td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setViewingProperty(property)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingProperty(property)}
+                      aria-label={`Edit ${property.name}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Edit</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -176,6 +200,17 @@ export default function LandlordPropertiesPage() {
             onCancel={() => setEditingProperty(null)}
             onSuccess={(values) => editProperty(editingProperty.id, values)}
           />
+        </Modal>
+      )}
+
+      {viewingProperty && (
+        <Modal
+          title="Property Details"
+          description={viewingProperty.name}
+          onClose={() => setViewingProperty(null)}
+          maxWidthClassName="max-w-2xl"
+        >
+          <PropertyDetail property={viewingProperty} />
         </Modal>
       )}
     </div>

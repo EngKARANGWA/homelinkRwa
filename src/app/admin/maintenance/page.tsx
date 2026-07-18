@@ -85,48 +85,58 @@ export default function MaintenancePage() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-6 py-3 font-medium">Tenant</th>
-              <th className="px-6 py-3 font-medium">Property</th>
-              <th className="px-6 py-3 font-medium">Issue</th>
-              <th className="px-6 py-3 font-medium">Priority</th>
-              <th className="px-6 py-3 font-medium">Assigned To</th>
-              <th className="px-6 py-3 font-medium">Status</th>
-              <th className="px-6 py-3 font-medium">Cost / Feedback</th>
-              <th className="px-6 py-3 font-medium">Actions</th>
+              <th className="max-w-[10rem] px-4 py-3 font-medium sm:px-6">Tenant</th>
+              <th className="hidden px-6 py-3 font-medium md:table-cell">Property</th>
+              <th className="hidden px-6 py-3 font-medium lg:table-cell">Issue</th>
+              <th className="hidden px-6 py-3 font-medium sm:table-cell">Priority</th>
+              <th className="hidden px-6 py-3 font-medium lg:table-cell">Assigned To</th>
+              <th className="px-4 py-3 font-medium sm:px-6">Status</th>
+              <th className="hidden px-6 py-3 font-medium lg:table-cell">
+                Cost / Feedback
+              </th>
+              <th className="px-4 py-3 font-medium sm:px-6">Actions</th>
             </tr>
           </thead>
           <tbody>
             {requests.map((request) => (
               <tr key={request.id} className="border-t border-slate-100">
-                <td className="px-6 py-3 font-medium text-navy">
-                  {request.tenant}
+                <td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                    {request.tenant}
+                  </p>
+                  <p className="truncate text-xs text-slate-400 md:hidden">
+                    {request.property}
+                  </p>
+                  <p className="text-xs text-slate-400 sm:hidden">
+                    {request.priority} priority
+                  </p>
                 </td>
-                <td className="px-6 py-3 text-slate-500">
+                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                   {request.property}
                 </td>
-                <td className="max-w-xs px-6 py-3 text-slate-500">
+                <td className="hidden max-w-xs px-6 py-3 text-slate-500 lg:table-cell">
                   {request.issue.join("; ")}
                 </td>
-                <td className="px-6 py-3">
+                <td className="hidden px-6 py-3 sm:table-cell">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[request.priority]}`}
                   >
                     {request.priority}
                   </span>
                 </td>
-                <td className="px-6 py-3 text-slate-500">
+                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                   {request.laborers.length > 0
                     ? `${request.laborers.length} worker${request.laborers.length === 1 ? "" : "s"}`
                     : "—"}
                 </td>
-                <td className="px-6 py-3">
+                <td className="px-4 py-3 sm:px-6">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[request.status]}`}
                   >
                     {request.status}
                   </span>
                 </td>
-                <td className="max-w-xs px-6 py-3 text-slate-500">
+                <td className="hidden max-w-xs px-6 py-3 text-slate-500 lg:table-cell">
                   {request.status === "Completed" ? (
                     <>
                       <p className="font-medium text-navy">
@@ -145,8 +155,8 @@ export default function MaintenancePage() {
                     "—"
                   )}
                 </td>
-                <td className="whitespace-nowrap px-6 py-3">
-                  <div className="flex items-center gap-2">
+                <td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setViewingRequest(request)}
@@ -159,30 +169,33 @@ export default function MaintenancePage() {
                       <button
                         type="button"
                         onClick={() => setAssigningId(request.id)}
+                        aria-label={`Assign handler for ${request.tenant}`}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                       >
                         <UserPlus className="h-3.5 w-3.5" />
-                        Assign
+                        <span className="hidden sm:inline">Assign</span>
                       </button>
                     )}
                     {request.status === "Assigned" && (
                       <button
                         type="button"
                         onClick={() => startProgress(request.id)}
+                        aria-label={`Start progress for ${request.tenant}`}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                       >
                         <PlayCircle className="h-3.5 w-3.5" />
-                        Start
+                        <span className="hidden sm:inline">Start</span>
                       </button>
                     )}
                     {request.status === "In Progress" && (
                       <button
                         type="button"
                         onClick={() => setCompletingId(request.id)}
+                        aria-label={`Mark completed for ${request.tenant}`}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
                       >
                         <Wrench className="h-3.5 w-3.5" />
-                        Mark Completed
+                        <span className="hidden sm:inline">Mark Completed</span>
                       </button>
                     )}
                   </div>

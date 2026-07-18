@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Plus } from "lucide-react";
-import { LANDLORDS } from "@/lib/mock-admin-data";
+import { CheckCircle2, Eye, Plus } from "lucide-react";
+import { LANDLORDS, type Landlord } from "@/lib/mock-admin-data";
 import { Modal } from "@/components/admin/Modal";
 import { LandlordForm } from "@/components/admin/LandlordForm";
+import { LandlordDetail } from "@/components/admin/LandlordDetail";
 
 const STATUS_STYLES: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -15,6 +16,7 @@ const STATUS_STYLES: Record<string, string> = {
 export default function LandlordsPage() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [justRegistered, setJustRegistered] = useState(false);
+  const [viewingLandlord, setViewingLandlord] = useState<Landlord | null>(null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -46,34 +48,57 @@ export default function LandlordsPage() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-6 py-3 font-medium">Name</th>
-              <th className="px-6 py-3 font-medium">Email</th>
-              <th className="px-6 py-3 font-medium">Phone</th>
-              <th className="px-6 py-3 font-medium">Properties</th>
-              <th className="px-6 py-3 font-medium">Status</th>
-              <th className="px-6 py-3 font-medium">Registered</th>
+              <th className="px-4 py-3 font-medium sm:px-6">Name</th>
+              <th className="hidden px-6 py-3 font-medium md:table-cell">Email</th>
+              <th className="hidden px-6 py-3 font-medium md:table-cell">Phone</th>
+              <th className="hidden px-6 py-3 font-medium sm:table-cell">Properties</th>
+              <th className="px-4 py-3 font-medium sm:px-6">Status</th>
+              <th className="hidden px-6 py-3 font-medium md:table-cell">Registered</th>
+              <th className="px-4 py-3 text-right font-medium sm:px-6">Actions</th>
             </tr>
           </thead>
           <tbody>
             {LANDLORDS.map((landlord) => (
               <tr key={landlord.id} className="border-t border-slate-100">
-                <td className="px-6 py-3 font-medium text-navy">
-                  {landlord.name}
+                <td className="max-w-[9rem] px-4 py-3 font-medium text-navy sm:max-w-none sm:px-6">
+                  <p className="truncate sm:overflow-visible sm:whitespace-normal">
+                    {landlord.name}
+                  </p>
+                  <p className="truncate text-xs font-normal text-slate-400 md:hidden sm:overflow-visible sm:whitespace-normal">
+                    {landlord.email}
+                  </p>
+                  <p className="text-xs font-normal text-slate-400 sm:hidden">
+                    {landlord.properties} properties
+                  </p>
                 </td>
-                <td className="px-6 py-3 text-slate-500">{landlord.email}</td>
-                <td className="px-6 py-3 text-slate-500">{landlord.phone}</td>
-                <td className="px-6 py-3 text-slate-500">
+                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                  {landlord.email}
+                </td>
+                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                  {landlord.phone}
+                </td>
+                <td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
                   {landlord.properties}
                 </td>
-                <td className="px-6 py-3">
+                <td className="px-4 py-3 sm:px-6">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[landlord.status]}`}
                   >
                     {landlord.status}
                   </span>
                 </td>
-                <td className="px-6 py-3 text-slate-500">
+                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                   {landlord.registeredAt}
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-right sm:px-6">
+                  <button
+                    type="button"
+                    onClick={() => setViewingLandlord(landlord)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    View
+                  </button>
                 </td>
               </tr>
             ))}
@@ -94,6 +119,16 @@ export default function LandlordsPage() {
               setJustRegistered(true);
             }}
           />
+        </Modal>
+      )}
+
+      {viewingLandlord && (
+        <Modal
+          title="Landlord Details"
+          description={viewingLandlord.name}
+          onClose={() => setViewingLandlord(null)}
+        >
+          <LandlordDetail landlord={viewingLandlord} />
         </Modal>
       )}
     </div>
