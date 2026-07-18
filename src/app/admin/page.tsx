@@ -1,15 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Eye, Plus } from "lucide-react";
+import { AlertCircle, ArrowRight, Plus } from "lucide-react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
   Legend,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -17,74 +16,98 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ADMIN_STATS, LANDLORDS, PAYMENTS, PROPERTIES } from "@/lib/mock-admin-data";
+import { getAdminDashboard } from "@/lib/api/dashboard";
+import { ApiError } from "@/lib/api/client";
+import type { AdminDashboard } from "@/lib/api/types";
 import {
   CHART_COLORS,
   CHART_GRID_COLOR,
   CHART_TEXT_COLOR,
 } from "@/lib/chart-colors";
 
-const STATUS_STYLES: Record<string, string> = {
-  Active: "bg-emerald-50 text-emerald-700",
-  Pending: "bg-amber-50 text-amber-700",
-  Suspended: "bg-red-50 text-red-700",
-};
-
 const STAT_LINKS: Record<string, string> = {
-  "Registered Landlords": "/admin/landlords",
+  "Platform Revenue": "/admin/payments",
+  "Active Users": "/admin/tenants",
   "Managed Properties": "/admin/properties",
-  "Active Tenants": "/admin/tenants",
-  "Revenue this month": "/admin/payments",
+  "Payment Success Rate": "/admin/payments",
 };
 
 const axisTick = { fontSize: 12, fill: CHART_TEXT_COLOR };
 
-function propertiesByType() {
-  const counts = new Map<string, number>();
-  PROPERTIES.forEach((p) => counts.set(p.type, (counts.get(p.type) ?? 0) + 1));
-  return Array.from(counts.entries()).map(([type, count]) => ({ type, count }));
-}
-
-function occupancyData() {
-  return [
-    {
-      name: "Occupied",
-      value: PROPERTIES.filter((p) => p.availability === "Occupied").length,
-    },
-    {
-      name: "Available",
-      value: PROPERTIES.filter((p) => p.availability === "Available").length,
-    },
-  ];
-}
-
-function approvalData() {
-  return (["Approved", "Pending", "Rejected"] as const).map((status) => ({
-    name: status,
-    value: PROPERTIES.filter((p) => p.approval === status).length,
-  }));
-}
-
-function revenueByMonth() {
-  const totals = new Map<string, number>();
-  PAYMENTS.filter((p) => p.status === "Paid").forEach((p) => {
-    const month = (p.paidDate ?? p.dueDate).slice(0, 7);
-    totals.set(month, (totals.get(month) ?? 0) + p.amount);
-  });
-  return Array.from(totals.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, amount]) => ({ month, amount }));
-}
-
-function landlordsByProperties() {
-  return [...LANDLORDS]
-    .sort((a, b) => b.properties - a.properties)
-    .slice(0, 5)
-    .map((l) => ({ name: l.name.split(" ")[0], properties: l.properties }));
-}
+const ROLE_LABELS: Record<string, string> = {
+  tenant: "Tenant",
+  owner: "Owner",
+  agent: "Agent",
+  admin: "Admin",
+  superadmin: "Superadmin",
+  house_manager: "House Manager",
+};
 
 export default function AdminOverviewPage() {
-  const recentLandlords = LANDLORDS.slice(0, 3);
+  const [data, setData] = useState<AdminDashboard | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setLoading] = useState(true);
+
+  const load = () => {
+    setLoading(true);
+    setError(null);
+    getAdminDashboard()
+      .then(setData)
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : "Failed to load dashboard."),
+      )
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <p className="text-sm text-slate-400">Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+        <AlertCircle className="h-6 w-6 text-red-600" />
+        <p className="text-sm font-medium text-red-700">
+          {error ?? "Failed to load dashboard."}
+        </p>
+        <button
+          type="button"
+          onClick={load}
+          className="rounded-lg border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const stats = [
+    {
+      label: "Platform Revenue",
+      value: `${data.totalPlatformRevenue.toLocaleString()} RWF`,
+    },
+    { label: "Active Users", value: data.activeUsers },
+    { label: "Managed Properties", value: data.properties.total },
+    { label: "Payment Success Rate", value: `${data.payments.successRatePercent}%` },
+  ];
+
+  const usersByRoleData = Object.entries(data.usersByRole).map(([role, count]) => ({
+    role: ROLE_LABELS[role] ?? role,
+    count,
+  }));
+
+  const paymentsData = [
+    { name: "Successful", value: data.payments.successCount },
+    { name: "Failed", value: data.payments.failedCount },
+  ];
 
   return (
     <div className="flex flex-col gap-8">
@@ -105,7 +128,7 @@ export default function AdminOverviewPage() {
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {ADMIN_STATS.map(({ label, value }) => (
+        {stats.map(({ label, value }) => (
           <Link
             key={label}
             href={STAT_LINKS[label] ?? "/admin"}
@@ -122,11 +145,32 @@ export default function AdminOverviewPage() {
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="font-semibold text-navy">Properties by Type</p>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={propertiesByType()}>
+          <p className="text-sm text-slate-500">New Properties This Month</p>
+          <p className="mt-2 text-3xl font-bold text-navy">
+            {data.properties.newThisMonth}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">Active Managers (IAM)</p>
+          <p className="mt-2 text-3xl font-bold text-navy">
+            {data.iam.activeManagers}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">Pending Invites / Suspensions</p>
+          <p className="mt-2 text-3xl font-bold text-navy">
+            {data.iam.pendingInvites} / {data.iam.pendingSuspensionRequests}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="font-semibold text-navy">Users by Role</p>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={usersByRoleData}>
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
-              <XAxis dataKey="type" tick={axisTick} />
+              <XAxis dataKey="role" tick={axisTick} interval={0} angle={-20} textAnchor="end" height={60} />
               <YAxis allowDecimals={false} tick={axisTick} />
               <Tooltip />
               <Bar dataKey="count" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} />
@@ -135,18 +179,18 @@ export default function AdminOverviewPage() {
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="font-semibold text-navy">Occupancy</p>
-          <ResponsiveContainer width="100%" height={220}>
+          <p className="font-semibold text-navy">Payments</p>
+          <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie
-                data={occupancyData()}
+                data={paymentsData}
                 dataKey="value"
                 nameKey="name"
                 innerRadius={50}
                 outerRadius={80}
                 paddingAngle={2}
               >
-                {occupancyData().map((entry, i) => (
+                {paymentsData.map((entry, i) => (
                   <Cell key={entry.name} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
               </Pie>
@@ -155,116 +199,6 @@ export default function AdminOverviewPage() {
             </PieChart>
           </ResponsiveContainer>
         </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="font-semibold text-navy">Approval Status</p>
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie
-                data={approvalData()}
-                dataKey="value"
-                nameKey="name"
-                innerRadius={50}
-                outerRadius={80}
-                paddingAngle={2}
-              >
-                {approvalData().map((entry, i) => (
-                  <Cell key={entry.name} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="font-semibold text-navy">Revenue Trend</p>
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={revenueByMonth()}>
-              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
-              <XAxis dataKey="month" tick={axisTick} />
-              <YAxis tick={axisTick} />
-              <Tooltip formatter={(value) => `${Number(value).toLocaleString()} RWF`} />
-              <Line
-                type="monotone"
-                dataKey="amount"
-                stroke={CHART_COLORS[0]}
-                strokeWidth={2}
-                dot={{ r: 4 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="font-semibold text-navy">Landlords by Properties</p>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={landlordsByProperties()} layout="vertical" margin={{ left: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} horizontal={false} />
-              <XAxis type="number" allowDecimals={false} tick={axisTick} />
-              <YAxis type="category" dataKey="name" width={80} tick={axisTick} />
-              <Tooltip />
-              <Bar dataKey="properties" fill={CHART_COLORS[0]} radius={[0, 6, 6, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h2 className="font-semibold text-navy">Recently registered landlords</h2>
-          <Link
-            href="/admin/landlords"
-            className="inline-flex items-center gap-1 text-sm font-medium text-gold hover:underline"
-          >
-            View all
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-6 py-3 font-medium">Name</th>
-              <th className="px-6 py-3 font-medium">Email</th>
-              <th className="px-6 py-3 font-medium">Properties</th>
-              <th className="px-6 py-3 font-medium">Status</th>
-              <th className="px-6 py-3 text-right font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentLandlords.map((landlord) => (
-              <tr key={landlord.id} className="border-t border-slate-100">
-                <td className="px-6 py-3 font-medium text-navy">
-                  {landlord.name}
-                </td>
-                <td className="px-6 py-3 text-slate-500">{landlord.email}</td>
-                <td className="px-6 py-3 text-slate-500">
-                  {landlord.properties}
-                </td>
-                <td className="px-6 py-3">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[landlord.status]}`}
-                  >
-                    {landlord.status}
-                  </span>
-                </td>
-                <td className="px-6 py-3 text-right">
-                  <Link
-                    href="/admin/landlords"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    View
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </div>
   );

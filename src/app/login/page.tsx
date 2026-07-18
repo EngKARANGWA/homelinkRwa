@@ -11,51 +11,72 @@ import {
   Home,
   Lock,
   Mail,
+  ShieldCheck,
 } from "lucide-react";
-import { LANDLORDS, TENANTS } from "@/lib/mock-admin-data";
-
-const ADMIN_EMAIL = "admin@gmail.com";
-const DEMO_PASSWORD = "password123";
-
-const DEMO_ACCOUNTS = [
-  { role: "Admin", email: ADMIN_EMAIL },
-  { role: "Landlord", email: LANDLORDS[0].email },
-  { role: "Tenant", email: TENANTS[0].email },
-];
+import { login, verifyLogin } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
+import { isLoginChallenge } from "@/lib/api/types";
+import { ROLE_ROUTES } from "@/lib/api/roleRoute";
+import { useAuth } from "@/components/auth/AuthContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+
+  const routeAfterLogin = async () => {
+    const me = await refreshUser();
+    if (!me) {
+      setError("Signed in, but we couldn't load your account. Please try again.");
+      return;
+    }
+    const route = ROLE_ROUTES[me.role];
+    if (!route) {
+      setError(
+        `Signed in as ${me.role}, but this role doesn't have a dashboard here yet.`,
+      );
+      return;
+    }
+    router.push(route);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const normalized = email.trim().toLowerCase();
-
-    const landlord = LANDLORDS.find(
-      (l) => l.email.toLowerCase() === normalized,
-    );
-    const tenant = TENANTS.find((t) => t.email.toLowerCase() === normalized);
-    const isAdmin = normalized === ADMIN_EMAIL;
-
-    if (!isAdmin && !landlord && !tenant) {
-      setError("No account found with that email. Try a demo account below.");
-      return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      const result = await login({ email: email.trim(), password });
+      if (isLoginChallenge(result)) {
+        setChallengeId(result.challengeId);
+      } else {
+        await routeAfterLogin();
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong.");
+    } finally {
+      setSubmitting(false);
     }
+  };
 
-    if (password !== DEMO_PASSWORD) {
-      setError("Incorrect password.");
-      return;
-    }
-
-    if (isAdmin) {
-      router.push("/admin");
-    } else if (landlord) {
-      router.push(`/landlord?id=${landlord.id}`);
-    } else if (tenant) {
-      router.push(`/tenant?id=${tenant.id}`);
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!challengeId) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      await verifyLogin({ challengeId, code: code.trim() });
+      await routeAfterLogin();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -84,110 +105,136 @@ export default function LoginPage() {
           </span>
         </Link>
 
-        <h1 className="mt-6 text-center text-2xl font-bold text-navy">
-          Welcome back
-        </h1>
-        <p className="mt-2 text-center text-sm text-slate-500">
-          Log in to manage your properties and tenants.
-        </p>
+        {challengeId ? (
+          <>
+            <h1 className="mt-6 text-center text-2xl font-bold text-navy">
+              Verify it&apos;s you
+            </h1>
+            <p className="mt-2 text-center text-sm text-slate-500">
+              We sent a code to your email since this is a new device. Enter it
+              below to finish signing in.
+            </p>
 
-        {error && (
-          <div className="mt-6 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            {error}
-          </div>
-        )}
+            {error && (
+              <div className="mt-6 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {error}
+              </div>
+            )}
 
-        <form className="mt-8 flex flex-col gap-4" onSubmit={handleSubmit}>
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Email address
-            <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 focus-within:border-gold">
-              <Mail className="h-4 w-4 text-slate-400" />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full bg-transparent text-navy placeholder:text-slate-400 focus:outline-none"
-              />
-            </div>
-          </label>
+            <form className="mt-8 flex flex-col gap-4" onSubmit={handleVerify}>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Verification code
+                <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 focus-within:border-gold">
+                  <ShieldCheck className="h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    required
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder="123456"
+                    className="w-full bg-transparent text-navy placeholder:text-slate-400 focus:outline-none"
+                  />
+                </div>
+              </label>
 
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Password
-            <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 focus-within:border-gold">
-              <Lock className="h-4 w-4 text-slate-400" />
-              <input
-                type={showPassword ? "text" : "password"}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-transparent text-navy placeholder:text-slate-400 focus:outline-none"
-              />
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="mt-2 rounded-lg bg-gold px-6 py-3 font-semibold text-white transition-colors hover:bg-gold/90 disabled:opacity-60"
+              >
+                {isSubmitting ? "Verifying..." : "Verify & Log In"}
+              </button>
+
               <button
                 type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                className="text-slate-400 hover:text-navy"
+                onClick={() => {
+                  setChallengeId(null);
+                  setCode("");
+                  setError(null);
+                }}
+                className="text-sm font-medium text-slate-500 hover:text-navy"
               >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
+                Back to login
               </button>
-            </div>
-          </label>
+            </form>
+          </>
+        ) : (
+          <>
+            <h1 className="mt-6 text-center text-2xl font-bold text-navy">
+              Welcome back
+            </h1>
+            <p className="mt-2 text-center text-sm text-slate-500">
+              Log in to manage your properties and tenants.
+            </p>
 
-          <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center gap-2 text-slate-600">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-slate-300 accent-gold"
-              />
-              Remember me
-            </label>
-            <Link href="#" className="font-medium text-gold hover:underline">
-              Forgot password?
-            </Link>
-          </div>
+            {error && (
+              <div className="mt-6 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {error}
+              </div>
+            )}
 
-          <button
-            type="submit"
-            className="mt-2 rounded-lg bg-gold px-6 py-3 font-semibold text-white transition-colors hover:bg-gold/90"
-          >
-            Log In
-          </button>
-        </form>
+            <form className="mt-8 flex flex-col gap-4" onSubmit={handleSubmit}>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Email address
+                <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 focus-within:border-gold">
+                  <Mail className="h-4 w-4 text-slate-400" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full bg-transparent text-navy placeholder:text-slate-400 focus:outline-none"
+                  />
+                </div>
+              </label>
 
-        <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Demo accounts
-          </p>
-          <ul className="mt-2 flex flex-col gap-1 text-sm text-slate-600">
-            {DEMO_ACCOUNTS.map(({ role, email: demoEmail }) => (
-              <li key={role} className="flex justify-between gap-3">
-                <span className="text-slate-400">{role}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail(demoEmail);
-                    setPassword(DEMO_PASSWORD);
-                    setError(null);
-                  }}
-                  className="font-medium text-navy hover:text-gold"
-                >
-                  {demoEmail}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-xs text-slate-400">
-            Password for every demo account: <strong>{DEMO_PASSWORD}</strong>
-          </p>
-        </div>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Password
+                <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 focus-within:border-gold">
+                  <Lock className="h-4 w-4 text-slate-400" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-transparent text-navy placeholder:text-slate-400 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="text-slate-400 hover:text-navy"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </label>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="mt-2 rounded-lg bg-gold px-6 py-3 font-semibold text-white transition-colors hover:bg-gold/90 disabled:opacity-60"
+              >
+                {isSubmitting ? "Logging in..." : "Log In"}
+              </button>
+            </form>
+
+            <p className="mt-6 text-center text-sm text-slate-500">
+              Don&apos;t have an account?{" "}
+              <Link href="/get-started" className="font-medium text-gold hover:underline">
+                Get started
+              </Link>
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
