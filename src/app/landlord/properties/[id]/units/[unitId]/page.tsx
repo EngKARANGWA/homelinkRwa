@@ -46,7 +46,7 @@ function monthLabel(month: string): string {
 export default function UnitDetailPage() {
   const { id, unitId } = useParams<{ id: string; unitId: string }>();
   const router = useRouter();
-  const { landlordName, unitOverrides, updateTenant, removeTenant } = useLandlord();
+  const { landlordName, unitOverrides, updateTenant, removeTenant, documents } = useLandlord();
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
   const [isEditing, setEditing] = useState(false);
   const [isRemoving, setRemoving] = useState(false);
@@ -71,6 +71,15 @@ export default function UnitDetailPage() {
   const handleSendReminder = () => {
     setReminderNotice(`Reminder sent to ${unit.tenant}.`);
   };
+
+  const unitDocuments = documents
+    .filter(
+      (d) =>
+        d.propertyId === property.id &&
+        (d.unitNumber === unit.unitNumber || d.unitNumber === null),
+    )
+    .map((d) => d.name);
+  const allDocuments = [...unit.documents, ...unitDocuments];
 
   const handleRemoveTenant = () => {
     removeTenant(unit);
@@ -220,9 +229,9 @@ export default function UnitDetailPage() {
 
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="font-semibold text-navy">Documents</p>
-              {unit.documents.length > 0 ? (
+              {allDocuments.length > 0 ? (
                 <ul className="mt-4 flex flex-col gap-2">
-                  {unit.documents.map((doc) => (
+                  {allDocuments.map((doc) => (
                     <li
                       key={doc}
                       className="flex items-center gap-2 rounded-lg border border-slate-100 px-3 py-2 text-sm text-slate-600"

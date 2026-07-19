@@ -4,6 +4,7 @@ import { createContext, useContext, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { LANDLORDS, type Lease } from "@/lib/mock-admin-data";
 import type { TenantEditValues, Unit, UnitOverrides } from "@/lib/units";
+import type { LandlordDocument } from "@/lib/documents";
 
 type LandlordContextValue = {
   landlordId: string;
@@ -12,6 +13,9 @@ type LandlordContextValue = {
   addTenant: (lease: Lease) => void;
   updateTenant: (unit: Unit, values: TenantEditValues) => void;
   removeTenant: (unit: Unit) => void;
+  documents: LandlordDocument[];
+  addDocument: (doc: LandlordDocument) => void;
+  removeDocument: (id: string) => void;
 };
 
 const LandlordContext = createContext<LandlordContextValue | null>(null);
@@ -29,6 +33,15 @@ export function LandlordProvider({ children }: { children: React.ReactNode }) {
   const [removedLeaseIds, setRemovedLeaseIds] = useState<string[]>([]);
   const [unitEdits, setUnitEdits] = useState<Record<string, Partial<TenantEditValues>>>({});
   const [vacatedUnitIds, setVacatedUnitIds] = useState<string[]>([]);
+  const [documents, setDocuments] = useState<LandlordDocument[]>([]);
+
+  const addDocument = (doc: LandlordDocument) => {
+    setDocuments((prev) => [doc, ...prev]);
+  };
+
+  const removeDocument = (id: string) => {
+    setDocuments((prev) => prev.filter((d) => d.id !== id));
+  };
 
   const addTenant = (lease: Lease) => {
     setExtraLeases((prev) => [...prev, lease]);
@@ -68,6 +81,9 @@ export function LandlordProvider({ children }: { children: React.ReactNode }) {
         addTenant,
         updateTenant,
         removeTenant,
+        documents,
+        addDocument,
+        removeDocument,
       }}
     >
       {children}
