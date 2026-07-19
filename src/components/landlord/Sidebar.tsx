@@ -3,21 +3,25 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
   Building2,
   CreditCard,
-  FileText,
+  FolderOpen,
   Home,
   LayoutDashboard,
+  Users,
   Wrench,
   X,
 } from "lucide-react";
 
 const LANDLORD_NAV_ITEMS = [
-  { label: "Overview", href: "/landlord", icon: LayoutDashboard },
-  { label: "My Properties", href: "/landlord/properties", icon: Building2 },
-  { label: "Leases", href: "/landlord/leases", icon: FileText },
-  { label: "Maintenance", href: "/landlord/maintenance", icon: Wrench },
+  { label: "Dashboard", href: "/landlord", icon: LayoutDashboard },
+  { label: "Properties", href: "/landlord/properties", icon: Building2 },
   { label: "Payments", href: "/landlord/payments", icon: CreditCard },
+  { label: "Tenants", href: "/landlord/tenants", icon: Users },
+  { label: "Reports", href: "/landlord/reports", icon: BarChart3 },
+  { label: "Maintenance", href: "/landlord/maintenance", icon: Wrench },
+  { label: "Documents", href: "/landlord/documents", icon: FolderOpen },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

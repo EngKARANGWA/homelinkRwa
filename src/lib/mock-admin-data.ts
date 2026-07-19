@@ -83,6 +83,8 @@ export type Property = {
   availability: "Available" | "Occupied";
   vacantSince: string | null;
   approval: "Pending" | "Approved" | "Rejected";
+  totalUnits?: number;
+  occupiedUnits?: number;
 };
 
 export const PROPERTIES: Property[] = [
@@ -105,6 +107,8 @@ export const PROPERTIES: Property[] = [
     availability: "Occupied",
     vacantSince: null,
     approval: "Approved",
+    totalUnits: 25,
+    occupiedUnits: 24,
   },
   {
     id: "2",

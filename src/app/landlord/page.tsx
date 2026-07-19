@@ -1,7 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Building2, Eye, FileText, Wallet, Wrench } from "lucide-react";
+import {
+  ArrowRight,
+  Bell,
+  Building2,
+  CheckCircle2,
+  Eye,
+  FileText,
+  Wallet,
+  Wrench,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -20,6 +30,7 @@ import {
   MAINTENANCE_REQUESTS,
   PAYMENTS,
   PROPERTIES,
+  TODAY,
 } from "@/lib/mock-admin-data";
 import { useLandlord } from "@/components/landlord/LandlordContext";
 import {
@@ -68,6 +79,7 @@ const axisTick = { fontSize: 12, fill: CHART_TEXT_COLOR };
 
 export default function LandlordOverviewPage() {
   const { landlordName } = useLandlord();
+  const [reminderNotice, setReminderNotice] = useState<string | null>(null);
 
   const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
   const myPropertyNames = myProperties.map((p) => p.name);
@@ -76,6 +88,43 @@ export default function LandlordOverviewPage() {
     myPropertyNames.includes(m.property),
   );
   const myPayments = PAYMENTS.filter((p) => p.owner === landlordName);
+
+  const currentMonth = TODAY.slice(0, 7);
+  const paymentsDueThisMonth = myPayments.filter(
+    (p) => p.dueDate.slice(0, 7) === currentMonth,
+  );
+  const totalDueThisMonth = paymentsDueThisMonth.reduce(
+    (sum, p) => sum + p.amount,
+    0,
+  );
+  const amountCollectedThisMonth = paymentsDueThisMonth
+    .filter((p) => p.status === "Paid")
+    .reduce((sum, p) => sum + p.amount, 0);
+  const balanceDue = totalDueThisMonth - amountCollectedThisMonth;
+  const outstandingPayments = paymentsDueThisMonth.filter(
+    (p) => p.status !== "Paid",
+  );
+  const outstandingTenants = new Set(
+    outstandingPayments.map((p) => p.tenant),
+  ).size;
+
+  const featuredProperty =
+    myProperties.find((p) => p.totalUnits && p.occupiedUnits != null) ??
+    myProperties[0];
+  const occupancyPercent =
+    featuredProperty?.totalUnits && featuredProperty.occupiedUnits != null
+      ? Math.round(
+          (featuredProperty.occupiedUnits / featuredProperty.totalUnits) * 100,
+        )
+      : null;
+
+  const handleSendReminder = () => {
+    setReminderNotice(
+      outstandingTenants > 0
+        ? `Reminder sent to ${outstandingTenants} tenant${outstandingTenants === 1 ? "" : "s"} with an outstanding balance.`
+        : "No tenants currently have an outstanding balance.",
+    );
+  };
 
   const stats = [
     { label: "My Properties", value: myProperties.length },
@@ -127,6 +176,120 @@ export default function LandlordOverviewPage() {
           A quick look at your properties, {landlordName}.
         </p>
       </div>
+
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+          <p className="font-semibold text-navy">This Month</p>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-slate-100">
+            <div className="sm:pr-4">
+              <p className="text-xs text-slate-500">Total Due</p>
+              <p className="mt-1 text-xl font-bold text-navy">
+                {totalDueThisMonth.toLocaleString()}
+                <span className="text-xs font-medium text-slate-400"> RWF</span>
+              </p>
+            </div>
+            <div className="sm:px-4">
+              <p className="text-xs text-slate-500">Collected</p>
+              <p className="mt-1 text-xl font-bold text-emerald-600">
+                {amountCollectedThisMonth.toLocaleString()}
+                <span className="text-xs font-medium text-slate-400"> RWF</span>
+              </p>
+            </div>
+            <div className="sm:pl-4">
+              <p className="text-xs text-slate-500">Balance Due</p>
+              <p className="mt-1 text-xl font-bold text-red-600">
+                {balanceDue.toLocaleString()}
+                <span className="text-xs font-medium text-slate-400"> RWF</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {featuredProperty && (
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="truncate font-semibold text-navy">
+              {featuredProperty.name}
+            </p>
+            {occupancyPercent !== null ? (
+              <>
+                <p className="mt-3 text-3xl font-bold text-navy">
+                  {occupancyPercent}%
+                </p>
+                <p className="text-xs text-slate-500">Occupancy</p>
+                <p className="mt-2 text-sm text-slate-500">
+                  {featuredProperty.occupiedUnits}/{featuredProperty.totalUnits}{" "}
+                  units occupied
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="mt-3 text-lg font-bold text-navy">
+                  {featuredProperty.availability}
+                </p>
+                <p className="text-xs text-slate-500">Status</p>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div
+        className={`flex flex-wrap items-center justify-between gap-5 rounded-xl border p-6 shadow-sm ${
+          balanceDue > 0
+            ? "border-amber-200 bg-amber-50/60"
+            : "border-emerald-200 bg-emerald-50/60"
+        }`}
+      >
+        <div className="flex flex-wrap items-center gap-8">
+          <div>
+            <p
+              className={`text-xs font-semibold uppercase tracking-wide ${
+                balanceDue > 0 ? "text-amber-700" : "text-emerald-700"
+              }`}
+            >
+              Balance Due
+            </p>
+            <p className="mt-1 text-xl font-bold text-navy">
+              {balanceDue.toLocaleString()} RWF
+            </p>
+          </div>
+          <div>
+            <p
+              className={`text-xs font-semibold uppercase tracking-wide ${
+                balanceDue > 0 ? "text-amber-700" : "text-emerald-700"
+              }`}
+            >
+              Tenants Outstanding
+            </p>
+            <p className="mt-1 text-xl font-bold text-navy">
+              {outstandingTenants}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleSendReminder}
+            className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+          >
+            <Bell className="h-4 w-4" />
+            Send Reminder
+          </button>
+          <Link
+            href="/landlord/reports"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+          >
+            View Report
+          </Link>
+        </div>
+      </div>
+
+      {reminderNotice && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle2 className="h-4 w-4" />
+          {reminderNotice}
+        </div>
+      )}
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map(({ label, value }) => {

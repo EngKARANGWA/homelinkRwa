@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { Sidebar } from "@/components/landlord/Sidebar";
 import { Topbar } from "@/components/landlord/Topbar";
+import { BottomNav } from "@/components/landlord/BottomNav";
 import { LandlordProvider } from "@/components/landlord/LandlordContext";
 import { useIdleLogout } from "@/lib/useIdleLogout";
 
@@ -24,8 +25,9 @@ export default function LandlordLayout({
           />
           <div className="flex flex-col lg:pl-64">
             <Topbar onMenuClick={() => setMobileMenuOpen(true)} />
-            <main className="flex-1 p-6 lg:p-10">{children}</main>
+            <main className="flex-1 p-6 pb-20 lg:p-10">{children}</main>
           </div>
+          <BottomNav />
         </div>
       </LandlordProvider>
     </Suspense>
