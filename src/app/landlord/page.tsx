@@ -432,7 +432,7 @@ export default function LandlordOverviewPage() {
                   </td>
                   <td className="px-4 py-3 text-right sm:px-6">
                     <Link
-                      href="/landlord/properties"
+                      href={`/landlord/properties/${property.id}`}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                     >
                       <Eye className="h-3.5 w-3.5" />

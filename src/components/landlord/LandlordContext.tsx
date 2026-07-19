@@ -1,12 +1,17 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { LANDLORDS } from "@/lib/mock-admin-data";
+import { LANDLORDS, type Lease } from "@/lib/mock-admin-data";
+import type { TenantEditValues, Unit, UnitOverrides } from "@/lib/units";
 
 type LandlordContextValue = {
   landlordId: string;
   landlordName: string;
+  unitOverrides: UnitOverrides;
+  addTenant: (lease: Lease) => void;
+  updateTenant: (unit: Unit, values: TenantEditValues) => void;
+  removeTenant: (unit: Unit) => void;
 };
 
 const LandlordContext = createContext<LandlordContextValue | null>(null);
@@ -20,8 +25,51 @@ export function LandlordProvider({ children }: { children: React.ReactNode }) {
   const landlordName =
     LANDLORDS.find((l) => l.id === landlordId)?.name ?? LANDLORDS[0].name;
 
+  const [extraLeases, setExtraLeases] = useState<Lease[]>([]);
+  const [removedLeaseIds, setRemovedLeaseIds] = useState<string[]>([]);
+  const [unitEdits, setUnitEdits] = useState<Record<string, Partial<TenantEditValues>>>({});
+  const [vacatedUnitIds, setVacatedUnitIds] = useState<string[]>([]);
+
+  const addTenant = (lease: Lease) => {
+    setExtraLeases((prev) => [...prev, lease]);
+  };
+
+  const updateTenant = (unit: Unit, values: TenantEditValues) => {
+    setUnitEdits((prev) => ({ ...prev, [unit.id]: values }));
+  };
+
+  const removeTenant = (unit: Unit) => {
+    if (unit.isReal && unit.leaseId) {
+      setRemovedLeaseIds((prev) => [...prev, unit.leaseId as string]);
+    } else {
+      setVacatedUnitIds((prev) => [...prev, unit.id]);
+    }
+    setUnitEdits((prev) => {
+      if (!(unit.id in prev)) return prev;
+      const next = { ...prev };
+      delete next[unit.id];
+      return next;
+    });
+  };
+
+  const unitOverrides: UnitOverrides = {
+    extraLeases,
+    removedLeaseIds,
+    unitEdits,
+    vacatedUnitIds,
+  };
+
   return (
-    <LandlordContext.Provider value={{ landlordId, landlordName }}>
+    <LandlordContext.Provider
+      value={{
+        landlordId,
+        landlordName,
+        unitOverrides,
+        addTenant,
+        updateTenant,
+        removeTenant,
+      }}
+    >
       {children}
     </LandlordContext.Provider>
   );

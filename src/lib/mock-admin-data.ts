@@ -126,6 +126,8 @@ export const PROPERTIES: Property[] = [
     availability: "Available",
     vacantSince: "2026-06-20",
     approval: "Approved",
+    totalUnits: 1,
+    occupiedUnits: 0,
   },
   {
     id: "3",
@@ -143,6 +145,8 @@ export const PROPERTIES: Property[] = [
     availability: "Available",
     vacantSince: "2026-05-15",
     approval: "Pending",
+    totalUnits: 1,
+    occupiedUnits: 0,
   },
   {
     id: "4",
@@ -163,6 +167,8 @@ export const PROPERTIES: Property[] = [
     availability: "Occupied",
     vacantSince: null,
     approval: "Approved",
+    totalUnits: 1,
+    occupiedUnits: 1,
   },
   {
     id: "5",
@@ -180,6 +186,8 @@ export const PROPERTIES: Property[] = [
     availability: "Available",
     vacantSince: "2026-07-01",
     approval: "Pending",
+    totalUnits: 1,
+    occupiedUnits: 0,
   },
   {
     id: "6",
@@ -197,6 +205,8 @@ export const PROPERTIES: Property[] = [
     availability: "Available",
     vacantSince: "2026-04-10",
     approval: "Rejected",
+    totalUnits: 1,
+    occupiedUnits: 0,
   },
 ];
 
@@ -227,6 +237,8 @@ export type Lease = {
     | "Termination Requested"
     | "Terminated"
     | "Expired";
+  /** Only set for leases created through the landlord "Add Tenant" flow, to pin them to a specific generated unit. */
+  unitNumber?: string;
 };
 
 export const LEASES: Lease[] = [
