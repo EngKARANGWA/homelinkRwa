@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Wallet } from "lucide-react";
+import {
+  ArrowRight,
+  Banknote,
+  CalendarClock,
+  CheckCircle2,
+  Home,
+  Wallet,
+  Wrench,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -24,6 +32,7 @@ import { useTenant } from "@/components/tenant/TenantContext";
 import { CHART_GRID_COLOR, CHART_TEXT_COLOR } from "@/lib/chart-colors";
 import { Modal } from "@/components/admin/Modal";
 import { PayNowForm } from "@/components/tenant/PayNowForm";
+import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
 
 const STATUS_COLORS: Record<string, string> = {
   Paid: "#10b981",
@@ -32,11 +41,34 @@ const STATUS_COLORS: Record<string, string> = {
   "Pending Approval": "#0ea5e9",
 };
 
-const STAT_LINKS: Record<string, string> = {
-  "Current Property": "/tenant/lease",
-  "Monthly Rent": "/tenant/lease",
-  "Pending Maintenance": "/tenant/maintenance",
-  "Next Payment Due": "/tenant/payments",
+const STAT_META: Record<
+  string,
+  { href: string; icon: typeof Home; accent: StatAccent; subtitle: string }
+> = {
+  "Current Property": {
+    href: "/tenant/lease",
+    icon: Home,
+    accent: "blue",
+    subtitle: "Your active residence",
+  },
+  "Monthly Rent": {
+    href: "/tenant/lease",
+    icon: Banknote,
+    accent: "emerald",
+    subtitle: "Due monthly",
+  },
+  "Pending Maintenance": {
+    href: "/tenant/maintenance",
+    icon: Wrench,
+    accent: "amber",
+    subtitle: "Open requests",
+  },
+  "Next Payment Due": {
+    href: "/tenant/payments",
+    icon: CalendarClock,
+    accent: "teal",
+    subtitle: "Upcoming due date",
+  },
 };
 
 const axisTick = { fontSize: 12, fill: CHART_TEXT_COLOR };
@@ -150,19 +182,20 @@ export default function TenantOverviewPage() {
       )}
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map(({ label, value }) => (
-          <Link
-            key={label}
-            href={STAT_LINKS[label] ?? "/tenant"}
-            className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-gold/40 hover:shadow-md"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">{label}</p>
-              <ArrowRight className="h-3.5 w-3.5 text-slate-300 transition-colors group-hover:text-gold" />
-            </div>
-            <p className="mt-2 text-xl font-bold text-navy">{value}</p>
-          </Link>
-        ))}
+        {stats.map(({ label, value }) => {
+          const meta = STAT_META[label];
+          return (
+            <StatCard
+              key={label}
+              label={label}
+              value={value}
+              subtitle={meta?.subtitle}
+              href={meta?.href ?? "/tenant"}
+              icon={meta?.icon ?? Home}
+              accent={meta?.accent ?? "blue"}
+            />
+          );
+        })}
       </div>
 
       {paymentHistory.length > 0 && (

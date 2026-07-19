@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Eye, Plus } from "lucide-react";
+import { ArrowRight, Building2, Eye, Plus, UserCheck, Users, Wallet } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -23,6 +23,7 @@ import {
   CHART_GRID_COLOR,
   CHART_TEXT_COLOR,
 } from "@/lib/chart-colors";
+import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
 
 const STATUS_STYLES: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -30,11 +31,34 @@ const STATUS_STYLES: Record<string, string> = {
   Suspended: "bg-red-50 text-red-700",
 };
 
-const STAT_LINKS: Record<string, string> = {
-  "Registered Landlords": "/admin/landlords",
-  "Managed Properties": "/admin/properties",
-  "Active Tenants": "/admin/tenants",
-  "Revenue this month": "/admin/payments",
+const STAT_META: Record<
+  string,
+  { href: string; icon: typeof Users; accent: StatAccent; subtitle: string }
+> = {
+  "Registered Landlords": {
+    href: "/admin/landlords",
+    icon: Users,
+    accent: "blue",
+    subtitle: "New this month",
+  },
+  "Managed Properties": {
+    href: "/admin/properties",
+    icon: Building2,
+    accent: "emerald",
+    subtitle: "Across all landlords",
+  },
+  "Active Tenants": {
+    href: "/admin/tenants",
+    icon: UserCheck,
+    accent: "amber",
+    subtitle: "Of total registered",
+  },
+  "Revenue this month": {
+    href: "/admin/payments",
+    icon: Wallet,
+    accent: "teal",
+    subtitle: "Collected across platform",
+  },
 };
 
 const axisTick = { fontSize: 12, fill: CHART_TEXT_COLOR };
@@ -105,19 +129,20 @@ export default function AdminOverviewPage() {
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {ADMIN_STATS.map(({ label, value }) => (
-          <Link
-            key={label}
-            href={STAT_LINKS[label] ?? "/admin"}
-            className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-gold/40 hover:shadow-md"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">{label}</p>
-              <ArrowRight className="h-3.5 w-3.5 text-slate-300 transition-colors group-hover:text-gold" />
-            </div>
-            <p className="mt-2 text-2xl font-bold text-navy">{value}</p>
-          </Link>
-        ))}
+        {ADMIN_STATS.map(({ label, value }) => {
+          const meta = STAT_META[label];
+          return (
+            <StatCard
+              key={label}
+              label={label}
+              value={value}
+              subtitle={meta?.subtitle}
+              href={meta?.href ?? "/admin"}
+              icon={meta?.icon ?? Users}
+              accent={meta?.accent ?? "blue"}
+            />
+          );
+        })}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">

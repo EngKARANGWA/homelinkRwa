@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Eye } from "lucide-react";
+import { ArrowRight, Building2, Eye, FileText, Wallet, Wrench } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -27,17 +27,41 @@ import {
   CHART_GRID_COLOR,
   CHART_TEXT_COLOR,
 } from "@/lib/chart-colors";
+import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
 
 const AVAILABILITY_STYLES: Record<string, string> = {
   Available: "bg-emerald-50 text-emerald-700",
   Occupied: "bg-slate-100 text-slate-600",
 };
 
-const STAT_LINKS: Record<string, string> = {
-  "My Properties": "/landlord/properties",
-  "Active Leases": "/landlord/leases",
-  "Pending Maintenance": "/landlord/maintenance",
-  "Revenue Collected": "/landlord/payments",
+const STAT_META: Record<
+  string,
+  { href: string; icon: typeof Building2; accent: StatAccent; subtitle: string }
+> = {
+  "My Properties": {
+    href: "/landlord/properties",
+    icon: Building2,
+    accent: "blue",
+    subtitle: "Registered by you",
+  },
+  "Active Leases": {
+    href: "/landlord/leases",
+    icon: FileText,
+    accent: "emerald",
+    subtitle: "Currently active",
+  },
+  "Pending Maintenance": {
+    href: "/landlord/maintenance",
+    icon: Wrench,
+    accent: "amber",
+    subtitle: "Awaiting action",
+  },
+  "Revenue Collected": {
+    href: "/landlord/payments",
+    icon: Wallet,
+    accent: "teal",
+    subtitle: "This month",
+  },
 };
 
 const axisTick = { fontSize: 12, fill: CHART_TEXT_COLOR };
@@ -105,19 +129,20 @@ export default function LandlordOverviewPage() {
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map(({ label, value }) => (
-          <Link
-            key={label}
-            href={STAT_LINKS[label] ?? "/landlord"}
-            className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-gold/40 hover:shadow-md"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">{label}</p>
-              <ArrowRight className="h-3.5 w-3.5 text-slate-300 transition-colors group-hover:text-gold" />
-            </div>
-            <p className="mt-2 text-2xl font-bold text-navy">{value}</p>
-          </Link>
-        ))}
+        {stats.map(({ label, value }) => {
+          const meta = STAT_META[label];
+          return (
+            <StatCard
+              key={label}
+              label={label}
+              value={value}
+              subtitle={meta?.subtitle}
+              href={meta?.href ?? "/landlord"}
+              icon={meta?.icon ?? Building2}
+              accent={meta?.accent ?? "blue"}
+            />
+          );
+        })}
       </div>
 
       {myProperties.length > 0 && (
