@@ -50,6 +50,10 @@ type ApiFetchOptions = {
   auth?: boolean;
 };
 
+function isFormData(body: unknown): body is FormData {
+  return typeof FormData !== "undefined" && body instanceof FormData;
+}
+
 function buildUrl(path: string, query?: ApiFetchOptions["query"]) {
   const url = new URL(`${API_BASE_URL}${path}`);
   if (query) {
@@ -67,7 +71,9 @@ export async function apiFetch<T>(
   const { method = "GET", body, query, auth = true } = options;
 
   const doFetch = async (): Promise<Response> => {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const headers: Record<string, string> = {};
+    const formData = isFormData(body);
+    if (!formData) headers["Content-Type"] = "application/json";
     if (auth) {
       const token = getAccessToken();
       if (token) headers.Authorization = `Bearer ${token}`;
@@ -75,7 +81,8 @@ export async function apiFetch<T>(
     return fetch(buildUrl(path, query), {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body:
+        body === undefined ? undefined : formData ? body : JSON.stringify(body),
     });
   };
 

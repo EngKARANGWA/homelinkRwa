@@ -7,9 +7,29 @@ export type User = {
   lastName: string;
   phone: string;
   role: Role;
+  avatarUrl?: string | null;
+  isVerified?: boolean;
   isApproved?: boolean;
   isActive?: boolean;
   createdAt?: string;
+  updatedAt?: string;
+};
+
+export type UpdateProfileInput = {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  avatarUrl?: string;
+};
+
+export type VerificationStatus = "pending" | "approved" | "rejected";
+
+export type IdentityVerification = {
+  id: string;
+  status: VerificationStatus;
+  documentUrl?: string;
+  rejectionReason?: string | null;
+  createdAt: string;
 };
 
 export type AuthTokens = {

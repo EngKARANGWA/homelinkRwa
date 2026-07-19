@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, ChevronDown, LogOut, Menu, UserCircle } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu, User, UserCircle } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 
 export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
@@ -65,6 +66,14 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
 
           {menuOpen && (
             <div className="absolute right-0 top-full z-20 mt-2 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+              <Link
+                href="/admin/profile"
+                onClick={() => setMenuOpen(false)}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <User className="h-4 w-4" strokeWidth={2} />
+                Profile
+              </Link>
               <button
                 type="button"
                 onClick={async () => {
@@ -72,7 +81,7 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
                   router.push("/login");
                 }}
                 aria-label="Log out"
-                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-slate-600 hover:bg-slate-50"
+                className="flex w-full items-center gap-2 border-t border-slate-100 px-4 py-2.5 text-left text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 <LogOut className="h-4 w-4" strokeWidth={2} />
                 Logout
