@@ -9,6 +9,7 @@ import { useLandlord } from "@/components/landlord/LandlordContext";
 import { Modal } from "@/components/admin/Modal";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
+import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const STATUS_STYLES: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -160,75 +161,67 @@ export default function LandlordTenantsPage() {
         </label>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="max-w-[10rem] px-4 py-3 font-medium sm:px-6">Tenant</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">Property</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">Unit</th>
-              <th className="hidden px-6 py-3 font-medium sm:table-cell">
-                Monthly Rent
-              </th>
-              <th className="px-4 py-3 font-medium sm:px-6">Status</th>
-              <th className="hidden px-6 py-3 font-medium lg:table-cell">Lease End</th>
-              <th className="px-4 py-3 text-right font-medium sm:px-6">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredTenants.map((tenant) => (
-              <tr key={tenant.id} className="border-t border-slate-100">
-                <td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
-                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                    {tenant.tenant}
-                  </p>
-                  <p className="truncate text-xs text-slate-400 md:hidden">
-                    {tenant.propertyName} · {tenant.unitNumber}
-                  </p>
-                  <p className="text-xs text-slate-400 sm:hidden">
-                    {tenant.monthlyRent.toLocaleString()} RWF
-                  </p>
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {tenant.propertyName}
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {tenant.unitNumber}
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                  {tenant.monthlyRent.toLocaleString()}
-                </td>
-                <td className="px-4 py-3 sm:px-6">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[tenant.currentPaymentStatus] ?? "bg-slate-100 text-slate-600"}`}
-                  >
-                    {tenant.currentPaymentStatus}
-                  </span>
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                  {tenant.endDate ?? "Open-ended"}
-                </td>
-                <td className="px-4 py-3 text-right sm:px-6">
-                  <Link
-                    href={`/landlord/properties/${tenant.propertyId}/units/${tenant.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    View
-                  </Link>
-                </td>
-              </tr>
-            ))}
-            {filteredTenants.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
-                  No tenants match these filters.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Table variant="standalone">
+        <THead>
+          <Tr>
+            <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Tenant</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Unit</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">Monthly Rent</Th>
+            <Th className="px-4 py-3 sm:px-6">Status</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">Lease End</Th>
+            <Th className="px-4 py-3 text-right sm:px-6">Actions</Th>
+          </Tr>
+        </THead>
+        <TBody>
+          {filteredTenants.map((tenant) => (
+            <Tr key={tenant.id}>
+              <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                  {tenant.tenant}
+                </p>
+                <p className="truncate text-xs text-slate-400 md:hidden">
+                  {tenant.propertyName} · {tenant.unitNumber}
+                </p>
+                <p className="text-xs text-slate-400 sm:hidden">
+                  {tenant.monthlyRent.toLocaleString()} RWF
+                </p>
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                {tenant.propertyName}
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                {tenant.unitNumber}
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
+                {tenant.monthlyRent.toLocaleString()}
+              </Td>
+              <Td className="px-4 py-3 sm:px-6">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[tenant.currentPaymentStatus] ?? "bg-slate-100 text-slate-600"}`}
+                >
+                  {tenant.currentPaymentStatus}
+                </span>
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                {tenant.endDate ?? "Open-ended"}
+              </Td>
+              <Td className="px-4 py-3 text-right sm:px-6">
+                <Link
+                  href={`/landlord/properties/${tenant.propertyId}/units/${tenant.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  View
+                </Link>
+              </Td>
+            </Tr>
+          ))}
+          {filteredTenants.length === 0 && (
+            <EmptyRow colSpan={7}>No tenants match these filters.</EmptyRow>
+          )}
+        </TBody>
+      </Table>
 
       {isAdding && (
         <Modal

@@ -8,6 +8,7 @@ import { MaintenanceRequestForm } from "@/components/admin/MaintenanceRequestFor
 import { AssignHandlerForm } from "@/components/admin/AssignHandlerForm";
 import { CompleteRequestForm } from "@/components/admin/CompleteRequestForm";
 import { MaintenanceDetail } from "@/components/admin/MaintenanceDetail";
+import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const STATUS_STYLES: Record<MaintenanceRequest["status"], string> = {
   Submitted: "bg-amber-50 text-amber-700",
@@ -81,130 +82,126 @@ export default function MaintenancePage() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="max-w-[10rem] px-4 py-3 font-medium sm:px-6">Tenant</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">Property</th>
-              <th className="hidden px-6 py-3 font-medium lg:table-cell">Issue</th>
-              <th className="hidden px-6 py-3 font-medium sm:table-cell">Priority</th>
-              <th className="hidden px-6 py-3 font-medium lg:table-cell">Assigned To</th>
-              <th className="px-4 py-3 font-medium sm:px-6">Status</th>
-              <th className="hidden px-6 py-3 font-medium lg:table-cell">
-                Cost / Feedback
-              </th>
-              <th className="px-4 py-3 font-medium sm:px-6">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {requests.map((request) => (
-              <tr key={request.id} className="border-t border-slate-100">
-                <td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
-                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                    {request.tenant}
-                  </p>
-                  <p className="truncate text-xs text-slate-400 md:hidden">
-                    {request.property}
-                  </p>
-                  <p className="text-xs text-slate-400 sm:hidden">
-                    {request.priority} priority
-                  </p>
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+      <Table variant="standalone">
+        <THead>
+          <Tr>
+            <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Tenant</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">Issue</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">Priority</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">Assigned To</Th>
+            <Th className="px-4 py-3 sm:px-6">Status</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">Cost / Feedback</Th>
+            <Th className="px-4 py-3 sm:px-6">Actions</Th>
+          </Tr>
+        </THead>
+        <TBody>
+          {requests.map((request) => (
+            <Tr key={request.id}>
+              <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                  {request.tenant}
+                </p>
+                <p className="truncate text-xs text-slate-400 md:hidden">
                   {request.property}
-                </td>
-                <td className="hidden max-w-xs px-6 py-3 text-slate-500 lg:table-cell">
-                  {request.issue.join("; ")}
-                </td>
-                <td className="hidden px-6 py-3 sm:table-cell">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[request.priority]}`}
-                  >
-                    {request.priority}
-                  </span>
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                  {request.laborers.length > 0
-                    ? `${request.laborers.length} worker${request.laborers.length === 1 ? "" : "s"}`
-                    : "—"}
-                </td>
-                <td className="px-4 py-3 sm:px-6">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[request.status]}`}
-                  >
-                    {request.status}
-                  </span>
-                </td>
-                <td className="hidden max-w-xs px-6 py-3 text-slate-500 lg:table-cell">
-                  {request.status === "Completed" ? (
-                    <>
-                      <p className="font-medium text-navy">
-                        {(
-                          (request.laborCost ?? 0) + (request.itemCost ?? 0)
-                        ).toLocaleString()}{" "}
-                        RWF
+                </p>
+                <p className="text-xs text-slate-400 sm:hidden">
+                  {request.priority} priority
+                </p>
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                {request.property}
+              </Td>
+              <Td className="hidden max-w-xs px-6 py-3 text-slate-500 lg:table-cell">
+                {request.issue.join("; ")}
+              </Td>
+              <Td className="hidden px-6 py-3 sm:table-cell">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[request.priority]}`}
+                >
+                  {request.priority}
+                </span>
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                {request.laborers.length > 0
+                  ? `${request.laborers.length} worker${request.laborers.length === 1 ? "" : "s"}`
+                  : "—"}
+              </Td>
+              <Td className="px-4 py-3 sm:px-6">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[request.status]}`}
+                >
+                  {request.status}
+                </span>
+              </Td>
+              <Td className="hidden max-w-xs px-6 py-3 text-slate-500 lg:table-cell">
+                {request.status === "Completed" ? (
+                  <>
+                    <p className="font-medium text-navy">
+                      {(
+                        (request.laborCost ?? 0) + (request.itemCost ?? 0)
+                      ).toLocaleString()}{" "}
+                      RWF
+                    </p>
+                    {request.feedback && (
+                      <p className="text-xs italic text-slate-400">
+                        &ldquo;{request.feedback}&rdquo;
                       </p>
-                      {request.feedback && (
-                        <p className="text-xs italic text-slate-400">
-                          &ldquo;{request.feedback}&rdquo;
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-                <td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
-                  <div className="flex flex-wrap items-center gap-2">
+                    )}
+                  </>
+                ) : (
+                  "—"
+                )}
+              </Td>
+              <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setViewingRequest(request)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    View
+                  </button>
+                  {request.status === "Submitted" && (
                     <button
                       type="button"
-                      onClick={() => setViewingRequest(request)}
+                      onClick={() => setAssigningId(request.id)}
+                      aria-label={`Assign handler for ${request.tenant}`}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                     >
-                      <Eye className="h-3.5 w-3.5" />
-                      View
+                      <UserPlus className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Assign</span>
                     </button>
-                    {request.status === "Submitted" && (
-                      <button
-                        type="button"
-                        onClick={() => setAssigningId(request.id)}
-                        aria-label={`Assign handler for ${request.tenant}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                      >
-                        <UserPlus className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Assign</span>
-                      </button>
-                    )}
-                    {request.status === "Assigned" && (
-                      <button
-                        type="button"
-                        onClick={() => startProgress(request.id)}
-                        aria-label={`Start progress for ${request.tenant}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                      >
-                        <PlayCircle className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Start</span>
-                      </button>
-                    )}
-                    {request.status === "In Progress" && (
-                      <button
-                        type="button"
-                        onClick={() => setCompletingId(request.id)}
-                        aria-label={`Mark completed for ${request.tenant}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
-                      >
-                        <Wrench className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Mark Completed</span>
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  )}
+                  {request.status === "Assigned" && (
+                    <button
+                      type="button"
+                      onClick={() => startProgress(request.id)}
+                      aria-label={`Start progress for ${request.tenant}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      <PlayCircle className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Start</span>
+                    </button>
+                  )}
+                  {request.status === "In Progress" && (
+                    <button
+                      type="button"
+                      onClick={() => setCompletingId(request.id)}
+                      aria-label={`Mark completed for ${request.tenant}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                    >
+                      <Wrench className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Mark Completed</span>
+                    </button>
+                  )}
+                </div>
+              </Td>
+            </Tr>
+          ))}
+        </TBody>
+      </Table>
 
       {isNewRequestOpen && (
         <Modal

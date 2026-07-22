@@ -8,6 +8,7 @@ import { Modal } from "@/components/admin/Modal";
 import { PaymentReceipt } from "@/components/admin/PaymentReceipt";
 import { PayNowForm } from "@/components/tenant/PayNowForm";
 import { downloadCSV } from "@/lib/csv";
+import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const STATUS_STYLES: Record<Payment["status"], string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -90,81 +91,75 @@ export default function TenantPaymentsPage() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="max-w-[9rem] px-4 py-3 font-medium sm:px-6">Property</th>
-              <th className="hidden px-6 py-3 font-medium sm:table-cell">Amount (RWF)</th>
-              <th className="hidden px-6 py-3 font-medium lg:table-cell">Method</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">Due Date</th>
-              <th className="px-4 py-3 font-medium sm:px-6">Status</th>
-              <th className="px-4 py-3 font-medium sm:px-6">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {myPayments.map((payment) => (
-              <tr key={payment.id} className="border-t border-slate-100">
-                <td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
-                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                    {payment.property}
-                  </p>
-                  <p className="text-xs text-slate-400 sm:hidden">
-                    {payment.amount.toLocaleString()} RWF
-                  </p>
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                  {payment.amount.toLocaleString()}
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                  {payment.method}
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {payment.dueDate}
-                </td>
-                <td className="px-4 py-3 sm:px-6">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[payment.status]}`}
+      <Table variant="standalone">
+        <THead>
+          <Tr>
+            <Th className="max-w-[9rem] px-4 py-3 sm:px-6">Property</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">Amount (RWF)</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">Method</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Due Date</Th>
+            <Th className="px-4 py-3 sm:px-6">Status</Th>
+            <Th className="px-4 py-3 sm:px-6">Actions</Th>
+          </Tr>
+        </THead>
+        <TBody>
+          {myPayments.map((payment) => (
+            <Tr key={payment.id}>
+              <Td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
+                <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                  {payment.property}
+                </p>
+                <p className="text-xs text-slate-400 sm:hidden">
+                  {payment.amount.toLocaleString()} RWF
+                </p>
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
+                {payment.amount.toLocaleString()}
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                {payment.method}
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                {payment.dueDate}
+              </Td>
+              <Td className="px-4 py-3 sm:px-6">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[payment.status]}`}
+                >
+                  {payment.status}
+                </span>
+              </Td>
+              <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setViewingPayment(payment)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   >
-                    {payment.status}
-                  </span>
-                </td>
-                <td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
-                  <div className="flex flex-wrap items-center gap-2">
+                    <Eye className="h-3.5 w-3.5" />
+                    View
+                  </button>
+                  {payment.status !== "Paid" &&
+                    payment.status !== "Pending Approval" && (
                     <button
                       type="button"
-                      onClick={() => setViewingPayment(payment)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      onClick={() => setPayingId(payment.id)}
+                      aria-label={`Pay now for ${payment.property}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1 text-xs font-semibold text-white hover:bg-gold/90"
                     >
-                      <Eye className="h-3.5 w-3.5" />
-                      View
+                      <Wallet className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Pay Now</span>
                     </button>
-                    {payment.status !== "Paid" &&
-                      payment.status !== "Pending Approval" && (
-                      <button
-                        type="button"
-                        onClick={() => setPayingId(payment.id)}
-                        aria-label={`Pay now for ${payment.property}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1 text-xs font-semibold text-white hover:bg-gold/90"
-                      >
-                        <Wallet className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Pay Now</span>
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {myPayments.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
-                  No payments on file yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                  )}
+                </div>
+              </Td>
+            </Tr>
+          ))}
+          {myPayments.length === 0 && (
+            <EmptyRow colSpan={6}>No payments on file yet.</EmptyRow>
+          )}
+        </TBody>
+      </Table>
 
       {viewingPayment && (
         <Modal

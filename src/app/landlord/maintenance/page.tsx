@@ -13,6 +13,8 @@ import { Modal } from "@/components/admin/Modal";
 import { AssignHandlerForm } from "@/components/admin/AssignHandlerForm";
 import { CompleteRequestForm } from "@/components/admin/CompleteRequestForm";
 import { MaintenanceDetail } from "@/components/admin/MaintenanceDetail";
+import { Card } from "@/components/dashboard/Card";
+import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const STATUS_STYLES: Record<MaintenanceRequest["status"], string> = {
   Submitted: "bg-amber-50 text-amber-700",
@@ -173,24 +175,27 @@ export default function LandlordMaintenancePage() {
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="max-w-[10rem] px-4 py-3 font-medium sm:px-6">Tenant</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">Property</th>
-              <th className="hidden px-6 py-3 font-medium lg:table-cell">Issue</th>
-              <th className="hidden px-6 py-3 font-medium sm:table-cell">Priority</th>
-              <th className="hidden px-6 py-3 font-medium lg:table-cell">Assigned To</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">Submitted</th>
-              <th className="px-4 py-3 font-medium sm:px-6">Status</th>
-              <th className="px-4 py-3 font-medium sm:px-6">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+      <Card title="Requests">
+        <p className="mt-1 text-sm text-slate-500">
+          Maintenance requests raised by tenants across your properties.
+        </p>
+        <Table variant="card">
+          <THead>
+            <Tr>
+              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Tenant</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">Issue</Th>
+              <Th className="hidden px-6 py-3 sm:table-cell">Priority</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">Assigned To</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">Submitted</Th>
+              <Th className="px-4 py-3 sm:px-6">Status</Th>
+              <Th className="px-4 py-3 sm:px-6">Actions</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {myRequests.map((request) => (
-              <tr key={request.id} className="border-t border-slate-100">
-                <td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+              <Tr key={request.id}>
+                <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
                   <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
                     {request.tenant}
                   </p>
@@ -200,36 +205,36 @@ export default function LandlordMaintenancePage() {
                   <p className="text-xs text-slate-400 sm:hidden">
                     {request.priority} priority
                   </p>
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                   {request.property}
-                </td>
-                <td className="hidden max-w-xs px-6 py-3 text-slate-500 lg:table-cell">
+                </Td>
+                <Td className="hidden max-w-xs px-6 py-3 text-slate-500 lg:table-cell">
                   {request.issue.join("; ")}
-                </td>
-                <td className="hidden px-6 py-3 sm:table-cell">
+                </Td>
+                <Td className="hidden px-6 py-3 sm:table-cell">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[request.priority]}`}
                   >
                     {request.priority}
                   </span>
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                   {request.laborers.length > 0
                     ? `${request.laborers.length} worker${request.laborers.length === 1 ? "" : "s"}`
                     : "—"}
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                   {request.submittedAt}
-                </td>
-                <td className="px-4 py-3 sm:px-6">
+                </Td>
+                <Td className="px-4 py-3 sm:px-6">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[request.status]}`}
                   >
                     {request.status}
                   </span>
-                </td>
-                <td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                </Td>
+                <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
@@ -273,19 +278,15 @@ export default function LandlordMaintenancePage() {
                       </button>
                     )}
                   </div>
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
             {myRequests.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-6 py-8 text-center text-slate-400">
-                  No maintenance requests match these filters.
-                </td>
-              </tr>
+              <EmptyRow colSpan={8}>No maintenance requests match these filters.</EmptyRow>
             )}
-          </tbody>
-        </table>
-      </div>
+          </TBody>
+        </Table>
+      </Card>
 
       {viewingRequest && (
         <Modal

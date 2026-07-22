@@ -6,6 +6,7 @@ import { LEASES, type Lease } from "@/lib/mock-admin-data";
 import { Modal } from "@/components/admin/Modal";
 import { LeaseForm, type LeaseFormValues } from "@/components/admin/LeaseForm";
 import { LeaseDocument } from "@/components/admin/LeaseDocument";
+import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const STATUS_STYLES: Record<Lease["status"], string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -73,86 +74,84 @@ export default function LeasesPage() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="max-w-[10rem] px-4 py-3 font-medium sm:px-6">Tenant</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">Property</th>
-              <th className="hidden px-6 py-3 font-medium lg:table-cell">Owner</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">Rent (RWF)</th>
-              <th className="hidden px-6 py-3 font-medium lg:table-cell">Term</th>
-              <th className="px-4 py-3 font-medium sm:px-6">Status</th>
-              <th className="px-4 py-3 font-medium sm:px-6">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {leases.map((lease) => (
-              <tr key={lease.id} className="border-t border-slate-100">
-                <td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
-                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                    {lease.tenant}
-                  </p>
-                  <p className="truncate text-xs text-slate-400 md:hidden">
-                    {lease.property} · {lease.rent.toLocaleString()} RWF
-                  </p>
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {lease.property}
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{lease.owner}</td>
-                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {lease.rent.toLocaleString()}
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                  {lease.startDate} → {lease.endDate ?? "Open-ended"}
-                </td>
-                <td className="px-4 py-3 sm:px-6">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[lease.status]}`}
+      <Table variant="standalone">
+        <THead>
+          <Tr>
+            <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Tenant</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">Owner</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Rent (RWF)</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">Term</Th>
+            <Th className="px-4 py-3 sm:px-6">Status</Th>
+            <Th className="px-4 py-3 sm:px-6">Actions</Th>
+          </Tr>
+        </THead>
+        <TBody>
+          {leases.map((lease) => (
+            <Tr key={lease.id}>
+              <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                  {lease.tenant}
+                </p>
+                <p className="truncate text-xs text-slate-400 md:hidden">
+                  {lease.property} · {lease.rent.toLocaleString()} RWF
+                </p>
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                {lease.property}
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{lease.owner}</Td>
+              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                {lease.rent.toLocaleString()}
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                {lease.startDate} → {lease.endDate ?? "Open-ended"}
+              </Td>
+              <Td className="px-4 py-3 sm:px-6">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[lease.status]}`}
+                >
+                  {lease.status}
+                </span>
+              </Td>
+              <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setViewingLease(lease)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   >
-                    {lease.status}
-                  </span>
-                </td>
-                <td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setViewingLease(lease)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      View
-                    </button>
+                    <Eye className="h-3.5 w-3.5" />
+                    View
+                  </button>
 
-                    {(lease.status === "Renewal Requested" ||
-                      lease.status === "Termination Requested") && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => resolveRequest(lease.id, true)}
-                          aria-label={`Approve request for ${lease.tenant}`}
-                          className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                        >
-                          <Check className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => resolveRequest(lease.id, false)}
-                          aria-label={`Reject request for ${lease.tenant}`}
-                          className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  {(lease.status === "Renewal Requested" ||
+                    lease.status === "Termination Requested") && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => resolveRequest(lease.id, true)}
+                        aria-label={`Approve request for ${lease.tenant}`}
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => resolveRequest(lease.id, false)}
+                        aria-label={`Reject request for ${lease.tenant}`}
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </Td>
+            </Tr>
+          ))}
+        </TBody>
+      </Table>
 
       {isModalOpen && (
         <Modal

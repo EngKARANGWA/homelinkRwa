@@ -19,6 +19,7 @@ import { getUnit } from "@/lib/units";
 import { useLandlord } from "@/components/landlord/LandlordContext";
 import { Modal } from "@/components/admin/Modal";
 import { EditTenantForm } from "@/components/landlord/EditTenantForm";
+import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const PAYMENT_STATUS_STYLES: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -170,22 +171,22 @@ export default function UnitDetailPage() {
 
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="font-semibold text-navy">Payment History</p>
-              <table className="mt-4 w-full text-left text-sm">
-                <thead>
-                  <tr className="text-xs uppercase tracking-wide text-slate-400">
-                    <th className="py-2 font-medium">Month</th>
-                    <th className="py-2 font-medium">Amount</th>
-                    <th className="py-2 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table variant="plain" className="mt-4">
+                <THead>
+                  <Tr>
+                    <Th className="py-2">Month</Th>
+                    <Th className="py-2">Amount</Th>
+                    <Th className="py-2">Status</Th>
+                  </Tr>
+                </THead>
+                <TBody>
                   {unit.paymentHistory.map((p) => (
-                    <tr key={p.month} className="border-t border-slate-100">
-                      <td className="py-2.5 text-slate-500">{monthLabel(p.month)}</td>
-                      <td className="py-2.5 text-slate-500">
+                    <Tr key={p.month}>
+                      <Td className="py-2.5 text-slate-500">{monthLabel(p.month)}</Td>
+                      <Td className="py-2.5 text-slate-500">
                         {p.amount.toLocaleString()} RWF
-                      </td>
-                      <td className="py-2.5">
+                      </Td>
+                      <Td className="py-2.5">
                         <span
                           className={`rounded-full px-2.5 py-1 text-xs font-medium ${PAYMENT_STATUS_STYLES[p.status]}`}
                         >
@@ -193,18 +194,14 @@ export default function UnitDetailPage() {
                             ? `Paid ${p.paidDate}`
                             : p.status}
                         </span>
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   ))}
                   {unit.paymentHistory.length === 0 && (
-                    <tr>
-                      <td colSpan={3} className="py-4 text-center text-slate-400">
-                        No payment history yet.
-                      </td>
-                    </tr>
+                    <EmptyRow colSpan={3}>No payment history yet.</EmptyRow>
                   )}
-                </tbody>
-              </table>
+                </TBody>
+              </Table>
             </div>
           </div>
 

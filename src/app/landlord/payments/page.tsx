@@ -23,6 +23,7 @@ import { RecordPaymentForm } from "@/components/landlord/RecordPaymentForm";
 import { IconStatCard } from "@/components/dashboard/IconStatCard";
 import { AlertBanner } from "@/components/dashboard/AlertBanner";
 import { Card } from "@/components/dashboard/Card";
+import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { downloadCSV } from "@/lib/csv";
 
 type RowStatus = Payment["status"] | "Overdue";
@@ -339,120 +340,112 @@ export default function LandlordPaymentsPage() {
         <p className="mt-1 text-sm text-slate-500">
           All rent payments and tenants currently in arrears, across your properties.
         </p>
-        <div className="-mx-6 mt-4 overflow-x-auto border-t border-slate-100">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-400">
-                <th className="max-w-[10rem] px-4 py-3 font-medium sm:px-6">Tenant</th>
-                <th className="hidden px-6 py-3 font-medium md:table-cell">Property</th>
-                <th className="hidden px-6 py-3 font-medium lg:table-cell">Unit</th>
-                <th className="hidden px-6 py-3 font-medium sm:table-cell">Amount (RWF)</th>
-                <th className="hidden px-6 py-3 font-medium lg:table-cell">Method</th>
-                <th className="hidden px-6 py-3 font-medium md:table-cell">Due Date</th>
-                <th className="px-4 py-3 font-medium sm:px-6">Status</th>
-                <th className="px-4 py-3 font-medium sm:px-6">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className="border-t border-slate-100">
-                  <td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
-                    <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                      {row.tenant}
-                    </p>
-                    <p className="truncate text-xs text-slate-400 md:hidden">{row.property}</p>
-                    <p className="text-xs text-slate-400 sm:hidden">
-                      {row.amount.toLocaleString()} RWF
-                    </p>
-                  </td>
-                  <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                    {row.property}
-                  </td>
-                  <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{row.unit}</td>
-                  <td
-                    className={`hidden px-6 py-3 sm:table-cell ${
-                      row.status === "Overdue" || row.status === "Late"
-                        ? "font-medium text-red-600"
-                        : "text-slate-500"
-                    }`}
+        <Table variant="card">
+          <THead>
+            <Tr>
+              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Tenant</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">Unit</Th>
+              <Th className="hidden px-6 py-3 sm:table-cell">Amount (RWF)</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">Method</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">Due Date</Th>
+              <Th className="px-4 py-3 sm:px-6">Status</Th>
+              <Th className="px-4 py-3 sm:px-6">Actions</Th>
+            </Tr>
+          </THead>
+          <TBody>
+            {rows.map((row) => (
+              <Tr key={row.id}>
+                <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                    {row.tenant}
+                  </p>
+                  <p className="truncate text-xs text-slate-400 md:hidden">{row.property}</p>
+                  <p className="text-xs text-slate-400 sm:hidden">
+                    {row.amount.toLocaleString()} RWF
+                  </p>
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                  {row.property}
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{row.unit}</Td>
+                <Td
+                  className={`hidden px-6 py-3 sm:table-cell ${
+                    row.status === "Overdue" || row.status === "Late"
+                      ? "font-medium text-red-600"
+                      : "text-slate-500"
+                  }`}
+                >
+                  {row.amount.toLocaleString()}
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{row.method}</Td>
+                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                  <p>{row.dueDate}</p>
+                  {row.dueDateSubtext && (
+                    <p className="text-xs text-slate-400">{row.dueDateSubtext}</p>
+                  )}
+                </Td>
+                <Td className="px-4 py-3 sm:px-6">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[row.status]}`}
                   >
-                    {row.amount.toLocaleString()}
-                  </td>
-                  <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{row.method}</td>
-                  <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                    <p>{row.dueDate}</p>
-                    {row.dueDateSubtext && (
-                      <p className="text-xs text-slate-400">{row.dueDateSubtext}</p>
+                    {row.status}
+                  </span>
+                </Td>
+                <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {row.actions.type === "unit" ? (
+                      <Link
+                        href={`/landlord/properties/${row.actions.propertyId}/units/${row.actions.unitId}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </Link>
+                    ) : (
+                      (() => {
+                        const payment = row.actions.payment;
+                        return (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setViewingPayment(payment)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              View
+                            </button>
+                            {payment.status === "Pending Approval" && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => resolvePayment(payment.id, true)}
+                                  aria-label={`Approve payment from ${row.tenant}`}
+                                  className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => resolvePayment(payment.id, false)}
+                                  aria-label={`Reject payment from ${row.tenant}`}
+                                  className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
+                          </>
+                        );
+                      })()
                     )}
-                  </td>
-                  <td className="px-4 py-3 sm:px-6">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[row.status]}`}
-                    >
-                      {row.status}
-                    </span>
-                  </td>
-                  <td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {row.actions.type === "unit" ? (
-                        <Link
-                          href={`/landlord/properties/${row.actions.propertyId}/units/${row.actions.unitId}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          View
-                        </Link>
-                      ) : (
-                        (() => {
-                          const payment = row.actions.payment;
-                          return (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => setViewingPayment(payment)}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                                View
-                              </button>
-                              {payment.status === "Pending Approval" && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => resolvePayment(payment.id, true)}
-                                    aria-label={`Approve payment from ${row.tenant}`}
-                                    className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                  >
-                                    <Check className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => resolvePayment(payment.id, false)}
-                                    aria-label={`Reject payment from ${row.tenant}`}
-                                    className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </button>
-                                </>
-                              )}
-                            </>
-                          );
-                        })()
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-slate-400">
-                    No payments match these filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </Td>
+              </Tr>
+            ))}
+            {rows.length === 0 && <EmptyRow colSpan={8}>No payments match these filters.</EmptyRow>}
+          </TBody>
+        </Table>
       </Card>
 
       {viewingPayment && (

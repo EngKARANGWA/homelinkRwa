@@ -25,6 +25,7 @@ import {
   PropertyForm,
   type PropertyFormValues,
 } from "@/components/landlord/PropertyForm";
+import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const AVAILABILITY_STYLES: Record<Property["availability"], string> = {
   Available: "bg-emerald-50 text-emerald-700",
@@ -209,92 +210,86 @@ export default function LandlordPropertiesPage() {
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-4 py-3 font-medium sm:px-6">Property</th>
-                <th className="hidden px-6 py-3 font-medium lg:table-cell">UPI</th>
-                <th className="hidden px-6 py-3 font-medium md:table-cell">Type</th>
-                <th className="hidden px-6 py-3 font-medium md:table-cell">Rent (RWF)</th>
-                <th className="hidden px-6 py-3 font-medium sm:table-cell">Availability</th>
-                <th className="hidden px-6 py-3 font-medium lg:table-cell">Days Vacant</th>
-                <th className="px-4 py-3 font-medium sm:px-6">Approval</th>
-                <th className="px-4 py-3 font-medium sm:px-6">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {myProperties.map((property) => (
-                <tr key={property.id} className="border-t border-slate-100">
-                  <td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
-                    <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                      {property.name}
-                    </p>
-                    <p className="hidden text-xs text-slate-400 sm:block">
-                      {property.address}
-                    </p>
-                    <p className="truncate text-xs text-slate-400 md:hidden">
-                      {property.type} · {property.rent.toLocaleString()} RWF
-                    </p>
-                  </td>
-                  <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                    {property.upi}
-                  </td>
-                  <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                    {property.type}
-                  </td>
-                  <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                    {property.rent.toLocaleString()}
-                  </td>
-                  <td className="hidden px-6 py-3 sm:table-cell">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${AVAILABILITY_STYLES[property.availability]}`}
+        <Table variant="standalone">
+          <THead>
+            <Tr>
+              <Th className="px-4 py-3 sm:px-6">Property</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">UPI</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">Type</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">Rent (RWF)</Th>
+              <Th className="hidden px-6 py-3 sm:table-cell">Availability</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">Days Vacant</Th>
+              <Th className="px-4 py-3 sm:px-6">Approval</Th>
+              <Th className="px-4 py-3 sm:px-6">Actions</Th>
+            </Tr>
+          </THead>
+          <TBody>
+            {myProperties.map((property) => (
+              <Tr key={property.id}>
+                <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                    {property.name}
+                  </p>
+                  <p className="hidden text-xs text-slate-400 sm:block">
+                    {property.address}
+                  </p>
+                  <p className="truncate text-xs text-slate-400 md:hidden">
+                    {property.type} · {property.rent.toLocaleString()} RWF
+                  </p>
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                  {property.upi}
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                  {property.type}
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                  {property.rent.toLocaleString()}
+                </Td>
+                <Td className="hidden px-6 py-3 sm:table-cell">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${AVAILABILITY_STYLES[property.availability]}`}
+                  >
+                    {property.availability}
+                  </span>
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                  {daysVacant(property.vacantSince) ?? "—"}
+                </Td>
+                <Td className="px-4 py-3 sm:px-6">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${APPROVAL_STYLES[property.approval]}`}
+                  >
+                    {property.approval}
+                  </span>
+                </Td>
+                <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/landlord/properties/${property.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                     >
-                      {property.availability}
-                    </span>
-                  </td>
-                  <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                    {daysVacant(property.vacantSince) ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 sm:px-6">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${APPROVAL_STYLES[property.approval]}`}
+                      <Eye className="h-3.5 w-3.5" />
+                      View
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setEditingProperty(property)}
+                      aria-label={`Edit ${property.name}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                     >
-                      {property.approval}
-                    </span>
-                  </td>
-                  <td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Link
-                        href={`/landlord/properties/${property.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        View
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => setEditingProperty(property)}
-                        aria-label={`Edit ${property.name}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Edit</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {myProperties.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-slate-400">
-                    No properties registered yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Edit</span>
+                    </button>
+                  </div>
+                </Td>
+              </Tr>
+            ))}
+            {myProperties.length === 0 && (
+              <EmptyRow colSpan={8}>No properties registered yet.</EmptyRow>
+            )}
+          </TBody>
+        </Table>
       )}
 
       {isAdding && (

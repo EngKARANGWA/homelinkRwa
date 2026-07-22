@@ -6,6 +6,7 @@ import { LANDLORDS, type Landlord } from "@/lib/mock-admin-data";
 import { Modal } from "@/components/admin/Modal";
 import { LandlordForm } from "@/components/admin/LandlordForm";
 import { LandlordDetail } from "@/components/admin/LandlordDetail";
+import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const STATUS_STYLES: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -44,67 +45,65 @@ export default function LandlordsPage() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-4 py-3 font-medium sm:px-6">Name</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">Email</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">Phone</th>
-              <th className="hidden px-6 py-3 font-medium sm:table-cell">Properties</th>
-              <th className="px-4 py-3 font-medium sm:px-6">Status</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">Registered</th>
-              <th className="px-4 py-3 text-right font-medium sm:px-6">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {LANDLORDS.map((landlord) => (
-              <tr key={landlord.id} className="border-t border-slate-100">
-                <td className="max-w-[9rem] px-4 py-3 font-medium text-navy sm:max-w-none sm:px-6">
-                  <p className="truncate sm:overflow-visible sm:whitespace-normal">
-                    {landlord.name}
-                  </p>
-                  <p className="truncate text-xs font-normal text-slate-400 md:hidden sm:overflow-visible sm:whitespace-normal">
-                    {landlord.email}
-                  </p>
-                  <p className="text-xs font-normal text-slate-400 sm:hidden">
-                    {landlord.properties} properties
-                  </p>
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+      <Table variant="standalone">
+        <THead>
+          <Tr>
+            <Th className="px-4 py-3 sm:px-6">Name</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Email</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Phone</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">Properties</Th>
+            <Th className="px-4 py-3 sm:px-6">Status</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Registered</Th>
+            <Th className="px-4 py-3 text-right sm:px-6">Actions</Th>
+          </Tr>
+        </THead>
+        <TBody>
+          {LANDLORDS.map((landlord) => (
+            <Tr key={landlord.id}>
+              <Td className="max-w-[9rem] px-4 py-3 font-medium text-navy sm:max-w-none sm:px-6">
+                <p className="truncate sm:overflow-visible sm:whitespace-normal">
+                  {landlord.name}
+                </p>
+                <p className="truncate text-xs font-normal text-slate-400 md:hidden sm:overflow-visible sm:whitespace-normal">
                   {landlord.email}
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {landlord.phone}
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                  {landlord.properties}
-                </td>
-                <td className="px-4 py-3 sm:px-6">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[landlord.status]}`}
-                  >
-                    {landlord.status}
-                  </span>
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {landlord.registeredAt}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right sm:px-6">
-                  <button
-                    type="button"
-                    onClick={() => setViewingLandlord(landlord)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    View
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </p>
+                <p className="text-xs font-normal text-slate-400 sm:hidden">
+                  {landlord.properties} properties
+                </p>
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                {landlord.email}
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                {landlord.phone}
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
+                {landlord.properties}
+              </Td>
+              <Td className="px-4 py-3 sm:px-6">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[landlord.status]}`}
+                >
+                  {landlord.status}
+                </span>
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                {landlord.registeredAt}
+              </Td>
+              <Td className="whitespace-nowrap px-4 py-3 text-right sm:px-6">
+                <button
+                  type="button"
+                  onClick={() => setViewingLandlord(landlord)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  View
+                </button>
+              </Td>
+            </Tr>
+          ))}
+        </TBody>
+      </Table>
 
       {isModalOpen && (
         <Modal

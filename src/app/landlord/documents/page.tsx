@@ -17,6 +17,7 @@ import { useLandlord } from "@/components/landlord/LandlordContext";
 import { Modal } from "@/components/admin/Modal";
 import { UploadDocumentForm } from "@/components/landlord/UploadDocumentForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
+import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const CATEGORY_STYLES: Record<DocumentCategory, string> = {
   "Property Document": "bg-blue-50 text-blue-700",
@@ -161,86 +162,80 @@ export default function LandlordDocumentsPage() {
         </label>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="max-w-[12rem] px-4 py-3 font-medium sm:px-6">Document</th>
-              <th className="hidden px-6 py-3 font-medium sm:table-cell">Category</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">Property</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">Unit / Tenant</th>
-              <th className="hidden px-6 py-3 font-medium lg:table-cell">Uploaded</th>
-              <th className="px-4 py-3 text-right font-medium sm:px-6">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredDocuments.map((doc) => {
-              const Icon = CATEGORY_ICONS[doc.category];
-              return (
-                <tr key={doc.id} className="border-t border-slate-100">
-                  <td className="max-w-[12rem] px-4 py-3 sm:max-w-none sm:px-6">
-                    <div className="flex items-center gap-2">
-                      <Icon className="h-4 w-4 shrink-0 text-slate-400" />
-                      <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                        {doc.name}
-                      </p>
-                    </div>
-                    <p className="truncate pl-6 text-xs text-slate-400 sm:hidden">
-                      {doc.category} · {doc.propertyName}
+      <Table variant="standalone">
+        <THead>
+          <Tr>
+            <Th className="max-w-[12rem] px-4 py-3 sm:px-6">Document</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">Category</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Unit / Tenant</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">Uploaded</Th>
+            <Th className="px-4 py-3 text-right sm:px-6">Actions</Th>
+          </Tr>
+        </THead>
+        <TBody>
+          {filteredDocuments.map((doc) => {
+            const Icon = CATEGORY_ICONS[doc.category];
+            return (
+              <Tr key={doc.id}>
+                <Td className="max-w-[12rem] px-4 py-3 sm:max-w-none sm:px-6">
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 shrink-0 text-slate-400" />
+                    <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                      {doc.name}
                     </p>
-                  </td>
-                  <td className="hidden px-6 py-3 sm:table-cell">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${CATEGORY_STYLES[doc.category]}`}
+                  </div>
+                  <p className="truncate pl-6 text-xs text-slate-400 sm:hidden">
+                    {doc.category} · {doc.propertyName}
+                  </p>
+                </Td>
+                <Td className="hidden px-6 py-3 sm:table-cell">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${CATEGORY_STYLES[doc.category]}`}
+                  >
+                    {doc.category}
+                  </span>
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                  {doc.propertyName}
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                  {doc.unitNumber ? `${doc.unitNumber} · ${doc.tenant}` : "Property-wide"}
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                  {doc.uploadedAt}
+                </Td>
+                <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(doc)}
+                      aria-label={`Download ${doc.name}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                     >
-                      {doc.category}
-                    </span>
-                  </td>
-                  <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                    {doc.propertyName}
-                  </td>
-                  <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                    {doc.unitNumber ? `${doc.unitNumber} · ${doc.tenant}` : "Property-wide"}
-                  </td>
-                  <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                    {doc.uploadedAt}
-                  </td>
-                  <td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
-                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <Download className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Download</span>
+                    </button>
+                    {doc.isUploaded && (
                       <button
                         type="button"
-                        onClick={() => handleDownload(doc)}
-                        aria-label={`Download ${doc.name}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                        onClick={() => handleDelete(doc)}
+                        aria-label={`Delete ${doc.name}`}
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100"
                       >
-                        <Download className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Download</span>
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
-                      {doc.isUploaded && (
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(doc)}
-                          aria-label={`Delete ${doc.name}`}
-                          className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {filteredDocuments.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
-                  No documents match these filters.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                    )}
+                  </div>
+                </Td>
+              </Tr>
+            );
+          })}
+          {filteredDocuments.length === 0 && (
+            <EmptyRow colSpan={6}>No documents match these filters.</EmptyRow>
+          )}
+        </TBody>
+      </Table>
 
       {isUploading && (
         <Modal

@@ -7,6 +7,7 @@ import { PROPERTIES } from "@/lib/mock-admin-data";
 import { getUnitsForProperty } from "@/lib/units";
 import { useLandlord } from "@/components/landlord/LandlordContext";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
+import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const STATUS_STYLES: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -76,60 +77,56 @@ export default function PropertyDetailPage() {
         />
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="max-w-[9rem] px-4 py-3 font-medium sm:px-6">Unit</th>
-              <th className="hidden px-6 py-3 font-medium sm:table-cell">Tenant</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">
-                Monthly Amount
-              </th>
-              <th className="px-4 py-3 font-medium sm:px-6">Status</th>
-              <th className="px-4 py-3 text-right font-medium sm:px-6">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {units.map((unit) => (
-              <tr key={unit.id} className="border-t border-slate-100">
-                <td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
-                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                    {unit.unitNumber}
-                  </p>
-                  <p className="truncate text-xs text-slate-400 sm:hidden">
-                    {unit.tenant ?? "Vacant"}
-                  </p>
-                  <p className="truncate text-xs text-slate-400 md:hidden">
-                    {unit.monthlyRent.toLocaleString()} RWF
-                  </p>
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
+      <Table variant="standalone">
+        <THead>
+          <Tr>
+            <Th className="max-w-[9rem] px-4 py-3 sm:px-6">Unit</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">Tenant</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Monthly Amount</Th>
+            <Th className="px-4 py-3 sm:px-6">Status</Th>
+            <Th className="px-4 py-3 text-right sm:px-6">Actions</Th>
+          </Tr>
+        </THead>
+        <TBody>
+          {units.map((unit) => (
+            <Tr key={unit.id}>
+              <Td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
+                <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                  {unit.unitNumber}
+                </p>
+                <p className="truncate text-xs text-slate-400 sm:hidden">
                   {unit.tenant ?? "Vacant"}
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {unit.monthlyRent.toLocaleString()}
-                </td>
-                <td className="px-4 py-3 sm:px-6">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[unit.currentPaymentStatus]}`}
-                  >
-                    {unit.currentPaymentStatus}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right sm:px-6">
-                  <Link
-                    href={`/landlord/properties/${property.id}/units/${unit.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    View
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </p>
+                <p className="truncate text-xs text-slate-400 md:hidden">
+                  {unit.monthlyRent.toLocaleString()} RWF
+                </p>
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
+                {unit.tenant ?? "Vacant"}
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                {unit.monthlyRent.toLocaleString()}
+              </Td>
+              <Td className="px-4 py-3 sm:px-6">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[unit.currentPaymentStatus]}`}
+                >
+                  {unit.currentPaymentStatus}
+                </span>
+              </Td>
+              <Td className="px-4 py-3 text-right sm:px-6">
+                <Link
+                  href={`/landlord/properties/${property.id}/units/${unit.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  View
+                </Link>
+              </Td>
+            </Tr>
+          ))}
+        </TBody>
+      </Table>
 
       <Link
         href="/landlord/leases"

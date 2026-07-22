@@ -6,6 +6,7 @@ import { TENANTS, type Tenant } from "@/lib/mock-admin-data";
 import { Modal } from "@/components/admin/Modal";
 import { TenantForm } from "@/components/admin/TenantForm";
 import { TenantDetail } from "@/components/admin/TenantDetail";
+import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const STATUS_STYLES: Record<Tenant["status"], string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -51,79 +52,75 @@ export default function TenantsPage() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="max-w-[10rem] px-4 py-3 font-medium sm:px-6">Name</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">Email</th>
-              <th className="hidden px-6 py-3 font-medium lg:table-cell">Phone</th>
-              <th className="hidden px-6 py-3 font-medium md:table-cell">
-                Current Property
-              </th>
-              <th className="px-4 py-3 font-medium sm:px-6">Status</th>
-              <th className="hidden px-6 py-3 font-medium lg:table-cell">Registered</th>
-              <th className="px-4 py-3 font-medium sm:px-6">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tenants.map((tenant) => (
-              <tr key={tenant.id} className="border-t border-slate-100">
-                <td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
-                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                    {tenant.name}
-                  </p>
-                  <p className="truncate text-xs text-slate-400 md:hidden">
-                    {tenant.email}
-                  </p>
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+      <Table variant="standalone">
+        <THead>
+          <Tr>
+            <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Name</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Email</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">Phone</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Current Property</Th>
+            <Th className="px-4 py-3 sm:px-6">Status</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">Registered</Th>
+            <Th className="px-4 py-3 sm:px-6">Actions</Th>
+          </Tr>
+        </THead>
+        <TBody>
+          {tenants.map((tenant) => (
+            <Tr key={tenant.id}>
+              <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                  {tenant.name}
+                </p>
+                <p className="truncate text-xs text-slate-400 md:hidden">
                   {tenant.email}
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                  {tenant.phone}
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {tenant.property}
-                </td>
-                <td className="px-4 py-3 sm:px-6">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[tenant.status]}`}
+                </p>
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                {tenant.email}
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                {tenant.phone}
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                {tenant.property}
+              </Td>
+              <Td className="px-4 py-3 sm:px-6">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[tenant.status]}`}
+                >
+                  {tenant.status}
+                </span>
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                {tenant.registeredAt}
+              </Td>
+              <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setViewingTenant(tenant)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   >
-                    {tenant.status}
-                  </span>
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                  {tenant.registeredAt}
-                </td>
-                <td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
-                  <div className="flex flex-wrap items-center gap-2">
+                    <Eye className="h-3.5 w-3.5" />
+                    View
+                  </button>
+                  {tenant.status === "Pending" && (
                     <button
                       type="button"
-                      onClick={() => setViewingTenant(tenant)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      onClick={() => verifyTenant(tenant.id)}
+                      aria-label={`Verify ${tenant.name}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
                     >
-                      <Eye className="h-3.5 w-3.5" />
-                      View
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Verify</span>
                     </button>
-                    {tenant.status === "Pending" && (
-                      <button
-                        type="button"
-                        onClick={() => verifyTenant(tenant.id)}
-                        aria-label={`Verify ${tenant.name}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
-                      >
-                        <ShieldCheck className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Verify</span>
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  )}
+                </div>
+              </Td>
+            </Tr>
+          ))}
+        </TBody>
+      </Table>
 
       {isModalOpen && (
         <Modal

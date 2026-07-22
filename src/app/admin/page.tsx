@@ -24,6 +24,7 @@ import {
   CHART_TEXT_COLOR,
 } from "@/lib/chart-colors";
 import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
+import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const STATUS_STYLES: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -250,48 +251,46 @@ export default function AdminOverviewPage() {
           </Link>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-6 py-3 font-medium">Name</th>
-                <th className="px-6 py-3 font-medium">Email</th>
-                <th className="px-6 py-3 font-medium">Properties</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentLandlords.map((landlord) => (
-                <tr key={landlord.id} className="border-t border-slate-100">
-                  <td className="px-6 py-3 font-medium text-navy">
-                    {landlord.name}
-                  </td>
-                  <td className="px-6 py-3 text-slate-500">{landlord.email}</td>
-                  <td className="px-6 py-3 text-slate-500">
-                    {landlord.properties}
-                  </td>
-                  <td className="px-6 py-3">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[landlord.status]}`}
-                    >
-                      {landlord.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3 text-right">
-                    <Link
-                      href="/admin/landlords"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      View
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table variant="plain">
+          <THead>
+            <Tr>
+              <Th className="px-6 py-3">Name</Th>
+              <Th className="px-6 py-3">Email</Th>
+              <Th className="px-6 py-3">Properties</Th>
+              <Th className="px-6 py-3">Status</Th>
+              <Th className="px-6 py-3 text-right">Actions</Th>
+            </Tr>
+          </THead>
+          <TBody>
+            {recentLandlords.map((landlord) => (
+              <Tr key={landlord.id}>
+                <Td className="px-6 py-3 font-medium text-navy">
+                  {landlord.name}
+                </Td>
+                <Td className="px-6 py-3 text-slate-500">{landlord.email}</Td>
+                <Td className="px-6 py-3 text-slate-500">
+                  {landlord.properties}
+                </Td>
+                <Td className="px-6 py-3">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[landlord.status]}`}
+                  >
+                    {landlord.status}
+                  </span>
+                </Td>
+                <Td className="px-6 py-3 text-right">
+                  <Link
+                    href="/admin/landlords"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    View
+                  </Link>
+                </Td>
+              </Tr>
+            ))}
+          </TBody>
+        </Table>
       </div>
     </div>
   );

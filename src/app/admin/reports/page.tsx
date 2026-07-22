@@ -10,6 +10,7 @@ import {
   PROPERTIES,
 } from "@/lib/mock-admin-data";
 import { downloadCSV } from "@/lib/csv";
+import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const REPORT_TYPES = [
   {
@@ -248,161 +249,145 @@ export default function ReportsPage() {
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         {reportId === "rental-history" && (
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-6 py-3 font-medium">Tenant</th>
-                <th className="px-6 py-3 font-medium">Property</th>
-                <th className="px-6 py-3 font-medium">Owner</th>
-                <th className="px-6 py-3 font-medium">Rent (RWF)</th>
-                <th className="px-6 py-3 font-medium">Start</th>
-                <th className="px-6 py-3 font-medium">End</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table variant="bare">
+            <THead>
+              <Tr>
+                <Th className="px-6 py-3">Tenant</Th>
+                <Th className="px-6 py-3">Property</Th>
+                <Th className="px-6 py-3">Owner</Th>
+                <Th className="px-6 py-3">Rent (RWF)</Th>
+                <Th className="px-6 py-3">Start</Th>
+                <Th className="px-6 py-3">End</Th>
+                <Th className="px-6 py-3">Status</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {rentalHistory.map((l) => (
-                <tr key={l.id} className="border-t border-slate-100">
-                  <td className="px-6 py-3 font-medium text-navy">{l.tenant}</td>
-                  <td className="px-6 py-3 text-slate-500">{l.property}</td>
-                  <td className="px-6 py-3 text-slate-500">{l.owner}</td>
-                  <td className="px-6 py-3 text-slate-500">
+                <Tr key={l.id}>
+                  <Td className="px-6 py-3 font-medium text-navy">{l.tenant}</Td>
+                  <Td className="px-6 py-3 text-slate-500">{l.property}</Td>
+                  <Td className="px-6 py-3 text-slate-500">{l.owner}</Td>
+                  <Td className="px-6 py-3 text-slate-500">
                     {l.rent.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-3 text-slate-500">{l.startDate}</td>
-                  <td className="px-6 py-3 text-slate-500">
+                  </Td>
+                  <Td className="px-6 py-3 text-slate-500">{l.startDate}</Td>
+                  <Td className="px-6 py-3 text-slate-500">
                     {l.endDate ?? "Open-ended"}
-                  </td>
-                  <td className="px-6 py-3 text-slate-500">{l.status}</td>
-                </tr>
+                  </Td>
+                  <Td className="px-6 py-3 text-slate-500">{l.status}</Td>
+                </Tr>
               ))}
               {rentalHistory.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
-                    No leases match these filters.
-                  </td>
-                </tr>
+                <EmptyRow colSpan={7}>No leases match these filters.</EmptyRow>
               )}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         )}
 
         {reportId === "payment-history" && (
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-6 py-3 font-medium">Tenant</th>
-                <th className="px-6 py-3 font-medium">Property</th>
-                <th className="px-6 py-3 font-medium">Amount (RWF)</th>
-                <th className="px-6 py-3 font-medium">Method</th>
-                <th className="px-6 py-3 font-medium">Due Date</th>
-                <th className="px-6 py-3 font-medium">Paid Date</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table variant="bare">
+            <THead>
+              <Tr>
+                <Th className="px-6 py-3">Tenant</Th>
+                <Th className="px-6 py-3">Property</Th>
+                <Th className="px-6 py-3">Amount (RWF)</Th>
+                <Th className="px-6 py-3">Method</Th>
+                <Th className="px-6 py-3">Due Date</Th>
+                <Th className="px-6 py-3">Paid Date</Th>
+                <Th className="px-6 py-3">Status</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {paymentHistory.map((p) => (
-                <tr key={p.id} className="border-t border-slate-100">
-                  <td className="px-6 py-3 font-medium text-navy">{p.tenant}</td>
-                  <td className="px-6 py-3 text-slate-500">{p.property}</td>
-                  <td className="px-6 py-3 text-slate-500">
+                <Tr key={p.id}>
+                  <Td className="px-6 py-3 font-medium text-navy">{p.tenant}</Td>
+                  <Td className="px-6 py-3 text-slate-500">{p.property}</Td>
+                  <Td className="px-6 py-3 text-slate-500">
                     {p.amount.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-3 text-slate-500">{p.method}</td>
-                  <td className="px-6 py-3 text-slate-500">{p.dueDate}</td>
-                  <td className="px-6 py-3 text-slate-500">
+                  </Td>
+                  <Td className="px-6 py-3 text-slate-500">{p.method}</Td>
+                  <Td className="px-6 py-3 text-slate-500">{p.dueDate}</Td>
+                  <Td className="px-6 py-3 text-slate-500">
                     {p.paidDate ?? "—"}
-                  </td>
-                  <td className="px-6 py-3 text-slate-500">{p.status}</td>
-                </tr>
+                  </Td>
+                  <Td className="px-6 py-3 text-slate-500">{p.status}</Td>
+                </Tr>
               ))}
               {paymentHistory.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
-                    No payments match these filters.
-                  </td>
-                </tr>
+                <EmptyRow colSpan={7}>No payments match these filters.</EmptyRow>
               )}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         )}
 
         {reportId === "occupancy" && (
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-6 py-3 font-medium">Property</th>
-                <th className="px-6 py-3 font-medium">Owner</th>
-                <th className="px-6 py-3 font-medium">Type</th>
-                <th className="px-6 py-3 font-medium">Availability</th>
-                <th className="px-6 py-3 font-medium">Approval</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table variant="bare">
+            <THead>
+              <Tr>
+                <Th className="px-6 py-3">Property</Th>
+                <Th className="px-6 py-3">Owner</Th>
+                <Th className="px-6 py-3">Type</Th>
+                <Th className="px-6 py-3">Availability</Th>
+                <Th className="px-6 py-3">Approval</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {occupancy.map((p) => (
-                <tr key={p.id} className="border-t border-slate-100">
-                  <td className="px-6 py-3 font-medium text-navy">{p.name}</td>
-                  <td className="px-6 py-3 text-slate-500">{p.owner}</td>
-                  <td className="px-6 py-3 text-slate-500">{p.type}</td>
-                  <td className="px-6 py-3 text-slate-500">
+                <Tr key={p.id}>
+                  <Td className="px-6 py-3 font-medium text-navy">{p.name}</Td>
+                  <Td className="px-6 py-3 text-slate-500">{p.owner}</Td>
+                  <Td className="px-6 py-3 text-slate-500">{p.type}</Td>
+                  <Td className="px-6 py-3 text-slate-500">
                     {p.availability}
-                  </td>
-                  <td className="px-6 py-3 text-slate-500">{p.approval}</td>
-                </tr>
+                  </Td>
+                  <Td className="px-6 py-3 text-slate-500">{p.approval}</Td>
+                </Tr>
               ))}
               {occupancy.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
-                    No properties match these filters.
-                  </td>
-                </tr>
+                <EmptyRow colSpan={5}>No properties match these filters.</EmptyRow>
               )}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         )}
 
         {reportId === "maintenance-activity" && (
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-6 py-3 font-medium">Tenant</th>
-                <th className="px-6 py-3 font-medium">Property</th>
-                <th className="px-6 py-3 font-medium">Issue</th>
-                <th className="px-6 py-3 font-medium">Priority</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium">Assigned To</th>
-                <th className="px-6 py-3 font-medium">Submitted</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table variant="bare">
+            <THead>
+              <Tr>
+                <Th className="px-6 py-3">Tenant</Th>
+                <Th className="px-6 py-3">Property</Th>
+                <Th className="px-6 py-3">Issue</Th>
+                <Th className="px-6 py-3">Priority</Th>
+                <Th className="px-6 py-3">Status</Th>
+                <Th className="px-6 py-3">Assigned To</Th>
+                <Th className="px-6 py-3">Submitted</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {maintenanceActivity.map((m) => (
-                <tr key={m.id} className="border-t border-slate-100">
-                  <td className="px-6 py-3 font-medium text-navy">{m.tenant}</td>
-                  <td className="px-6 py-3 text-slate-500">{m.property}</td>
-                  <td className="max-w-xs px-6 py-3 text-slate-500">
+                <Tr key={m.id}>
+                  <Td className="px-6 py-3 font-medium text-navy">{m.tenant}</Td>
+                  <Td className="px-6 py-3 text-slate-500">{m.property}</Td>
+                  <Td className="max-w-xs px-6 py-3 text-slate-500">
                     {m.issue.join("; ")}
-                  </td>
-                  <td className="px-6 py-3 text-slate-500">{m.priority}</td>
-                  <td className="px-6 py-3 text-slate-500">{m.status}</td>
-                  <td className="px-6 py-3 text-slate-500">
+                  </Td>
+                  <Td className="px-6 py-3 text-slate-500">{m.priority}</Td>
+                  <Td className="px-6 py-3 text-slate-500">{m.status}</Td>
+                  <Td className="px-6 py-3 text-slate-500">
                     {m.laborers.length > 0
                       ? `${m.laborers.length} worker${m.laborers.length === 1 ? "" : "s"}`
                       : "—"}
-                  </td>
-                  <td className="px-6 py-3 text-slate-500">
+                  </Td>
+                  <Td className="px-6 py-3 text-slate-500">
                     {m.submittedAt}
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               ))}
               {maintenanceActivity.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
-                    No requests match these filters.
-                  </td>
-                </tr>
+                <EmptyRow colSpan={7}>No requests match these filters.</EmptyRow>
               )}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         )}
 
         {reportId === "revenue-performance" && (
@@ -415,75 +400,71 @@ export default function ReportsPage() {
                 {revenueTotal.toLocaleString()} RWF
               </p>
             </div>
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="text-xs uppercase tracking-wide text-slate-400">
-                  <th className="px-6 py-3 font-medium">Tenant</th>
-                  <th className="px-6 py-3 font-medium">Property</th>
-                  <th className="px-6 py-3 font-medium">Amount (RWF)</th>
-                  <th className="px-6 py-3 font-medium">Method</th>
-                  <th className="px-6 py-3 font-medium">Paid Date</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table variant="bare">
+              <THead>
+                <Tr>
+                  <Th className="px-6 py-3">Tenant</Th>
+                  <Th className="px-6 py-3">Property</Th>
+                  <Th className="px-6 py-3">Amount (RWF)</Th>
+                  <Th className="px-6 py-3">Method</Th>
+                  <Th className="px-6 py-3">Paid Date</Th>
+                </Tr>
+              </THead>
+              <TBody>
                 {revenuePerformance.map((p) => (
-                  <tr key={p.id} className="border-t border-slate-100">
-                    <td className="px-6 py-3 font-medium text-navy">
+                  <Tr key={p.id}>
+                    <Td className="px-6 py-3 font-medium text-navy">
                       {p.tenant}
-                    </td>
-                    <td className="px-6 py-3 text-slate-500">
+                    </Td>
+                    <Td className="px-6 py-3 text-slate-500">
                       {p.property}
-                    </td>
-                    <td className="px-6 py-3 text-slate-500">
+                    </Td>
+                    <Td className="px-6 py-3 text-slate-500">
                       {p.amount.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-3 text-slate-500">{p.method}</td>
-                    <td className="px-6 py-3 text-slate-500">
+                    </Td>
+                    <Td className="px-6 py-3 text-slate-500">{p.method}</Td>
+                    <Td className="px-6 py-3 text-slate-500">
                       {p.paidDate ?? "—"}
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ))}
                 {revenuePerformance.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
-                      No revenue matches these filters.
-                    </td>
-                  </tr>
+                  <EmptyRow colSpan={5}>No revenue matches these filters.</EmptyRow>
                 )}
-              </tbody>
-            </table>
+              </TBody>
+            </Table>
           </>
         )}
 
         {reportId === "landlord-performance" && (
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-6 py-3 font-medium">Name</th>
-                <th className="px-6 py-3 font-medium">Email</th>
-                <th className="px-6 py-3 font-medium">Phone</th>
-                <th className="px-6 py-3 font-medium">Properties</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium">Registered</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table variant="bare">
+            <THead>
+              <Tr>
+                <Th className="px-6 py-3">Name</Th>
+                <Th className="px-6 py-3">Email</Th>
+                <Th className="px-6 py-3">Phone</Th>
+                <Th className="px-6 py-3">Properties</Th>
+                <Th className="px-6 py-3">Status</Th>
+                <Th className="px-6 py-3">Registered</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {LANDLORDS.map((l) => (
-                <tr key={l.id} className="border-t border-slate-100">
-                  <td className="px-6 py-3 font-medium text-navy">{l.name}</td>
-                  <td className="px-6 py-3 text-slate-500">{l.email}</td>
-                  <td className="px-6 py-3 text-slate-500">{l.phone}</td>
-                  <td className="px-6 py-3 text-slate-500">
+                <Tr key={l.id}>
+                  <Td className="px-6 py-3 font-medium text-navy">{l.name}</Td>
+                  <Td className="px-6 py-3 text-slate-500">{l.email}</Td>
+                  <Td className="px-6 py-3 text-slate-500">{l.phone}</Td>
+                  <Td className="px-6 py-3 text-slate-500">
                     {l.properties}
-                  </td>
-                  <td className="px-6 py-3 text-slate-500">{l.status}</td>
-                  <td className="px-6 py-3 text-slate-500">
+                  </Td>
+                  <Td className="px-6 py-3 text-slate-500">{l.status}</Td>
+                  <Td className="px-6 py-3 text-slate-500">
                     {l.registeredAt}
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         )}
       </div>
     </div>

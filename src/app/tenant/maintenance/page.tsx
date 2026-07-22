@@ -11,6 +11,7 @@ import { useTenant } from "@/components/tenant/TenantContext";
 import { Modal } from "@/components/admin/Modal";
 import { MaintenanceRequestForm } from "@/components/tenant/MaintenanceRequestForm";
 import { FeedbackForm } from "@/components/tenant/FeedbackForm";
+import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const STATUS_STYLES: Record<MaintenanceRequest["status"], string> = {
   Submitted: "bg-amber-50 text-amber-700",
@@ -97,85 +98,79 @@ export default function TenantMaintenancePage() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-slate-400">
-              <th className="max-w-[9rem] px-4 py-3 font-medium sm:px-6">Property</th>
-              <th className="hidden max-w-xs px-6 py-3 font-medium lg:table-cell">Issue</th>
-              <th className="hidden px-6 py-3 font-medium sm:table-cell">Priority</th>
-              <th className="hidden px-6 py-3 font-medium lg:table-cell">Assigned To</th>
-              <th className="px-4 py-3 font-medium sm:px-6">Status</th>
-              <th className="px-4 py-3 font-medium sm:px-6">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {myRequests.map((request) => (
-              <tr key={request.id} className="border-t border-slate-100">
-                <td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
-                  <p className="truncate text-slate-500 sm:overflow-visible sm:whitespace-normal">
-                    {request.property}
-                  </p>
-                  <p className="truncate text-xs text-slate-400 lg:hidden">
-                    {request.issue.join("; ")}
-                  </p>
-                  <p className="text-xs text-slate-400 sm:hidden">
-                    {request.priority} priority
-                  </p>
-                </td>
-                <td className="hidden max-w-xs px-6 py-3 text-slate-500 lg:table-cell">
+      <Table variant="standalone">
+        <THead>
+          <Tr>
+            <Th className="max-w-[9rem] px-4 py-3 sm:px-6">Property</Th>
+            <Th className="hidden max-w-xs px-6 py-3 lg:table-cell">Issue</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">Priority</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">Assigned To</Th>
+            <Th className="px-4 py-3 sm:px-6">Status</Th>
+            <Th className="px-4 py-3 sm:px-6">Actions</Th>
+          </Tr>
+        </THead>
+        <TBody>
+          {myRequests.map((request) => (
+            <Tr key={request.id}>
+              <Td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
+                <p className="truncate text-slate-500 sm:overflow-visible sm:whitespace-normal">
+                  {request.property}
+                </p>
+                <p className="truncate text-xs text-slate-400 lg:hidden">
                   {request.issue.join("; ")}
-                </td>
-                <td className="hidden px-6 py-3 sm:table-cell">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[request.priority]}`}
+                </p>
+                <p className="text-xs text-slate-400 sm:hidden">
+                  {request.priority} priority
+                </p>
+              </Td>
+              <Td className="hidden max-w-xs px-6 py-3 text-slate-500 lg:table-cell">
+                {request.issue.join("; ")}
+              </Td>
+              <Td className="hidden px-6 py-3 sm:table-cell">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[request.priority]}`}
+                >
+                  {request.priority}
+                </span>
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                {request.laborers.length > 0
+                  ? `${request.laborers.length} worker${request.laborers.length === 1 ? "" : "s"}`
+                  : "—"}
+              </Td>
+              <Td className="px-4 py-3 sm:px-6">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[request.status]}`}
+                >
+                  {request.status}
+                </span>
+              </Td>
+              <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                {request.status === "Completed" && !request.feedback ? (
+                  <button
+                    type="button"
+                    onClick={() => setFeedbackId(request.id)}
+                    aria-label={`Leave feedback for ${request.property}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   >
-                    {request.priority}
+                    <MessageSquarePlus className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Leave Feedback</span>
+                  </button>
+                ) : request.feedback ? (
+                  <span className="text-xs italic text-slate-400">
+                    &ldquo;{request.feedback}&rdquo;
                   </span>
-                </td>
-                <td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                  {request.laborers.length > 0
-                    ? `${request.laborers.length} worker${request.laborers.length === 1 ? "" : "s"}`
-                    : "—"}
-                </td>
-                <td className="px-4 py-3 sm:px-6">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[request.status]}`}
-                  >
-                    {request.status}
-                  </span>
-                </td>
-                <td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
-                  {request.status === "Completed" && !request.feedback ? (
-                    <button
-                      type="button"
-                      onClick={() => setFeedbackId(request.id)}
-                      aria-label={`Leave feedback for ${request.property}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                    >
-                      <MessageSquarePlus className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Leave Feedback</span>
-                    </button>
-                  ) : request.feedback ? (
-                    <span className="text-xs italic text-slate-400">
-                      &ldquo;{request.feedback}&rdquo;
-                    </span>
-                  ) : (
-                    <span className="text-xs text-slate-400">—</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {myRequests.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
-                  No maintenance requests yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                ) : (
+                  <span className="text-xs text-slate-400">—</span>
+                )}
+              </Td>
+            </Tr>
+          ))}
+          {myRequests.length === 0 && (
+            <EmptyRow colSpan={6}>No maintenance requests yet.</EmptyRow>
+          )}
+        </TBody>
+      </Table>
 
       {isNewRequestOpen && currentLease && (
         <Modal

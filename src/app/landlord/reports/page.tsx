@@ -24,6 +24,7 @@ import {
 import { useLandlord } from "@/components/landlord/LandlordContext";
 import { CHART_COLORS, CHART_GRID_COLOR, CHART_TEXT_COLOR } from "@/lib/chart-colors";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
+import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { downloadCSV } from "@/lib/csv";
 
 const REPORT_TYPES = [
@@ -144,41 +145,32 @@ function ReportTable<T>({
   emptyMessage: string;
 }) {
   return (
-    <table className="w-full text-left text-sm">
-      <thead>
-        <tr className="text-xs uppercase tracking-wide text-slate-400">
+    <Table variant="bare">
+      <THead>
+        <Tr>
           {columns.map((col) => (
-            <th key={col.key} className="px-6 py-3 font-medium">
+            <Th key={col.key} className="px-6 py-3">
               {col.label}
-            </th>
+            </Th>
           ))}
-        </tr>
-      </thead>
-      <tbody>
+        </Tr>
+      </THead>
+      <TBody>
         {rows.map((row) => (
-          <tr key={getKey(row)} className="border-t border-slate-100">
+          <Tr key={getKey(row)}>
             {columns.map((col, i) => (
-              <td
+              <Td
                 key={col.key}
                 className={`px-6 py-3 ${i === 0 ? "font-medium text-navy" : "text-slate-500"}`}
               >
                 {col.cell(row)}
-              </td>
+              </Td>
             ))}
-          </tr>
+          </Tr>
         ))}
-        {rows.length === 0 && (
-          <tr>
-            <td
-              colSpan={columns.length}
-              className="px-6 py-8 text-center text-slate-400"
-            >
-              {emptyMessage}
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+        {rows.length === 0 && <EmptyRow colSpan={columns.length}>{emptyMessage}</EmptyRow>}
+      </TBody>
+    </Table>
   );
 }
 
@@ -567,43 +559,39 @@ export default function LandlordReportsPage() {
               Completed maintenance jobs on your properties in this period.
             </p>
           </div>
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-6 py-3 font-medium">Property</th>
-                <th className="px-6 py-3 font-medium">Work Done</th>
-                <th className="px-6 py-3 font-medium">Labor Cost (RWF)</th>
-                <th className="px-6 py-3 font-medium">Item Cost (RWF)</th>
-                <th className="px-6 py-3 font-medium">Total (RWF)</th>
-                <th className="px-6 py-3 font-medium">Date</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table variant="bare">
+            <THead>
+              <Tr>
+                <Th className="px-6 py-3">Property</Th>
+                <Th className="px-6 py-3">Work Done</Th>
+                <Th className="px-6 py-3">Labor Cost (RWF)</Th>
+                <Th className="px-6 py-3">Item Cost (RWF)</Th>
+                <Th className="px-6 py-3">Total (RWF)</Th>
+                <Th className="px-6 py-3">Date</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {expenseBreakdown.map((e) => (
-                <tr key={e.id} className="border-t border-slate-100">
-                  <td className="px-6 py-3 font-medium text-navy">{e.property}</td>
-                  <td className="max-w-xs px-6 py-3 text-slate-500">{e.workDone}</td>
-                  <td className="px-6 py-3 text-slate-500">
+                <Tr key={e.id}>
+                  <Td className="px-6 py-3 font-medium text-navy">{e.property}</Td>
+                  <Td className="max-w-xs px-6 py-3 text-slate-500">{e.workDone}</Td>
+                  <Td className="px-6 py-3 text-slate-500">
                     {e.laborCost.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-3 text-slate-500">
+                  </Td>
+                  <Td className="px-6 py-3 text-slate-500">
                     {e.itemCost.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-3 font-medium text-red-600">
+                  </Td>
+                  <Td className="px-6 py-3 font-medium text-red-600">
                     {e.total.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-3 text-slate-500">{e.date}</td>
-                </tr>
+                  </Td>
+                  <Td className="px-6 py-3 text-slate-500">{e.date}</Td>
+                </Tr>
               ))}
               {expenseBreakdown.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
-                    No completed maintenance costs in this period.
-                  </td>
-                </tr>
+                <EmptyRow colSpan={6}>No completed maintenance costs in this period.</EmptyRow>
               )}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </div>
       )}
 
