@@ -38,6 +38,12 @@ export type TenantEditValues = {
   paymentMethod: string;
 };
 
+export type PaymentOverride = {
+  amount: number;
+  method: string;
+  paidDate: string;
+};
+
 export type UnitOverrides = {
   /** New leases created via the landlord "Add Tenant" flow. */
   extraLeases?: Lease[];
@@ -47,6 +53,8 @@ export type UnitOverrides = {
   unitEdits?: Record<string, Partial<TenantEditValues>>;
   /** Unit ids the landlord has explicitly vacated (removed a filler tenant). */
   vacatedUnitIds?: string[];
+  /** Manually recorded payments (e.g. cash) keyed by unit id, applied to the current month. */
+  paymentOverrides?: Record<string, PaymentOverride>;
 };
 
 const FILLER_FIRST_NAMES = [
@@ -257,6 +265,7 @@ export function getUnitsForProperty(
     removedLeaseIds = [],
     unitEdits = {},
     vacatedUnitIds = [],
+    paymentOverrides = {},
   } = overrides;
 
   const total =
@@ -318,11 +327,35 @@ export function getUnitsForProperty(
     if (vacatedUnitIds.includes(unit.id)) {
       return buildVacantUnit(property, unit.unitNumber, unit.id);
     }
+    let result = unit;
+
     const edits = unitEdits[unit.id];
-    if (edits && unit.occupancyStatus === "Occupied") {
-      return { ...unit, ...edits };
+    if (edits && result.occupancyStatus === "Occupied") {
+      result = { ...result, ...edits };
     }
-    return unit;
+
+    const paymentOverride = paymentOverrides[unit.id];
+    if (paymentOverride && result.occupancyStatus === "Occupied") {
+      const currentMonth = TODAY.slice(0, 7);
+      const history = [...result.paymentHistory];
+      const idx = history.findIndex((p) => p.month === currentMonth);
+      const entry: UnitPayment = {
+        month: currentMonth,
+        amount: paymentOverride.amount,
+        status: "Paid",
+        paidDate: paymentOverride.paidDate,
+      };
+      if (idx >= 0) history[idx] = entry;
+      else history.push(entry);
+      result = {
+        ...result,
+        paymentHistory: history,
+        currentPaymentStatus: "Paid",
+        paymentMethod: paymentOverride.method,
+      };
+    }
+
+    return result;
   });
 }
 

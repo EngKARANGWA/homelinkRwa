@@ -3,7 +3,7 @@
 import { createContext, useContext, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { LANDLORDS, type Lease } from "@/lib/mock-admin-data";
-import type { TenantEditValues, Unit, UnitOverrides } from "@/lib/units";
+import type { PaymentOverride, TenantEditValues, Unit, UnitOverrides } from "@/lib/units";
 import type { LandlordDocument } from "@/lib/documents";
 
 type LandlordContextValue = {
@@ -13,6 +13,7 @@ type LandlordContextValue = {
   addTenant: (lease: Lease) => void;
   updateTenant: (unit: Unit, values: TenantEditValues) => void;
   removeTenant: (unit: Unit) => void;
+  recordPayment: (unit: Unit, record: PaymentOverride) => void;
   documents: LandlordDocument[];
   addDocument: (doc: LandlordDocument) => void;
   removeDocument: (id: string) => void;
@@ -33,7 +34,12 @@ export function LandlordProvider({ children }: { children: React.ReactNode }) {
   const [removedLeaseIds, setRemovedLeaseIds] = useState<string[]>([]);
   const [unitEdits, setUnitEdits] = useState<Record<string, Partial<TenantEditValues>>>({});
   const [vacatedUnitIds, setVacatedUnitIds] = useState<string[]>([]);
+  const [paymentOverrides, setPaymentOverrides] = useState<Record<string, PaymentOverride>>({});
   const [documents, setDocuments] = useState<LandlordDocument[]>([]);
+
+  const recordPayment = (unit: Unit, record: PaymentOverride) => {
+    setPaymentOverrides((prev) => ({ ...prev, [unit.id]: record }));
+  };
 
   const addDocument = (doc: LandlordDocument) => {
     setDocuments((prev) => [doc, ...prev]);
@@ -70,6 +76,7 @@ export function LandlordProvider({ children }: { children: React.ReactNode }) {
     removedLeaseIds,
     unitEdits,
     vacatedUnitIds,
+    paymentOverrides,
   };
 
   return (
@@ -81,6 +88,7 @@ export function LandlordProvider({ children }: { children: React.ReactNode }) {
         addTenant,
         updateTenant,
         removeTenant,
+        recordPayment,
         documents,
         addDocument,
         removeDocument,

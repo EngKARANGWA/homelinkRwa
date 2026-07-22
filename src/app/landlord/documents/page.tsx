@@ -16,6 +16,7 @@ import { getBaseDocuments, type DocumentCategory, type LandlordDocument } from "
 import { useLandlord } from "@/components/landlord/LandlordContext";
 import { Modal } from "@/components/admin/Modal";
 import { UploadDocumentForm } from "@/components/landlord/UploadDocumentForm";
+import { SummaryCard } from "@/components/dashboard/SummaryCard";
 
 const CATEGORY_STYLES: Record<DocumentCategory, string> = {
   "Property Document": "bg-blue-50 text-blue-700",
@@ -110,22 +111,10 @@ export default function LandlordDocumentsPage() {
       )}
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Total Documents</p>
-          <p className="mt-2 text-xl font-bold text-navy">{counts.total}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Property Documents</p>
-          <p className="mt-2 text-xl font-bold text-blue-600">{counts.property}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Lease Agreements</p>
-          <p className="mt-2 text-xl font-bold text-emerald-600">{counts.lease}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">ID Verifications</p>
-          <p className="mt-2 text-xl font-bold text-amber-600">{counts.id}</p>
-        </div>
+        <SummaryCard label="Total Documents" value={counts.total} />
+        <SummaryCard label="Property Documents" value={counts.property} accent="blue" />
+        <SummaryCard label="Lease Agreements" value={counts.lease} accent="emerald" />
+        <SummaryCard label="ID Verifications" value={counts.id} accent="amber" />
       </div>
 
       <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

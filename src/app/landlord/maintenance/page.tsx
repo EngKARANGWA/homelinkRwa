@@ -33,13 +33,25 @@ export default function LandlordMaintenancePage() {
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [viewingRequest, setViewingRequest] = useState<MaintenanceRequest | null>(null);
+  const [propertyFilter, setPropertyFilter] = useState("All Properties");
+  const [statusFilter, setStatusFilter] = useState<"All" | MaintenanceRequest["status"]>("All");
+  const [priorityFilter, setPriorityFilter] = useState<"All" | MaintenanceRequest["priority"]>(
+    "All",
+  );
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const myPropertyNames = PROPERTIES.filter(
     (p) => p.owner === landlordName,
   ).map((p) => p.name);
-  const myRequests = requests.filter((r) =>
-    myPropertyNames.includes(r.property),
-  );
+  const propertyOptions = ["All Properties", ...myPropertyNames];
+  const myRequests = requests
+    .filter((r) => myPropertyNames.includes(r.property))
+    .filter((r) => propertyFilter === "All Properties" || r.property === propertyFilter)
+    .filter((r) => statusFilter === "All" || r.status === statusFilter)
+    .filter((r) => priorityFilter === "All" || r.priority === priorityFilter)
+    .filter((r) => !dateFrom || r.submittedAt >= dateFrom)
+    .filter((r) => !dateTo || r.submittedAt <= dateTo);
 
   const startProgress = (id: string) => {
     setRequests((prev) =>
@@ -75,6 +87,92 @@ export default function LandlordMaintenancePage() {
         </p>
       </div>
 
+      <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          Property
+          <select
+            value={propertyFilter}
+            onChange={(e) => setPropertyFilter(e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+          >
+            {propertyOptions.map((name) => (
+              <option key={name}>{name}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          Status
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+          >
+            <option value="All">All</option>
+            <option value="Submitted">Submitted</option>
+            <option value="Assigned">Assigned</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          Priority
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value as typeof priorityFilter)}
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+          >
+            <option value="All">All</option>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          From
+          <input
+            type="date"
+            value={dateFrom}
+            max={dateTo || undefined}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-navy focus:border-gold focus:outline-none"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          To
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom || undefined}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-navy focus:border-gold focus:outline-none"
+          />
+        </label>
+
+        {(propertyFilter !== "All Properties" ||
+          statusFilter !== "All" ||
+          priorityFilter !== "All" ||
+          dateFrom ||
+          dateTo) && (
+          <button
+            type="button"
+            onClick={() => {
+              setPropertyFilter("All Properties");
+              setStatusFilter("All");
+              setPriorityFilter("All");
+              setDateFrom("");
+              setDateTo("");
+            }}
+            className="text-sm font-medium text-slate-500 hover:text-navy"
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
           <thead>
@@ -84,6 +182,7 @@ export default function LandlordMaintenancePage() {
               <th className="hidden px-6 py-3 font-medium lg:table-cell">Issue</th>
               <th className="hidden px-6 py-3 font-medium sm:table-cell">Priority</th>
               <th className="hidden px-6 py-3 font-medium lg:table-cell">Assigned To</th>
+              <th className="hidden px-6 py-3 font-medium md:table-cell">Submitted</th>
               <th className="px-4 py-3 font-medium sm:px-6">Status</th>
               <th className="px-4 py-3 font-medium sm:px-6">Actions</th>
             </tr>
@@ -119,6 +218,9 @@ export default function LandlordMaintenancePage() {
                   {request.laborers.length > 0
                     ? `${request.laborers.length} worker${request.laborers.length === 1 ? "" : "s"}`
                     : "—"}
+                </td>
+                <td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                  {request.submittedAt}
                 </td>
                 <td className="px-4 py-3 sm:px-6">
                   <span
@@ -176,8 +278,8 @@ export default function LandlordMaintenancePage() {
             ))}
             {myRequests.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
-                  No maintenance requests on your properties.
+                <td colSpan={8} className="px-6 py-8 text-center text-slate-400">
+                  No maintenance requests match these filters.
                 </td>
               </tr>
             )}

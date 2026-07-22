@@ -39,6 +39,10 @@ import {
   CHART_TEXT_COLOR,
 } from "@/lib/chart-colors";
 import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
+import { AlertBanner } from "@/components/dashboard/AlertBanner";
+import { Card } from "@/components/dashboard/Card";
+import { MiniStatGroup } from "@/components/dashboard/MiniStatGroup";
+import { FeaturedStatCard } from "@/components/dashboard/FeaturedStatCard";
 
 const AVAILABILITY_STYLES: Record<string, string> = {
   Available: "bg-emerald-50 text-emerald-700",
@@ -178,111 +182,67 @@ export default function LandlordOverviewPage() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-          <p className="font-semibold text-navy">This Month</p>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-slate-100">
-            <div className="sm:pr-4">
-              <p className="text-xs text-slate-500">Total Due</p>
-              <p className="mt-1 text-xl font-bold text-navy">
-                {totalDueThisMonth.toLocaleString()}
-                <span className="text-xs font-medium text-slate-400"> RWF</span>
-              </p>
-            </div>
-            <div className="sm:px-4">
-              <p className="text-xs text-slate-500">Collected</p>
-              <p className="mt-1 text-xl font-bold text-emerald-600">
-                {amountCollectedThisMonth.toLocaleString()}
-                <span className="text-xs font-medium text-slate-400"> RWF</span>
-              </p>
-            </div>
-            <div className="sm:pl-4">
-              <p className="text-xs text-slate-500">Balance Due</p>
-              <p className="mt-1 text-xl font-bold text-red-600">
-                {balanceDue.toLocaleString()}
-                <span className="text-xs font-medium text-slate-400"> RWF</span>
-              </p>
-            </div>
-          </div>
-        </div>
+        <Card title="This Month" className="lg:col-span-2">
+          <MiniStatGroup
+            stats={[
+              {
+                label: "Total Due",
+                value: totalDueThisMonth.toLocaleString(),
+                unit: "RWF",
+              },
+              {
+                label: "Collected",
+                value: amountCollectedThisMonth.toLocaleString(),
+                unit: "RWF",
+                accent: "emerald",
+              },
+              {
+                label: "Balance Due",
+                value: balanceDue.toLocaleString(),
+                unit: "RWF",
+                accent: "red",
+              },
+            ]}
+          />
+        </Card>
 
         {featuredProperty && (
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="truncate font-semibold text-navy">
-              {featuredProperty.name}
-            </p>
-            {occupancyPercent !== null ? (
-              <>
-                <p className="mt-3 text-3xl font-bold text-navy">
-                  {occupancyPercent}%
-                </p>
-                <p className="text-xs text-slate-500">Occupancy</p>
-                <p className="mt-2 text-sm text-slate-500">
-                  {featuredProperty.occupiedUnits}/{featuredProperty.totalUnits}{" "}
-                  units occupied
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="mt-3 text-lg font-bold text-navy">
-                  {featuredProperty.availability}
-                </p>
-                <p className="text-xs text-slate-500">Status</p>
-              </>
-            )}
-          </div>
+          <FeaturedStatCard
+            title={featuredProperty.name}
+            value={occupancyPercent !== null ? `${occupancyPercent}%` : featuredProperty.availability}
+            label={occupancyPercent !== null ? "Occupancy" : "Status"}
+            subtext={
+              occupancyPercent !== null
+                ? `${featuredProperty.occupiedUnits}/${featuredProperty.totalUnits} units occupied`
+                : undefined
+            }
+            size={occupancyPercent !== null ? "lg" : "md"}
+          />
         )}
       </div>
 
-      <div
-        className={`flex flex-wrap items-center justify-between gap-5 rounded-xl border p-6 shadow-sm ${
-          balanceDue > 0
-            ? "border-amber-200 bg-amber-50/60"
-            : "border-emerald-200 bg-emerald-50/60"
-        }`}
+      <AlertBanner
+        isAlert={balanceDue > 0}
+        stats={[
+          { label: "Balance Due", value: `${balanceDue.toLocaleString()} RWF` },
+          { label: "Tenants Outstanding", value: outstandingTenants },
+        ]}
       >
-        <div className="flex flex-wrap items-center gap-8">
-          <div>
-            <p
-              className={`text-xs font-semibold uppercase tracking-wide ${
-                balanceDue > 0 ? "text-amber-700" : "text-emerald-700"
-              }`}
-            >
-              Balance Due
-            </p>
-            <p className="mt-1 text-xl font-bold text-navy">
-              {balanceDue.toLocaleString()} RWF
-            </p>
-          </div>
-          <div>
-            <p
-              className={`text-xs font-semibold uppercase tracking-wide ${
-                balanceDue > 0 ? "text-amber-700" : "text-emerald-700"
-              }`}
-            >
-              Tenants Outstanding
-            </p>
-            <p className="mt-1 text-xl font-bold text-navy">
-              {outstandingTenants}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={handleSendReminder}
-            className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
-          >
-            <Bell className="h-4 w-4" />
-            Send Reminder
-          </button>
-          <Link
-            href="/landlord/reports"
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-          >
-            View Report
-          </Link>
-        </div>
-      </div>
+        <button
+          type="button"
+          onClick={handleSendReminder}
+          className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+        >
+          <Bell className="h-4 w-4" />
+          Send Reminder
+        </button>
+        <Link
+          href="/landlord/reports"
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+        >
+          View Report
+        </Link>
+      </AlertBanner>
 
       {reminderNotice && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">

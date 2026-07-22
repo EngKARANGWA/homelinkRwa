@@ -23,6 +23,7 @@ import {
 } from "@/lib/mock-admin-data";
 import { useLandlord } from "@/components/landlord/LandlordContext";
 import { CHART_COLORS, CHART_GRID_COLOR, CHART_TEXT_COLOR } from "@/lib/chart-colors";
+import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { downloadCSV } from "@/lib/csv";
 
 const REPORT_TYPES = [
@@ -416,28 +417,18 @@ export default function LandlordReportsPage() {
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Total Collected</p>
-          <p className="mt-2 text-xl font-bold text-emerald-600">
-            {totalCollected.toLocaleString()} RWF
-          </p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Total Outstanding</p>
-          <p className="mt-2 text-xl font-bold text-red-600">
-            {totalOutstanding.toLocaleString()} RWF
-          </p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Occupancy Rate</p>
-          <p className="mt-2 text-xl font-bold text-navy">{occupancyRate}%</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Average Rent</p>
-          <p className="mt-2 text-xl font-bold text-navy">
-            {averageRent.toLocaleString()} RWF
-          </p>
-        </div>
+        <SummaryCard
+          label="Total Collected"
+          value={`${totalCollected.toLocaleString()} RWF`}
+          accent="emerald"
+        />
+        <SummaryCard
+          label="Total Outstanding"
+          value={`${totalOutstanding.toLocaleString()} RWF`}
+          accent="red"
+        />
+        <SummaryCard label="Occupancy Rate" value={`${occupancyRate}%`} />
+        <SummaryCard label="Average Rent" value={`${averageRent.toLocaleString()} RWF`} />
       </div>
 
       {revenueByMonth.length > 0 && (
@@ -549,29 +540,22 @@ export default function LandlordReportsPage() {
 
       {PAYMENT_REPORT_IDS.includes(reportId) && (
         <div className="grid gap-5 sm:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Total Income</p>
-            <p className="mt-2 text-xl font-bold text-emerald-600">
-              {incomeForActiveReport.toLocaleString()} RWF
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Total Expenses</p>
-            <p className="mt-2 text-xl font-bold text-red-600">
-              {expensesForActiveReport.toLocaleString()} RWF
-            </p>
-            <p className="mt-1 text-xs text-slate-400">Completed maintenance costs</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Net Profit</p>
-            <p
-              className={`mt-2 text-xl font-bold ${
-                netProfitForActiveReport >= 0 ? "text-navy" : "text-red-600"
-              }`}
-            >
-              {netProfitForActiveReport.toLocaleString()} RWF
-            </p>
-          </div>
+          <SummaryCard
+            label="Total Income"
+            value={`${incomeForActiveReport.toLocaleString()} RWF`}
+            accent="emerald"
+          />
+          <SummaryCard
+            label="Total Expenses"
+            value={`${expensesForActiveReport.toLocaleString()} RWF`}
+            accent="red"
+            subtitle="Completed maintenance costs"
+          />
+          <SummaryCard
+            label="Net Profit"
+            value={`${netProfitForActiveReport.toLocaleString()} RWF`}
+            accent={netProfitForActiveReport >= 0 ? "navy" : "red"}
+          />
         </div>
       )}
 

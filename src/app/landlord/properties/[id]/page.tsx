@@ -6,35 +6,13 @@ import { ArrowLeft, ArrowRight, Eye } from "lucide-react";
 import { PROPERTIES } from "@/lib/mock-admin-data";
 import { getUnitsForProperty } from "@/lib/units";
 import { useLandlord } from "@/components/landlord/LandlordContext";
+import { SummaryCard } from "@/components/dashboard/SummaryCard";
 
 const STATUS_STYLES: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
   Overdue: "bg-red-50 text-red-700",
   Vacant: "bg-slate-100 text-slate-600",
 };
-
-function StatBlock({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string | number;
-  accent?: "emerald" | "red";
-}) {
-  const valueColor =
-    accent === "emerald"
-      ? "text-emerald-600"
-      : accent === "red"
-        ? "text-red-600"
-        : "text-navy";
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className={`mt-2 text-xl font-bold ${valueColor}`}>{value}</p>
-    </div>
-  );
-}
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -84,14 +62,14 @@ export default function PropertyDetailPage() {
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <StatBlock label="Units" value={totalUnits} />
-        <StatBlock label="Occupied" value={`${occupancyPercent}%`} />
-        <StatBlock
+        <SummaryCard label="Units" value={totalUnits} />
+        <SummaryCard label="Occupied" value={`${occupancyPercent}%`} />
+        <SummaryCard
           label="Collected"
           value={`${collected.toLocaleString()} RWF`}
           accent="emerald"
         />
-        <StatBlock
+        <SummaryCard
           label="Outstanding"
           value={`${outstanding.toLocaleString()} RWF`}
           accent="red"

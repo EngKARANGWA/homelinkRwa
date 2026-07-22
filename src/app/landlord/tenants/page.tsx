@@ -8,6 +8,7 @@ import { getUnitsForProperty, type Unit } from "@/lib/units";
 import { useLandlord } from "@/components/landlord/LandlordContext";
 import { Modal } from "@/components/admin/Modal";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
+import { SummaryCard } from "@/components/dashboard/SummaryCard";
 
 const STATUS_STYLES: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -108,24 +109,13 @@ export default function LandlordTenantsPage() {
       )}
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Total Tenants</p>
-          <p className="mt-2 text-xl font-bold text-navy">{allTenants.length}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Paid</p>
-          <p className="mt-2 text-xl font-bold text-emerald-600">{paidTenants.length}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Overdue</p>
-          <p className="mt-2 text-xl font-bold text-red-600">{overdueTenants.length}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Total Monthly Rent</p>
-          <p className="mt-2 text-xl font-bold text-navy">
-            {totalMonthlyRent.toLocaleString()} RWF
-          </p>
-        </div>
+        <SummaryCard label="Total Tenants" value={allTenants.length} />
+        <SummaryCard label="Paid" value={paidTenants.length} accent="emerald" />
+        <SummaryCard label="Overdue" value={overdueTenants.length} accent="red" />
+        <SummaryCard
+          label="Total Monthly Rent"
+          value={`${totalMonthlyRent.toLocaleString()} RWF`}
+        />
       </div>
 
       <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
