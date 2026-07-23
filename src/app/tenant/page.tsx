@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/shared/AppLink";
 import {
   ArrowRight,
   Banknote,

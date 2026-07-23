@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/shared/AppLink";
 import { Bell, CheckCircle2, Eye, Plus, Search } from "lucide-react";
 import { PROPERTIES, type Lease } from "@/lib/mock-admin-data";
 import { getUnitsForProperty, type Unit } from "@/lib/units";

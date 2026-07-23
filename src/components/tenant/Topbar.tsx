@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/shared/AppLink";
 import { Bell, ChevronDown, LogOut, Menu, UserCircle } from "lucide-react";
 import { useTenant } from "./TenantContext";
 

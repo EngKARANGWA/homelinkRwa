@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { AppLink as Link } from "@/components/shared/AppLink";
 import { useParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Eye } from "lucide-react";
 import { PROPERTIES } from "@/lib/mock-admin-data";

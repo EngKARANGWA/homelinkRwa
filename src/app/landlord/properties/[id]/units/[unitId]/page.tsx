@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { AppLink as Link } from "@/components/shared/AppLink";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -47,6 +47,7 @@ function monthLabel(month: string): string {
 export default function UnitDetailPage() {
   const { id, unitId } = useParams<{ id: string; unitId: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { landlordName, unitOverrides, updateTenant, removeTenant, documents } = useLandlord();
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
   const [isEditing, setEditing] = useState(false);
@@ -84,7 +85,10 @@ export default function UnitDetailPage() {
 
   const handleRemoveTenant = () => {
     removeTenant(unit);
-    router.push(`/landlord/properties/${property.id}`);
+    const currentId = searchParams.get("id");
+    router.push(
+      `/landlord/properties/${property.id}${currentId ? `?id=${currentId}` : ""}`,
+    );
   };
 
   return (

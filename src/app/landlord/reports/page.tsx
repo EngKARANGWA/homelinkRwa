@@ -6,6 +6,10 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -250,6 +254,24 @@ export default function LandlordReportsPage() {
     ? Math.round(myProperties.reduce((sum, p) => sum + p.rent, 0) / myProperties.length)
     : 0;
 
+  const occupancyData = [
+    {
+      name: "Available",
+      value: myProperties.filter((p) => p.availability === "Available").length,
+    },
+    {
+      name: "Occupied",
+      value: myProperties.filter((p) => p.availability === "Occupied").length,
+    },
+  ];
+
+  const paymentStatusData = (
+    ["Paid", "Late", "Pending", "Pending Approval"] as const
+  ).map((status) => ({
+    name: status,
+    value: myPayments.filter((p) => p.status === status).length,
+  }));
+
   const revenueByMonth = (() => {
     const totals = new Map<string, number>();
     myPayments
@@ -435,6 +457,60 @@ export default function LandlordReportsPage() {
               <Bar dataKey="amount" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      )}
+
+      {myProperties.length > 0 && (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="font-semibold text-navy">Occupancy</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={occupancyData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={2}
+                >
+                  {occupancyData.map((entry, i) => (
+                    <Cell
+                      key={entry.name}
+                      fill={CHART_COLORS[i % CHART_COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="font-semibold text-navy">Payment Status</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={paymentStatusData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={2}
+                >
+                  {paymentStatusData.map((entry, i) => (
+                    <Cell
+                      key={entry.name}
+                      fill={CHART_COLORS[i % CHART_COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       )}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/shared/AppLink";
 import {
   ArrowRight,
   Bell,
@@ -16,10 +16,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -31,8 +27,10 @@ import {
   PAYMENTS,
   PROPERTIES,
   TODAY,
+  type Payment,
 } from "@/lib/mock-admin-data";
 import { useLandlord } from "@/components/landlord/LandlordContext";
+import { getUnitsForProperty } from "@/lib/units";
 import {
   CHART_COLORS,
   CHART_GRID_COLOR,
@@ -40,14 +38,18 @@ import {
 } from "@/lib/chart-colors";
 import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
 import { AlertBanner } from "@/components/dashboard/AlertBanner";
-import { Card } from "@/components/dashboard/Card";
-import { MiniStatGroup } from "@/components/dashboard/MiniStatGroup";
-import { FeaturedStatCard } from "@/components/dashboard/FeaturedStatCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const AVAILABILITY_STYLES: Record<string, string> = {
   Available: "bg-emerald-50 text-emerald-700",
   Occupied: "bg-slate-100 text-slate-600",
+};
+
+const PAYMENT_STATUS_STYLES: Record<Payment["status"], string> = {
+  Paid: "bg-emerald-50 text-emerald-700",
+  Late: "bg-red-50 text-red-700",
+  Pending: "bg-amber-50 text-amber-700",
+  "Pending Approval": "bg-sky-50 text-sky-700",
 };
 
 const STAT_META: Record<
@@ -82,9 +84,19 @@ const STAT_META: Record<
 
 const axisTick = { fontSize: 12, fill: CHART_TEXT_COLOR };
 
+const MONTH_LABELS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+function formatMonth(month: string): string {
+  return MONTH_LABELS[Number(month.slice(5, 7)) - 1] ?? month;
+}
+
 export default function LandlordOverviewPage() {
-  const { landlordName } = useLandlord();
+  const { landlordName, unitOverrides } = useLandlord();
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
+  const [propertyTab, setPropertyTab] = useState<"All" | Payment["status"] | "Arrears">("All");
 
   const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
   const myPropertyNames = myProperties.map((p) => p.name);
@@ -98,6 +110,20 @@ export default function LandlordOverviewPage() {
   const paymentsDueThisMonth = myPayments.filter(
     (p) => p.dueDate.slice(0, 7) === currentMonth,
   );
+
+  const paymentStatusFor = (propertyName: string): Payment["status"] | null => {
+    const thisMonth = paymentsDueThisMonth.find((p) => p.property === propertyName);
+    if (thisMonth) return thisMonth.status;
+    const latest = myPayments
+      .filter((p) => p.property === propertyName)
+      .sort((a, b) => b.dueDate.localeCompare(a.dueDate))[0];
+    return latest?.status ?? null;
+  };
+
+  const propertyHasArrears = (property: (typeof myProperties)[number]): boolean =>
+    getUnitsForProperty(property, unitOverrides).some(
+      (u) => u.occupancyStatus === "Occupied" && u.currentPaymentStatus === "Overdue",
+    );
   const totalDueThisMonth = paymentsDueThisMonth.reduce(
     (sum, p) => sum + p.amount,
     0,
@@ -112,16 +138,6 @@ export default function LandlordOverviewPage() {
   const outstandingTenants = new Set(
     outstandingPayments.map((p) => p.tenant),
   ).size;
-
-  const featuredProperty =
-    myProperties.find((p) => p.totalUnits && p.occupiedUnits != null) ??
-    myProperties[0];
-  const occupancyPercent =
-    featuredProperty?.totalUnits && featuredProperty.occupiedUnits != null
-      ? Math.round(
-          (featuredProperty.occupiedUnits / featuredProperty.totalUnits) * 100,
-        )
-      : null;
 
   const handleSendReminder = () => {
     setReminderNotice(
@@ -150,28 +166,46 @@ export default function LandlordOverviewPage() {
     },
   ];
 
-  const occupancyData = [
-    {
-      name: "Available",
-      value: myProperties.filter((p) => p.availability === "Available").length,
-    },
-    {
-      name: "Occupied",
-      value: myProperties.filter((p) => p.availability === "Occupied").length,
-    },
+  const PROPERTY_TABS: { key: "All" | Payment["status"] | "Arrears"; label: string }[] = [
+    { key: "All", label: "All" },
+    { key: "Paid", label: "Paid" },
+    { key: "Late", label: "Late" },
+    { key: "Pending", label: "Pending" },
+    { key: "Pending Approval", label: "Pending Approval" },
+    { key: "Arrears", label: "Arrears" },
   ];
+  const propertyTabCounts: Record<(typeof PROPERTY_TABS)[number]["key"], number> = {
+    All: myProperties.length,
+    Paid: myProperties.filter((p) => paymentStatusFor(p.name) === "Paid").length,
+    Late: myProperties.filter((p) => paymentStatusFor(p.name) === "Late").length,
+    Pending: myProperties.filter((p) => paymentStatusFor(p.name) === "Pending").length,
+    "Pending Approval": myProperties.filter(
+      (p) => paymentStatusFor(p.name) === "Pending Approval",
+    ).length,
+    Arrears: myProperties.filter(propertyHasArrears).length,
+  };
+  const visibleProperties = myProperties
+    .filter((p) => {
+      if (propertyTab === "All") return true;
+      if (propertyTab === "Arrears") return propertyHasArrears(p);
+      return paymentStatusFor(p.name) === propertyTab;
+    })
+    .slice(0, 3);
 
-  const paymentStatusData = (
-    ["Paid", "Late", "Pending", "Pending Approval"] as const
-  ).map((status) => ({
-    name: status,
-    value: myPayments.filter((p) => p.status === status).length,
-  }));
-
-  const rentByProperty = myProperties.map((p) => ({
-    name: p.name.length > 16 ? `${p.name.slice(0, 16)}…` : p.name,
-    rent: p.rent,
-  }));
+  const revenueByMonth = (() => {
+    const currentYear = TODAY.slice(0, 4);
+    const totals = new Map<string, number>();
+    myPayments
+      .filter((p) => p.status === "Paid")
+      .forEach((p) => {
+        const month = (p.paidDate ?? p.dueDate).slice(0, 7);
+        totals.set(month, (totals.get(month) ?? 0) + p.amount);
+      });
+    return Array.from({ length: 12 }, (_, i) => {
+      const month = `${currentYear}-${String(i + 1).padStart(2, "0")}`;
+      return { month, amount: totals.get(month) ?? 0 };
+    });
+  })();
 
   return (
     <div className="flex flex-col gap-8">
@@ -181,76 +215,6 @@ export default function LandlordOverviewPage() {
           A quick look at your properties, {landlordName}.
         </p>
       </div>
-
-      <div className="grid gap-5 lg:grid-cols-3">
-        <Card title="This Month" className="lg:col-span-2">
-          <MiniStatGroup
-            stats={[
-              {
-                label: "Total Due",
-                value: totalDueThisMonth.toLocaleString(),
-                unit: "RWF",
-              },
-              {
-                label: "Collected",
-                value: amountCollectedThisMonth.toLocaleString(),
-                unit: "RWF",
-                accent: "emerald",
-              },
-              {
-                label: "Balance Due",
-                value: balanceDue.toLocaleString(),
-                unit: "RWF",
-                accent: "red",
-              },
-            ]}
-          />
-        </Card>
-
-        {featuredProperty && (
-          <FeaturedStatCard
-            title={featuredProperty.name}
-            value={occupancyPercent !== null ? `${occupancyPercent}%` : featuredProperty.availability}
-            label={occupancyPercent !== null ? "Occupancy" : "Status"}
-            subtext={
-              occupancyPercent !== null
-                ? `${featuredProperty.occupiedUnits}/${featuredProperty.totalUnits} units occupied`
-                : undefined
-            }
-            size={occupancyPercent !== null ? "lg" : "md"}
-          />
-        )}
-      </div>
-
-      <AlertBanner
-        isAlert={balanceDue > 0}
-        stats={[
-          { label: "Balance Due", value: `${balanceDue.toLocaleString()} RWF` },
-          { label: "Tenants Outstanding", value: outstandingTenants },
-        ]}
-      >
-        <button
-          type="button"
-          onClick={handleSendReminder}
-          className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
-        >
-          <Bell className="h-4 w-4" />
-          Send Reminder
-        </button>
-        <Link
-          href="/landlord/reports"
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-        >
-          View Report
-        </Link>
-      </AlertBanner>
-
-      {reminderNotice && (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-          <CheckCircle2 className="h-4 w-4" />
-          {reminderNotice}
-        </div>
-      )}
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map(({ label, value }) => {
@@ -269,81 +233,59 @@ export default function LandlordOverviewPage() {
         })}
       </div>
 
-      {myProperties.length > 0 && (
-        <>
-          <div className="grid gap-5 lg:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="font-semibold text-navy">Occupancy</p>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={occupancyData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                  >
-                    {occupancyData.map((entry, i) => (
-                      <Cell
-                        key={entry.name}
-                        fill={CHART_COLORS[i % CHART_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <AlertBanner
+          isAlert={balanceDue > 0}
+          stats={[
+            { label: "Balance Due", value: `${balanceDue.toLocaleString()} RWF` },
+            { label: "Tenants Outstanding", value: outstandingTenants },
+          ]}
+          message={
+            balanceDue > 0
+              ? "Some tenants haven't paid this month's rent yet. Send a reminder or check the full report."
+              : "All tenants are paid up this month."
+          }
+        >
+          <button
+            type="button"
+            onClick={handleSendReminder}
+            className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+          >
+            <Bell className="h-4 w-4" />
+            Send Reminder
+          </button>
+          <Link
+            href="/landlord/reports"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+          >
+            View Report
+          </Link>
+        </AlertBanner>
 
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="font-semibold text-navy">Payment Status</p>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={paymentStatusData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                  >
-                    {paymentStatusData.map((entry, i) => (
-                      <Cell
-                        key={entry.name}
-                        fill={CHART_COLORS[i % CHART_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
+        {myProperties.length > 0 && (
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="font-semibold text-navy">Rent by Property</p>
+            <p className="font-semibold text-navy">Revenue by Month</p>
             <ResponsiveContainer width="100%" height={240}>
-              <BarChart
-                data={rentByProperty}
-                layout="vertical"
-                margin={{ left: 8 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke={CHART_GRID_COLOR}
-                  horizontal={false}
+              <BarChart data={revenueByMonth}>
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
+                <XAxis dataKey="month" tickFormatter={formatMonth} tick={axisTick} />
+                <YAxis tick={axisTick} />
+                <Tooltip
+                  labelFormatter={(label) => formatMonth(String(label))}
+                  formatter={(value) => `${Number(value).toLocaleString()} RWF`}
                 />
-                <XAxis type="number" tick={axisTick} />
-                <YAxis type="category" dataKey="name" width={140} tick={axisTick} />
-                <Tooltip formatter={(value) => `${Number(value).toLocaleString()} RWF`} />
-                <Bar dataKey="rent" fill={CHART_COLORS[0]} radius={[0, 6, 6, 0]} />
+                <Bar dataKey="amount" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </>
+        )}
+      </div>
+
+      {reminderNotice && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle2 className="h-4 w-4" />
+          {reminderNotice}
+        </div>
       )}
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -358,6 +300,33 @@ export default function LandlordOverviewPage() {
           </Link>
         </div>
 
+        <div className="flex items-center gap-6 overflow-x-auto border-b border-slate-100 px-6">
+          {PROPERTY_TABS.map((tab) => {
+            const isActive = propertyTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setPropertyTab(tab.key)}
+                className={`flex shrink-0 items-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors ${
+                  isActive
+                    ? "border-gold text-navy"
+                    : "border-transparent text-slate-500 hover:text-navy"
+                }`}
+              >
+                {tab.label}
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    isActive ? "bg-gold/10 text-gold" : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {propertyTabCounts[tab.key]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         <Table variant="plain">
           <THead>
             <Tr>
@@ -365,11 +334,12 @@ export default function LandlordOverviewPage() {
               <Th className="hidden px-6 py-3 md:table-cell">Type</Th>
               <Th className="hidden px-6 py-3 sm:table-cell">Rent (RWF)</Th>
               <Th className="px-4 py-3 sm:px-6">Availability</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">Payment Status</Th>
               <Th className="px-4 py-3 text-right sm:px-6">Actions</Th>
             </Tr>
           </THead>
           <TBody>
-            {myProperties.slice(0, 3).map((property) => (
+            {visibleProperties.map((property) => (
               <Tr key={property.id}>
                 <Td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
                   <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
@@ -390,6 +360,20 @@ export default function LandlordOverviewPage() {
                     {property.availability}
                   </span>
                 </Td>
+                <Td className="hidden px-6 py-3 lg:table-cell">
+                  {(() => {
+                    const paymentStatus = paymentStatusFor(property.name);
+                    return paymentStatus ? (
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${PAYMENT_STATUS_STYLES[paymentStatus]}`}
+                      >
+                        {paymentStatus}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400">No data</span>
+                    );
+                  })()}
+                </Td>
                 <Td className="px-4 py-3 text-right sm:px-6">
                   <Link
                     href={`/landlord/properties/${property.id}`}
@@ -401,8 +385,12 @@ export default function LandlordOverviewPage() {
                 </Td>
               </Tr>
             ))}
-            {myProperties.length === 0 && (
-              <EmptyRow colSpan={5}>No properties registered yet.</EmptyRow>
+            {visibleProperties.length === 0 && (
+              <EmptyRow colSpan={6}>
+                {myProperties.length === 0
+                  ? "No properties registered yet."
+                  : "No properties match this filter."}
+              </EmptyRow>
             )}
           </TBody>
         </Table>

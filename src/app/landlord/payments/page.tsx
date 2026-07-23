@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { AppLink as Link } from "@/components/shared/AppLink";
 import {
   AlertCircle,
   Bell,
@@ -24,6 +24,7 @@ import { IconStatCard } from "@/components/dashboard/IconStatCard";
 import { AlertBanner } from "@/components/dashboard/AlertBanner";
 import { Card } from "@/components/dashboard/Card";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { downloadCSV } from "@/lib/csv";
 
 type RowStatus = Payment["status"] | "Overdue";
@@ -84,6 +85,7 @@ export default function LandlordPaymentsPage() {
   const [propertyFilter, setPropertyFilter] = useState("All Properties");
   const [statusFilter, setStatusFilter] = useState<"All" | RowStatus>("All");
   const [methodFilter, setMethodFilter] = useState<"All" | Payment["method"]>("All");
+  const [page, setPage] = useState(1);
 
   const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
   const propertyOptions = ["All Properties", ...myProperties.map((p) => p.name)];
@@ -99,12 +101,15 @@ export default function LandlordPaymentsPage() {
     ? Math.round((myPayments.filter((p) => p.status === "Paid").length / myPayments.length) * 100)
     : 0;
 
-  const filteredPayments = myPayments.filter((p) => {
+  const propertyMethodFilteredPayments = myPayments.filter((p) => {
     const matchesProperty = propertyFilter === "All Properties" || p.property === propertyFilter;
-    const matchesStatus = statusFilter === "All" || p.status === statusFilter;
     const matchesMethod = methodFilter === "All" || p.method === methodFilter;
-    return matchesProperty && matchesStatus && matchesMethod;
+    return matchesProperty && matchesMethod;
   });
+
+  const filteredPayments = propertyMethodFilteredPayments.filter(
+    (p) => statusFilter === "All" || p.status === statusFilter,
+  );
 
   const allUnits: Unit[] = useMemo(
     () =>
@@ -119,12 +124,27 @@ export default function LandlordPaymentsPage() {
   const overdueUnits = allUnits.filter((u) => u.currentPaymentStatus === "Overdue");
   const totalInArrears = overdueUnits.reduce((sum, u) => sum + u.monthlyRent, 0);
 
-  const filteredArrearsUnits = overdueUnits.filter((u) => {
-    const matchesProperty = propertyFilter === "All Properties" || u.propertyName === propertyFilter;
-    const matchesStatus = statusFilter === "All" || statusFilter === "Overdue";
-    const matchesMethod = methodFilter === "All";
-    return matchesProperty && matchesStatus && matchesMethod;
-  });
+  const propertyFilteredArrearsUnits = overdueUnits.filter(
+    (u) => propertyFilter === "All Properties" || u.propertyName === propertyFilter,
+  );
+
+  const filteredArrearsUnits =
+    methodFilter === "All" && (statusFilter === "All" || statusFilter === "Overdue")
+      ? propertyFilteredArrearsUnits
+      : [];
+
+  const TABS: { key: "All" | "Pending Approval" | "Overdue"; label: string }[] = [
+    { key: "All", label: "All" },
+    { key: "Pending Approval", label: "Pending Approval" },
+    { key: "Overdue", label: "Arrears / Overdue" },
+  ];
+  const tabCounts: Record<(typeof TABS)[number]["key"], number> = {
+    All: propertyMethodFilteredPayments.length + propertyFilteredArrearsUnits.length,
+    "Pending Approval": propertyMethodFilteredPayments.filter(
+      (p) => p.status === "Pending Approval",
+    ).length,
+    Overdue: propertyFilteredArrearsUnits.length,
+  };
 
   const rows: PaymentRow[] = [
     ...filteredArrearsUnits.map((unit): PaymentRow => {
@@ -156,6 +176,12 @@ export default function LandlordPaymentsPage() {
       }),
     ),
   ].sort((a, b) => STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedRows = rows.slice((page - 1) * DEFAULT_PAGE_SIZE, page * DEFAULT_PAGE_SIZE);
 
   const resolvePayment = (id: string, approve: boolean) => {
     setPayments((prev) =>
@@ -340,6 +366,34 @@ export default function LandlordPaymentsPage() {
         <p className="mt-1 text-sm text-slate-500">
           All rent payments and tenants currently in arrears, across your properties.
         </p>
+
+        <div className="mt-4 flex items-center gap-6 overflow-x-auto border-b border-slate-200">
+          {TABS.map((tab) => {
+            const isActive = statusFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setStatusFilter(tab.key)}
+                className={`flex shrink-0 items-center gap-2 border-b-2 pb-3 text-sm font-medium transition-colors ${
+                  isActive
+                    ? "border-gold text-navy"
+                    : "border-transparent text-slate-500 hover:text-navy"
+                }`}
+              >
+                {tab.label}
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    isActive ? "bg-gold/10 text-gold" : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {tabCounts[tab.key]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         <Table variant="card">
           <THead>
             <Tr>
@@ -354,7 +408,7 @@ export default function LandlordPaymentsPage() {
             </Tr>
           </THead>
           <TBody>
-            {rows.map((row) => (
+            {pagedRows.map((row) => (
               <Tr key={row.id}>
                 <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
                   <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
@@ -443,9 +497,16 @@ export default function LandlordPaymentsPage() {
                 </Td>
               </Tr>
             ))}
-            {rows.length === 0 && <EmptyRow colSpan={8}>No payments match these filters.</EmptyRow>}
+            {pagedRows.length === 0 && <EmptyRow colSpan={8}>No payments match these filters.</EmptyRow>}
           </TBody>
         </Table>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={rows.length}
+          pageSize={DEFAULT_PAGE_SIZE}
+          onPageChange={setPage}
+        />
       </Card>
 
       {viewingPayment && (
