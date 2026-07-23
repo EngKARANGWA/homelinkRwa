@@ -13,6 +13,7 @@ import type { User } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
 import { LandlordForm } from "@/components/admin/LandlordForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
 const STATUS_STYLES: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -35,13 +36,18 @@ export default function LandlordsPage() {
   const [isSubmitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [justRegistered, setJustRegistered] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   const load = () => {
     setLoading(true);
     setError(null);
-    listUsers({ role: "owner", limit: 100 })
+    listUsers({ role: "owner", page, limit: DEFAULT_PAGE_SIZE })
       .then(async (res) => {
         setLandlords(res.data);
+        setTotalPages(res.meta.totalPages);
+        setTotalItems(res.meta.total);
         const counts = await Promise.all(
           res.data.map((u) => countPropertiesForOwner(u.id)),
         );
@@ -55,7 +61,7 @@ export default function LandlordsPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   const registerLandlord = async (values: CreateHouseOwnerInput) => {
     setSubmitting(true);
@@ -164,6 +170,14 @@ export default function LandlordsPage() {
           )}
         </TBody>
       </Table>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {isModalOpen && (
         <Modal

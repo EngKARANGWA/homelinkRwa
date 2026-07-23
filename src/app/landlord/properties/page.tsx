@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
+  AlertCircle,
   Building2,
   CheckCircle2,
-  Eye,
   Home,
   LayoutGrid,
   Pencil,
@@ -13,83 +12,94 @@ import {
   Table as TableIcon,
 } from "lucide-react";
 import {
-  PROPERTIES,
-  TODAY,
-  daysVacant,
-  type Property,
-} from "@/lib/mock-admin-data";
-import { getUnitsForProperty, type UnitOverrides } from "@/lib/units";
-import { useLandlord } from "@/components/landlord/LandlordContext";
+  createProperty,
+  listProperties,
+  updateProperty,
+} from "@/lib/api/properties";
+import { ApiError } from "@/lib/api/client";
+import type {
+  ApprovalStatus,
+  CreatePropertyInput,
+  Property,
+  PropertyStatus,
+  UpdatePropertyInput,
+} from "@/lib/api/types";
+import { useAuth } from "@/components/auth/AuthContext";
 import { Modal } from "@/components/admin/Modal";
-import {
-  PropertyForm,
-  type PropertyFormValues,
-} from "@/components/landlord/PropertyForm";
+import { PropertyForm } from "@/components/admin/PropertyForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
-const AVAILABILITY_STYLES: Record<Property["availability"], string> = {
-  Available: "bg-emerald-50 text-emerald-700",
-  Occupied: "bg-slate-100 text-slate-600",
+const STATUS_STYLES: Record<PropertyStatus, string> = {
+  available: "bg-emerald-50 text-emerald-700",
+  occupied: "bg-slate-100 text-slate-600",
 };
 
-const APPROVAL_STYLES: Record<Property["approval"], string> = {
-  Approved: "bg-emerald-50 text-emerald-700",
-  Pending: "bg-amber-50 text-amber-700",
-  Rejected: "bg-red-50 text-red-700",
+const APPROVAL_STYLES: Record<ApprovalStatus, string> = {
+  approved: "bg-emerald-50 text-emerald-700",
+  pending: "bg-amber-50 text-amber-700",
+  rejected: "bg-red-50 text-red-700",
 };
 
-function propertyStats(property: Property, unitOverrides: UnitOverrides) {
-  const units = getUnitsForProperty(property, unitOverrides);
-  const total = units.length;
-  const occupied = units.filter((u) => u.occupancyStatus === "Occupied").length;
-  const collected = units
-    .filter((u) => u.currentPaymentStatus === "Paid")
-    .reduce((sum, u) => sum + u.monthlyRent, 0);
-  return {
-    total,
-    occupancyPercent: total ? Math.round((occupied / total) * 100) : 0,
-    collected,
-  };
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 export default function LandlordPropertiesPage() {
-  const { landlordName, unitOverrides } = useLandlord();
-  const [properties, setProperties] = useState(PROPERTIES);
+  const { user } = useAuth();
+  const [properties, setProperties] = useState<Property[]>([]);
   const [view, setView] = useState<"cards" | "table">("cards");
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isAdding, setAdding] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
-  const myProperties = properties.filter((p) => p.owner === landlordName);
-
-  const addProperty = (values: PropertyFormValues) => {
-    const newProperty: Property = {
-      id: String(Date.now()),
-      owner: landlordName,
-      approval: "Pending",
-      vacantSince: values.availability === "Available" ? TODAY : null,
-      totalUnits: 1,
-      occupiedUnits: values.availability === "Occupied" ? 1 : 0,
-      ...values,
-    };
-    setProperties((prev) => [newProperty, ...prev]);
-    setAdding(false);
-    setJustSaved(true);
+  const load = () => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
+    listProperties({ ownerId: user.id, page, limit: DEFAULT_PAGE_SIZE })
+      .then((res) => {
+        setProperties(res.data);
+        setTotalPages(res.meta.totalPages);
+        setTotalItems(res.meta.total);
+      })
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : "Failed to load properties."),
+      )
+      .finally(() => setLoading(false));
   };
 
-  const editProperty = (id: string, values: PropertyFormValues) => {
-    setProperties((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p;
-        const vacantSince =
-          values.availability === "Available"
-            ? (p.vacantSince ?? TODAY)
-            : null;
-        return { ...p, ...values, vacantSince };
-      }),
-    );
-    setEditingProperty(null);
-    setJustSaved(true);
+  useEffect(load, [user, page]);
+
+  const addProperty = async (values: CreatePropertyInput) => {
+    setFormError(null);
+    try {
+      await createProperty(values);
+      setAdding(false);
+      setJustSaved(true);
+      load();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Failed to add property.");
+    }
+  };
+
+  const editProperty = async (values: UpdatePropertyInput) => {
+    if (!editingProperty) return;
+    setFormError(null);
+    try {
+      await updateProperty(editingProperty.id, values);
+      setEditingProperty(null);
+      setJustSaved(true);
+      load();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Failed to update property.");
+    }
   };
 
   return (
@@ -148,65 +158,85 @@ export default function LandlordPropertiesPage() {
         </div>
       )}
 
+      {error && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            {error}
+          </span>
+          <button type="button" onClick={load} className="underline hover:no-underline">
+            Retry
+          </button>
+        </div>
+      )}
+
       {view === "cards" ? (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {myProperties.map((property) => {
-            const stats = propertyStats(property, unitOverrides);
-            const Icon = property.buildingType === "Commercial" ? Building2 : Home;
-            return (
-              <div
-                key={property.id}
-                className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <button
-                  type="button"
-                  onClick={() => setEditingProperty(property)}
-                  aria-label={`Edit ${property.name}`}
-                  className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-sm hover:bg-slate-100"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <Link href={`/landlord/properties/${property.id}`} className="block p-5">
-                  <div className="flex items-start gap-3 pr-8">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold/10 text-gold">
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-navy">
-                        {property.name}
-                      </p>
-                      <p className="truncate text-xs text-slate-500">
-                        {property.address}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid grid-cols-3 gap-3 border-t border-slate-100 pt-4">
-                    <div>
-                      <p className="text-xs text-slate-400">Units</p>
-                      <p className="mt-0.5 font-semibold text-navy">{stats.total}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400">Occupancy</p>
-                      <p className="mt-0.5 font-semibold text-navy">
-                        {stats.occupancyPercent}%
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400">Collected</p>
-                      <p className="mt-0.5 truncate font-semibold text-emerald-600">
-                        {stats.collected.toLocaleString()} RWF
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-              </div>
-            );
-          })}
-          {myProperties.length === 0 && (
+          {isLoading ? (
+            <div className="col-span-full rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-400">
+              Loading properties...
+            </div>
+          ) : properties.length === 0 ? (
             <div className="col-span-full rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-400">
               No properties registered yet.
             </div>
+          ) : (
+            properties.map((property) => {
+              const Icon = property.category === "commercial" ? Building2 : Home;
+              return (
+                <div
+                  key={property.id}
+                  className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setEditingProperty(property)}
+                    aria-label={`Edit ${property.title}`}
+                    className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-sm hover:bg-slate-100"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <div className="p-5">
+                    <div className="flex items-start gap-3 pr-8">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold/10 text-gold">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-navy">
+                          {property.title}
+                        </p>
+                        <p className="truncate text-xs text-slate-500">
+                          {property.addressLine}, {property.city}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 grid grid-cols-3 gap-3 border-t border-slate-100 pt-4">
+                      <div>
+                        <p className="text-xs text-slate-400">Type</p>
+                        <p className="mt-0.5 truncate font-semibold text-navy">
+                          {capitalize(property.type)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400">Rent</p>
+                        <p className="mt-0.5 truncate font-semibold text-navy">
+                          {Number(property.rentAmount).toLocaleString()} RWF
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400">Status</p>
+                        <span
+                          className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[property.status]}`}
+                        >
+                          {capitalize(property.status)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       ) : (
@@ -214,83 +244,79 @@ export default function LandlordPropertiesPage() {
           <THead>
             <Tr>
               <Th className="px-4 py-3 sm:px-6">Property</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">UPI</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Type</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">Type</Th>
               <Th className="hidden px-6 py-3 md:table-cell">Rent (RWF)</Th>
               <Th className="hidden px-6 py-3 sm:table-cell">Availability</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Days Vacant</Th>
               <Th className="px-4 py-3 sm:px-6">Approval</Th>
               <Th className="px-4 py-3 sm:px-6">Actions</Th>
             </Tr>
           </THead>
           <TBody>
-            {myProperties.map((property) => (
-              <Tr key={property.id}>
-                <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
-                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                    {property.name}
-                  </p>
-                  <p className="hidden text-xs text-slate-400 sm:block">
-                    {property.address}
-                  </p>
-                  <p className="truncate text-xs text-slate-400 md:hidden">
-                    {property.type} · {property.rent.toLocaleString()} RWF
-                  </p>
-                </Td>
-                <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                  {property.upi}
-                </Td>
-                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {property.type}
-                </Td>
-                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {property.rent.toLocaleString()}
-                </Td>
-                <Td className="hidden px-6 py-3 sm:table-cell">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${AVAILABILITY_STYLES[property.availability]}`}
-                  >
-                    {property.availability}
-                  </span>
-                </Td>
-                <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                  {daysVacant(property.vacantSince) ?? "—"}
-                </Td>
-                <Td className="px-4 py-3 sm:px-6">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${APPROVAL_STYLES[property.approval]}`}
-                  >
-                    {property.approval}
-                  </span>
-                </Td>
-                <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Link
-                      href={`/landlord/properties/${property.id}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            {isLoading ? (
+              <EmptyRow colSpan={6}>Loading properties...</EmptyRow>
+            ) : properties.length === 0 ? (
+              <EmptyRow colSpan={6}>No properties registered yet.</EmptyRow>
+            ) : (
+              properties.map((property) => (
+                <Tr key={property.id}>
+                  <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                    <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                      {property.title}
+                    </p>
+                    <p className="hidden text-xs text-slate-400 sm:block">
+                      {property.addressLine}, {property.city}
+                    </p>
+                    <p className="truncate text-xs text-slate-400 md:hidden">
+                      {capitalize(property.type)} · {Number(property.rentAmount).toLocaleString()} RWF
+                    </p>
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                    {capitalize(property.category)} · {capitalize(property.type)}
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                    {Number(property.rentAmount).toLocaleString()}
+                  </Td>
+                  <Td className="hidden px-6 py-3 sm:table-cell">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[property.status]}`}
                     >
-                      <Eye className="h-3.5 w-3.5" />
-                      View
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => setEditingProperty(property)}
-                      aria-label={`Edit ${property.name}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      {capitalize(property.status)}
+                    </span>
+                  </Td>
+                  <Td className="px-4 py-3 sm:px-6">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${APPROVAL_STYLES[property.approvalStatus]}`}
                     >
-                      <Pencil className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Edit</span>
-                    </button>
-                  </div>
-                </Td>
-              </Tr>
-            ))}
-            {myProperties.length === 0 && (
-              <EmptyRow colSpan={8}>No properties registered yet.</EmptyRow>
+                      {capitalize(property.approvalStatus)}
+                    </span>
+                  </Td>
+                  <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingProperty(property)}
+                        aria-label={`Edit ${property.title}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Edit</span>
+                      </button>
+                    </div>
+                  </Td>
+                </Tr>
+              ))
             )}
           </TBody>
         </Table>
       )}
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {isAdding && (
         <Modal
@@ -298,7 +324,17 @@ export default function LandlordPropertiesPage() {
           description="Register a new property. It will be submitted for admin approval."
           onClose={() => setAdding(false)}
         >
-          <PropertyForm onCancel={() => setAdding(false)} onSuccess={addProperty} />
+          {formError && (
+            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {formError}
+            </p>
+          )}
+          <PropertyForm
+            owners={[]}
+            showOwnerField={false}
+            onCancel={() => setAdding(false)}
+            onSuccess={addProperty}
+          />
         </Modal>
       )}
 
@@ -308,10 +344,17 @@ export default function LandlordPropertiesPage() {
           description="Update this property's details."
           onClose={() => setEditingProperty(null)}
         >
+          {formError && (
+            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {formError}
+            </p>
+          )}
           <PropertyForm
+            owners={[]}
+            showOwnerField={false}
             initialProperty={editingProperty}
             onCancel={() => setEditingProperty(null)}
-            onSuccess={(values) => editProperty(editingProperty.id, values)}
+            onSuccess={editProperty}
           />
         </Modal>
       )}

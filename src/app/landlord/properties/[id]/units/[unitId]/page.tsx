@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -20,6 +20,7 @@ import { useLandlord } from "@/components/landlord/LandlordContext";
 import { Modal } from "@/components/admin/Modal";
 import { EditTenantForm } from "@/components/landlord/EditTenantForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
 const PAYMENT_STATUS_STYLES: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -51,9 +52,22 @@ export default function UnitDetailPage() {
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
   const [isEditing, setEditing] = useState(false);
   const [isRemoving, setRemoving] = useState(false);
+  const [paymentPage, setPaymentPage] = useState(1);
 
   const property = PROPERTIES.find((p) => p.id === id && p.owner === landlordName);
   const unit = property ? getUnit(property, unitId, unitOverrides) : undefined;
+  const paymentHistory = unit?.paymentHistory ?? [];
+  const paymentTotalPages = Math.max(
+    1,
+    Math.ceil(paymentHistory.length / DEFAULT_PAGE_SIZE),
+  );
+  useEffect(() => {
+    if (paymentPage > paymentTotalPages) setPaymentPage(paymentTotalPages);
+  }, [paymentPage, paymentTotalPages]);
+  const pagedPaymentHistory = paymentHistory.slice(
+    (paymentPage - 1) * DEFAULT_PAGE_SIZE,
+    paymentPage * DEFAULT_PAGE_SIZE,
+  );
 
   if (!property || !unit) {
     return (
@@ -180,7 +194,7 @@ export default function UnitDetailPage() {
                   </Tr>
                 </THead>
                 <TBody>
-                  {unit.paymentHistory.map((p) => (
+                  {pagedPaymentHistory.map((p) => (
                     <Tr key={p.month}>
                       <Td className="py-2.5 text-slate-500">{monthLabel(p.month)}</Td>
                       <Td className="py-2.5 text-slate-500">
@@ -202,6 +216,13 @@ export default function UnitDetailPage() {
                   )}
                 </TBody>
               </Table>
+              <Pagination
+                page={paymentPage}
+                totalPages={paymentTotalPages}
+                totalItems={paymentHistory.length}
+                pageSize={DEFAULT_PAGE_SIZE}
+                onPageChange={setPaymentPage}
+              />
             </div>
           </div>
 

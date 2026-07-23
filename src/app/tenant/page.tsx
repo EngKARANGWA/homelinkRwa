@@ -32,7 +32,14 @@ import { useTenant } from "@/components/tenant/TenantContext";
 import { CHART_GRID_COLOR, CHART_TEXT_COLOR } from "@/lib/chart-colors";
 import { Modal } from "@/components/admin/Modal";
 import { PayNowForm } from "@/components/tenant/PayNowForm";
+import type { PayInvoiceInput } from "@/lib/api/types";
 import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
+
+const PAY_METHOD_LABELS: Record<PayInvoiceInput["method"], Payment["method"]> = {
+  mobile_money: "MTN Mobile Money",
+  bank_transfer: "Bank Transfer",
+  cash: "Cash",
+};
 
 const STATUS_COLORS: Record<string, string> = {
   Paid: "#10b981",
@@ -96,8 +103,9 @@ export default function TenantOverviewPage() {
     .filter((p) => p.status !== "Paid" && p.status !== "Pending Approval")
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
 
-  const payNow = (method: Payment["method"]) => {
+  const payNow = (values: PayInvoiceInput) => {
     if (!nextPayment) return;
+    const method = PAY_METHOD_LABELS[values.method];
     const needsApproval = method === "Cash" || method === "Bank Transfer";
     setPayments((prev) =>
       prev.map((p) =>

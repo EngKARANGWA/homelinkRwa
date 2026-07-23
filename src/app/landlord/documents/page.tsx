@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   Download,
@@ -18,6 +18,7 @@ import { Modal } from "@/components/admin/Modal";
 import { UploadDocumentForm } from "@/components/landlord/UploadDocumentForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
 const CATEGORY_STYLES: Record<DocumentCategory, string> = {
   "Property Document": "bg-blue-50 text-blue-700",
@@ -40,6 +41,7 @@ export default function LandlordDocumentsPage() {
   const [propertyFilter, setPropertyFilter] = useState("All Properties");
   const [isUploading, setUploading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
   const propertyOptions = ["All Properties", ...myProperties.map((p) => p.name)];
@@ -62,6 +64,18 @@ export default function LandlordDocumentsPage() {
       propertyFilter === "All Properties" || doc.propertyName === propertyFilter;
     return matchesSearch && matchesCategory && matchesProperty;
   });
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredDocuments.length / DEFAULT_PAGE_SIZE),
+  );
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedDocuments = filteredDocuments.slice(
+    (page - 1) * DEFAULT_PAGE_SIZE,
+    page * DEFAULT_PAGE_SIZE,
+  );
 
   const counts = {
     total: allDocuments.length,
@@ -174,7 +188,7 @@ export default function LandlordDocumentsPage() {
           </Tr>
         </THead>
         <TBody>
-          {filteredDocuments.map((doc) => {
+          {pagedDocuments.map((doc) => {
             const Icon = CATEGORY_ICONS[doc.category];
             return (
               <Tr key={doc.id}>
@@ -236,6 +250,14 @@ export default function LandlordDocumentsPage() {
           )}
         </TBody>
       </Table>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={filteredDocuments.length}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {isUploading && (
         <Modal

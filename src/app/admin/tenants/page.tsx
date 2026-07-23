@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, Eye, Plus, ShieldCheck } from "lucide-react";
 import { TENANTS, type Tenant } from "@/lib/mock-admin-data";
 import { Modal } from "@/components/admin/Modal";
 import { TenantForm } from "@/components/admin/TenantForm";
 import { TenantDetail } from "@/components/admin/TenantDetail";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
 const STATUS_STYLES: Record<Tenant["status"], string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -19,6 +20,16 @@ export default function TenantsPage() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const [viewingTenant, setViewingTenant] = useState<Tenant | null>(null);
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(tenants.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedTenants = tenants.slice(
+    (page - 1) * DEFAULT_PAGE_SIZE,
+    page * DEFAULT_PAGE_SIZE,
+  );
 
   const verifyTenant = (id: string) => {
     setTenants((prev) =>
@@ -65,7 +76,7 @@ export default function TenantsPage() {
           </Tr>
         </THead>
         <TBody>
-          {tenants.map((tenant) => (
+          {pagedTenants.map((tenant) => (
             <Tr key={tenant.id}>
               <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
                 <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
@@ -121,6 +132,14 @@ export default function TenantsPage() {
           ))}
         </TBody>
       </Table>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={tenants.length}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {isModalOpen && (
         <Modal

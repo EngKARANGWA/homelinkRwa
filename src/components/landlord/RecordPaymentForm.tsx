@@ -1,58 +1,38 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { TODAY, type Property } from "@/lib/mock-admin-data";
-import { getUnitsForProperty, type Unit, type UnitOverrides } from "@/lib/units";
+import { useState } from "react";
+import type { Property } from "@/lib/api/types";
 
-const METHODS = ["Cash", "MTN Mobile Money", "Airtel Money", "Bank Transfer"];
+export type RecordPaymentValues = {
+  propertyId: string;
+  tenantName: string;
+  amount: number;
+  paidDate: string;
+};
 
 export function RecordPaymentForm({
   properties,
-  unitOverrides,
   onSuccess,
   onCancel,
 }: {
   properties: Property[];
-  unitOverrides: UnitOverrides;
-  onSuccess: (unit: Unit, values: { amount: number; method: string; paidDate: string }) => void;
+  onSuccess: (values: RecordPaymentValues) => void;
   onCancel: () => void;
 }) {
   const [propertyId, setPropertyId] = useState(properties[0]?.id ?? "");
-  const [unitId, setUnitId] = useState("");
-  const [amount, setAmount] = useState(String(properties[0]?.rent ?? ""));
-  const [method, setMethod] = useState("Cash");
-  const [paidDate, setPaidDate] = useState(TODAY);
+  const [tenantName, setTenantName] = useState("");
+  const [amount, setAmount] = useState("");
+  const [paidDate, setPaidDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [error, setError] = useState<string | null>(null);
-
-  const selectedProperty = properties.find((p) => p.id === propertyId) ?? null;
-
-  const occupiedUnits = useMemo(() => {
-    if (!selectedProperty) return [];
-    return getUnitsForProperty(selectedProperty, unitOverrides).filter(
-      (u) => u.occupancyStatus === "Occupied",
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProperty?.id, unitOverrides]);
-
-  const selectedUnit = occupiedUnits.find((u) => u.id === unitId) ?? occupiedUnits[0] ?? null;
-
-  const handlePropertyChange = (id: string) => {
-    setPropertyId(id);
-    setUnitId("");
-    const property = properties.find((p) => p.id === id);
-    if (property) setAmount(String(property.rent));
-  };
-
-  const handleUnitChange = (id: string) => {
-    setUnitId(id);
-    const unit = occupiedUnits.find((u) => u.id === id);
-    if (unit) setAmount(String(unit.monthlyRent));
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedUnit) {
-      setError("This property has no tenants to record a payment for.");
+    if (!propertyId) {
+      setError("Please select a property.");
+      return;
+    }
+    if (!tenantName.trim()) {
+      setError("Please enter the tenant's name.");
       return;
     }
     const amountValue = Number(amount);
@@ -61,11 +41,16 @@ export function RecordPaymentForm({
       return;
     }
     setError(null);
-    onSuccess(selectedUnit, { amount: amountValue, method, paidDate });
+    onSuccess({ propertyId, tenantName: tenantName.trim(), amount: amountValue, paidDate });
   };
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+        Cash payments can&apos;t be submitted to the platform yet — this will only be
+        noted here until that&apos;s supported.
+      </p>
+
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
@@ -77,35 +62,30 @@ export function RecordPaymentForm({
           Property
           <select
             value={propertyId}
-            onChange={(e) => handlePropertyChange(e.target.value)}
+            onChange={(e) => setPropertyId(e.target.value)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            {properties.map((property) => (
-              <option key={property.id} value={property.id}>
-                {property.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Tenant / Unit
-          <select
-            value={selectedUnit?.id ?? ""}
-            onChange={(e) => handleUnitChange(e.target.value)}
-            disabled={occupiedUnits.length === 0}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-          >
-            {occupiedUnits.length === 0 ? (
-              <option>No tenants</option>
+            {properties.length === 0 ? (
+              <option value="">No properties</option>
             ) : (
-              occupiedUnits.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.unitNumber} · {unit.tenant}
+              properties.map((property) => (
+                <option key={property.id} value={property.id}>
+                  {property.title}
                 </option>
               ))
             )}
           </select>
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          Tenant name
+          <input
+            type="text"
+            value={tenantName}
+            onChange={(e) => setTenantName(e.target.value)}
+            placeholder="e.g. Jean Mugisha"
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+          />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
@@ -120,19 +100,6 @@ export function RecordPaymentForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Payment method
-          <select
-            value={method}
-            onChange={(e) => setMethod(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-          >
-            {METHODS.map((m) => (
-              <option key={m}>{m}</option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
           Date received
           <input
             type="date"
@@ -153,7 +120,7 @@ export function RecordPaymentForm({
         </button>
         <button
           type="submit"
-          disabled={occupiedUnits.length === 0}
+          disabled={properties.length === 0}
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Record Payment

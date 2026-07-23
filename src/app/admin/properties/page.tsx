@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, Check, CheckCircle2, Eye, Plus, X } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, Eye, Pencil, Plus, X } from "lucide-react";
 import { listUsers } from "@/lib/api/admin";
 import {
   approveProperty,
   createProperty,
   listProperties,
   rejectProperty,
+  updateProperty,
 } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
 import type {
@@ -16,11 +17,13 @@ import type {
   CreatePropertyInput,
   Property,
   PropertyStatus,
+  UpdatePropertyInput,
   User,
 } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
 const APPROVAL_STYLES: Record<ApprovalStatus, string> = {
   approved: "bg-emerald-50 text-emerald-700",
@@ -48,6 +51,11 @@ export default function PropertiesPage() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   const ownerName = (ownerId: string) => {
     const owner = owners.find((o) => o.id === ownerId);
@@ -58,11 +66,13 @@ export default function PropertiesPage() {
     setLoading(true);
     setError(null);
     Promise.all([
-      listProperties({ limit: 100 }),
+      listProperties({ page, limit: DEFAULT_PAGE_SIZE }),
       listUsers({ role: "owner", limit: 100 }),
     ])
       .then(([propertiesRes, ownersRes]) => {
         setProperties(propertiesRes.data);
+        setTotalPages(propertiesRes.meta.totalPages);
+        setTotalItems(propertiesRes.meta.total);
         setOwners(ownersRes.data);
       })
       .catch((err) =>
@@ -71,7 +81,7 @@ export default function PropertiesPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   const addProperty = async (values: CreatePropertyInput) => {
     setFormError(null);
@@ -82,6 +92,18 @@ export default function PropertiesPage() {
       load();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Failed to add property.");
+    }
+  };
+
+  const handleUpdateProperty = async (values: UpdatePropertyInput) => {
+    if (!editingProperty) return;
+    setEditError(null);
+    try {
+      await updateProperty(editingProperty.id, values);
+      setEditingProperty(null);
+      load();
+    } catch (err) {
+      setEditError(err instanceof ApiError ? err.message : "Failed to update property.");
     }
   };
 
@@ -211,6 +233,15 @@ export default function PropertiesPage() {
                       <Eye className="h-3.5 w-3.5" />
                       View
                     </Link>
+                    <button
+                      type="button"
+                      onClick={() => setEditingProperty(property)}
+                      aria-label={`Edit ${property.title}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Edit</span>
+                    </button>
                     {property.approvalStatus === "pending" && (
                       <>
                         <button
@@ -239,6 +270,14 @@ export default function PropertiesPage() {
         </TBody>
       </Table>
 
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
+
       {isModalOpen && (
         <Modal
           title="Add Property"
@@ -254,6 +293,26 @@ export default function PropertiesPage() {
             owners={owners}
             onCancel={() => setModalOpen(false)}
             onSuccess={addProperty}
+          />
+        </Modal>
+      )}
+
+      {editingProperty && (
+        <Modal
+          title="Edit Property"
+          description="Update this property's details."
+          onClose={() => setEditingProperty(null)}
+        >
+          {editError && (
+            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {editError}
+            </p>
+          )}
+          <PropertyForm
+            owners={owners}
+            initialProperty={editingProperty}
+            onCancel={() => setEditingProperty(null)}
+            onSuccess={handleUpdateProperty}
           />
         </Modal>
       )}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import type {
   CreatePropertyInput,
+  Property,
   PropertyCategory,
   PropertyType,
   User,
@@ -27,34 +28,51 @@ const STEPS = ["Basic Info", "Type & Details", "Rent & Owner"];
 
 export function PropertyForm({
   owners,
+  initialProperty,
+  showOwnerField = true,
   onSuccess,
   onCancel,
 }: {
   owners: User[];
+  initialProperty?: Property;
+  showOwnerField?: boolean;
   onSuccess: (values: CreatePropertyInput) => void;
   onCancel: () => void;
 }) {
+  const isEditing = !!initialProperty;
   const [step, setStep] = useState(1);
   const [stepError, setStepError] = useState<string | null>(null);
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [addressLine, setAddressLine] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [country, setCountry] = useState("Rwanda");
-  const [postalCode, setPostalCode] = useState("");
+  const [title, setTitle] = useState(initialProperty?.title ?? "");
+  const [description, setDescription] = useState(initialProperty?.description ?? "");
+  const [addressLine, setAddressLine] = useState(initialProperty?.addressLine ?? "");
+  const [city, setCity] = useState(initialProperty?.city ?? "");
+  const [state, setState] = useState(initialProperty?.state ?? "");
+  const [country, setCountry] = useState(initialProperty?.country ?? "Rwanda");
+  const [postalCode, setPostalCode] = useState(initialProperty?.postalCode ?? "");
 
-  const [category, setCategory] = useState<PropertyCategory>("residential");
-  const [type, setType] = useState<PropertyType>("apartment");
-  const [sizeSqm, setSizeSqm] = useState("");
-  const [unitsCount, setUnitsCount] = useState("");
-  const [bedrooms, setBedrooms] = useState("");
-  const [bathrooms, setBathrooms] = useState("");
+  const [category, setCategory] = useState<PropertyCategory>(
+    initialProperty?.category ?? "residential",
+  );
+  const [type, setType] = useState<PropertyType>(initialProperty?.type ?? "apartment");
+  const [sizeSqm, setSizeSqm] = useState(
+    initialProperty?.sizeSqm != null ? String(initialProperty.sizeSqm) : "",
+  );
+  const [unitsCount, setUnitsCount] = useState(
+    initialProperty?.unitsCount != null ? String(initialProperty.unitsCount) : "",
+  );
+  const [bedrooms, setBedrooms] = useState(
+    initialProperty?.bedrooms != null ? String(initialProperty.bedrooms) : "",
+  );
+  const [bathrooms, setBathrooms] = useState(
+    initialProperty?.bathrooms != null ? String(initialProperty.bathrooms) : "",
+  );
 
-  const [rentAmount, setRentAmount] = useState("");
-  const [rentConditions, setRentConditions] = useState("");
-  const [ownerId, setOwnerId] = useState(owners[0]?.id ?? "");
+  const [rentAmount, setRentAmount] = useState(initialProperty?.rentAmount ?? "");
+  const [rentConditions, setRentConditions] = useState(
+    initialProperty?.rentConditions ?? "",
+  );
+  const [ownerId, setOwnerId] = useState(initialProperty?.ownerId ?? owners[0]?.id ?? "");
 
   const typeOptions = TYPE_OPTIONS[category];
 
@@ -84,11 +102,11 @@ export function PropertyForm({
   };
 
   const submitForm = () => {
-    if (!rentAmount.trim() || Number(rentAmount) <= 0) {
+    if (!rentAmount.toString().trim() || Number(rentAmount) <= 0) {
       setStepError("Please enter a valid monthly rent.");
       return;
     }
-    if (!ownerId) {
+    if (showOwnerField && !ownerId) {
       setStepError("Please select an owner.");
       return;
     }
@@ -109,7 +127,7 @@ export function PropertyForm({
       bathrooms: bathrooms.trim() ? Number(bathrooms) : undefined,
       rentAmount: Number(rentAmount),
       rentConditions: rentConditions.trim() || undefined,
-      ownerId,
+      ...(showOwnerField ? { ownerId } : {}),
     });
   };
 
@@ -328,21 +346,23 @@ export function PropertyForm({
               />
             </label>
 
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Owner
-              <select
-                value={ownerId}
-                onChange={(e) => setOwnerId(e.target.value)}
-                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-              >
-                {owners.length === 0 && <option value="">No landlords yet</option>}
-                {owners.map((owner) => (
-                  <option key={owner.id} value={owner.id}>
-                    {owner.firstName} {owner.lastName}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {showOwnerField && (
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Owner
+                <select
+                  value={ownerId}
+                  onChange={(e) => setOwnerId(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                >
+                  {owners.length === 0 && <option value="">No landlords yet</option>}
+                  {owners.map((owner) => (
+                    <option key={owner.id} value={owner.id}>
+                      {owner.firstName} {owner.lastName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
@@ -392,7 +412,7 @@ export function PropertyForm({
                 <ArrowRight className="h-4 w-4" />
               </>
             ) : (
-              "Add Property"
+              isEditing ? "Save Changes" : "Add Property"
             )}
           </button>
         </div>

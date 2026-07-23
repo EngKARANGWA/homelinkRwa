@@ -6,6 +6,10 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -25,6 +29,7 @@ import { useLandlord } from "@/components/landlord/LandlordContext";
 import { CHART_COLORS, CHART_GRID_COLOR, CHART_TEXT_COLOR } from "@/lib/chart-colors";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { downloadCSV } from "@/lib/csv";
 
 const REPORT_TYPES = [
@@ -144,33 +149,51 @@ function ReportTable<T>({
   getKey: (row: T) => string;
   emptyMessage: string;
 }) {
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(rows.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    setPage(1);
+  }, [rows]);
+  const pagedRows = rows.slice((page - 1) * DEFAULT_PAGE_SIZE, page * DEFAULT_PAGE_SIZE);
+
   return (
-    <Table variant="bare">
-      <THead>
-        <Tr>
-          {columns.map((col) => (
-            <Th key={col.key} className="px-6 py-3">
-              {col.label}
-            </Th>
-          ))}
-        </Tr>
-      </THead>
-      <TBody>
-        {rows.map((row) => (
-          <Tr key={getKey(row)}>
-            {columns.map((col, i) => (
-              <Td
-                key={col.key}
-                className={`px-6 py-3 ${i === 0 ? "font-medium text-navy" : "text-slate-500"}`}
-              >
-                {col.cell(row)}
-              </Td>
+    <>
+      <Table variant="bare">
+        <THead>
+          <Tr>
+            {columns.map((col) => (
+              <Th key={col.key} className="px-6 py-3">
+                {col.label}
+              </Th>
             ))}
           </Tr>
-        ))}
-        {rows.length === 0 && <EmptyRow colSpan={columns.length}>{emptyMessage}</EmptyRow>}
-      </TBody>
-    </Table>
+        </THead>
+        <TBody>
+          {pagedRows.map((row) => (
+            <Tr key={getKey(row)}>
+              {columns.map((col, i) => (
+                <Td
+                  key={col.key}
+                  className={`px-6 py-3 ${i === 0 ? "font-medium text-navy" : "text-slate-500"}`}
+                >
+                  {col.cell(row)}
+                </Td>
+              ))}
+            </Tr>
+          ))}
+          {rows.length === 0 && <EmptyRow colSpan={columns.length}>{emptyMessage}</EmptyRow>}
+        </TBody>
+      </Table>
+      <div className="px-6 pb-4">
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={rows.length}
+          pageSize={DEFAULT_PAGE_SIZE}
+          onPageChange={setPage}
+        />
+      </div>
+    </>
   );
 }
 
@@ -191,6 +214,7 @@ export default function LandlordReportsPage() {
   });
   const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
   const columnsMenuRef = useRef<HTMLDivElement>(null);
+  const [expensePage, setExpensePage] = useState(1);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -250,6 +274,24 @@ export default function LandlordReportsPage() {
     ? Math.round(myProperties.reduce((sum, p) => sum + p.rent, 0) / myProperties.length)
     : 0;
 
+  const occupancyData = [
+    {
+      name: "Available",
+      value: myProperties.filter((p) => p.availability === "Available").length,
+    },
+    {
+      name: "Occupied",
+      value: myProperties.filter((p) => p.availability === "Occupied").length,
+    },
+  ];
+
+  const paymentStatusData = (
+    ["Paid", "Late", "Pending", "Pending Approval"] as const
+  ).map((status) => ({
+    name: status,
+    value: myPayments.filter((p) => p.status === status).length,
+  }));
+
   const revenueByMonth = (() => {
     const totals = new Map<string, number>();
     myPayments
@@ -295,6 +337,18 @@ export default function LandlordReportsPage() {
     0,
   );
   const netProfitForActiveReport = incomeForActiveReport - expensesForActiveReport;
+
+  const expenseTotalPages = Math.max(
+    1,
+    Math.ceil(expenseBreakdown.length / DEFAULT_PAGE_SIZE),
+  );
+  useEffect(() => {
+    setExpensePage(1);
+  }, [reportId, dateFrom, dateTo, propertyFilter]);
+  const pagedExpenseBreakdown = expenseBreakdown.slice(
+    (expensePage - 1) * DEFAULT_PAGE_SIZE,
+    expensePage * DEFAULT_PAGE_SIZE,
+  );
 
   const COLUMNS_BY_REPORT: Record<ReportId, Column<never>[]> = {
     "rental-history": RENTAL_HISTORY_COLUMNS as Column<never>[],
@@ -438,6 +492,60 @@ export default function LandlordReportsPage() {
         </div>
       )}
 
+      {myProperties.length > 0 && (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="font-semibold text-navy">Occupancy</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={occupancyData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={2}
+                >
+                  {occupancyData.map((entry, i) => (
+                    <Cell
+                      key={entry.name}
+                      fill={CHART_COLORS[i % CHART_COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="font-semibold text-navy">Payment Status</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={paymentStatusData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={2}
+                >
+                  {paymentStatusData.map((entry, i) => (
+                    <Cell
+                      key={entry.name}
+                      fill={CHART_COLORS[i % CHART_COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
           Report type
@@ -571,7 +679,7 @@ export default function LandlordReportsPage() {
               </Tr>
             </THead>
             <TBody>
-              {expenseBreakdown.map((e) => (
+              {pagedExpenseBreakdown.map((e) => (
                 <Tr key={e.id}>
                   <Td className="px-6 py-3 font-medium text-navy">{e.property}</Td>
                   <Td className="max-w-xs px-6 py-3 text-slate-500">{e.workDone}</Td>
@@ -592,6 +700,15 @@ export default function LandlordReportsPage() {
               )}
             </TBody>
           </Table>
+          <div className="px-6 pb-4">
+            <Pagination
+              page={expensePage}
+              totalPages={expenseTotalPages}
+              totalItems={expenseBreakdown.length}
+              pageSize={DEFAULT_PAGE_SIZE}
+              onPageChange={setExpensePage}
+            />
+          </div>
         </div>
       )}
 

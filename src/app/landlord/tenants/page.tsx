@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Bell, CheckCircle2, Eye, Plus, Search } from "lucide-react";
 import { PROPERTIES, type Lease } from "@/lib/mock-admin-data";
@@ -10,6 +10,7 @@ import { Modal } from "@/components/admin/Modal";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
 const STATUS_STYLES: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -24,6 +25,7 @@ export default function LandlordTenantsPage() {
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
   const [isAdding, setAdding] = useState(false);
   const [justAdded, setJustAdded] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
   const propertyOptions = ["All Properties", ...myProperties.map((p) => p.name)];
@@ -53,6 +55,15 @@ export default function LandlordTenantsPage() {
       statusFilter === "All" || t.currentPaymentStatus === statusFilter;
     return matchesSearch && matchesProperty && matchesStatus;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredTenants.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedTenants = filteredTenants.slice(
+    (page - 1) * DEFAULT_PAGE_SIZE,
+    page * DEFAULT_PAGE_SIZE,
+  );
 
   const overdueTenants = allTenants.filter((t) => t.currentPaymentStatus === "Overdue");
   const paidTenants = allTenants.filter((t) => t.currentPaymentStatus === "Paid");
@@ -174,7 +185,7 @@ export default function LandlordTenantsPage() {
           </Tr>
         </THead>
         <TBody>
-          {filteredTenants.map((tenant) => (
+          {pagedTenants.map((tenant) => (
             <Tr key={tenant.id}>
               <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
                 <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
@@ -222,6 +233,14 @@ export default function LandlordTenantsPage() {
           )}
         </TBody>
       </Table>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={filteredTenants.length}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {isAdding && (
         <Modal

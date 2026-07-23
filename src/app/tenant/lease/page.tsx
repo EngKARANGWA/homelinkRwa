@@ -1,41 +1,94 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle2, Eye } from "lucide-react";
-import { LEASES, type Lease } from "@/lib/mock-admin-data";
-import { useTenant } from "@/components/tenant/TenantContext";
-import { Modal } from "@/components/admin/Modal";
-import { LeaseDocument } from "@/components/admin/LeaseDocument";
+import { useEffect, useState } from "react";
+import { AlertCircle, CheckCircle2, Eye } from "lucide-react";
+import { listUsers } from "@/lib/api/admin";
+import { listProperties } from "@/lib/api/properties";
+import {
+  getLeaseDocument,
+  listLeases,
+  requestLeaseRenewal,
+  requestLeaseTermination,
+} from "@/lib/api/leases";
+import { ApiError } from "@/lib/api/client";
+import type { Lease, Property, User } from "@/lib/api/types";
+import { formatLeaseStatus, LEASE_STATUS_STYLES } from "@/lib/leaseStatus";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
-
-const STATUS_STYLES: Record<Lease["status"], string> = {
-  Active: "bg-emerald-50 text-emerald-700",
-  "Renewal Requested": "bg-amber-50 text-amber-700",
-  "Termination Requested": "bg-amber-50 text-amber-700",
-  Terminated: "bg-red-50 text-red-700",
-  Expired: "bg-slate-100 text-slate-600",
-};
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
 export default function TenantLeasePage() {
-  const { tenantName } = useTenant();
-  const [leases, setLeases] = useState(LEASES);
-  const [viewingLease, setViewingLease] = useState<Lease | null>(null);
+  const [leases, setLeases] = useState<Lease[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [owners, setOwners] = useState<User[]>([]);
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
-  const myLeases = leases.filter((l) => l.tenant === tenantName);
+  const propertyFor = (id: string) => properties.find((p) => p.id === id);
+  const ownerName = (id: string) => {
+    const owner = owners.find((o) => o.id === id);
+    return owner ? `${owner.firstName} ${owner.lastName}` : "—";
+  };
 
-  const requestChange = (
-    id: string,
-    status: "Renewal Requested" | "Termination Requested",
-  ) => {
-    setLeases((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, status } : l)),
-    );
-    setNotice(
-      status === "Renewal Requested"
-        ? "Renewal request sent to your landlord."
-        : "Termination request sent to your landlord.",
-    );
+  const load = () => {
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      listLeases({ page, limit: DEFAULT_PAGE_SIZE }),
+      listProperties({ limit: 100 }),
+      listUsers({ role: "owner", limit: 100 }),
+    ])
+      .then(([leasesRes, propertiesRes, ownersRes]) => {
+        setLeases(leasesRes.data);
+        setTotalPages(leasesRes.meta.totalPages);
+        setTotalItems(leasesRes.meta.total);
+        setProperties(propertiesRes.data);
+        setOwners(ownersRes.data);
+      })
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : "Failed to load your leases."),
+      )
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, [page]);
+
+  const viewDocument = async (lease: Lease) => {
+    setActionError(null);
+    try {
+      const { url } = await getLeaseDocument(lease.id);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "Failed to load lease document.",
+      );
+    }
+  };
+
+  const requestChange = async (lease: Lease, type: "renewal" | "termination") => {
+    setActionError(null);
+    setProcessingId(lease.id);
+    try {
+      if (type === "renewal") {
+        await requestLeaseRenewal(lease.id);
+        setNotice("Renewal request sent to your landlord.");
+      } else {
+        await requestLeaseTermination(lease.id);
+        setNotice("Termination request sent to your landlord.");
+      }
+      load();
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "Failed to submit the request.",
+      );
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   return (
@@ -54,6 +107,20 @@ export default function TenantLeasePage() {
         </div>
       )}
 
+      {(error || actionError) && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            {error ?? actionError}
+          </span>
+          {error && (
+            <button type="button" onClick={load} className="underline hover:no-underline">
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+
       <Table variant="standalone">
         <THead>
           <Tr>
@@ -66,82 +133,86 @@ export default function TenantLeasePage() {
           </Tr>
         </THead>
         <TBody>
-          {myLeases.map((lease) => (
-            <Tr key={lease.id}>
-              <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
-                <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                  {lease.property}
-                </p>
-                <p className="truncate text-xs text-slate-400 md:hidden">
-                  {lease.owner} · {lease.rent.toLocaleString()} RWF
-                </p>
-              </Td>
-              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">{lease.owner}</Td>
-              <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                {lease.rent.toLocaleString()}
-              </Td>
-              <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                {lease.startDate} → {lease.endDate ?? "Open-ended"}
-              </Td>
-              <Td className="px-4 py-3 sm:px-6">
-                <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[lease.status]}`}
-                >
-                  {lease.status}
-                </span>
-              </Td>
-              <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setViewingLease(lease)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    View
-                  </button>
-                  {lease.status === "Active" && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          requestChange(lease.id, "Renewal Requested")
-                        }
-                        className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                      >
-                        Request Renewal
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          requestChange(lease.id, "Termination Requested")
-                        }
-                        className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
-                      >
-                        Request Termination
-                      </button>
-                    </>
-                  )}
-                </div>
-              </Td>
-            </Tr>
-          ))}
-          {myLeases.length === 0 && (
+          {isLoading ? (
+            <EmptyRow colSpan={6}>Loading your leases...</EmptyRow>
+          ) : leases.length === 0 ? (
             <EmptyRow colSpan={6}>No lease agreements on file yet.</EmptyRow>
+          ) : (
+            leases.map((lease) => {
+              const property = propertyFor(lease.propertyId);
+              const isProcessing = processingId === lease.id;
+              return (
+                <Tr key={lease.id}>
+                  <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                    <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                      {property?.title ?? "—"}
+                    </p>
+                    <p className="truncate text-xs text-slate-400 md:hidden">
+                      {ownerName(lease.ownerId)} · {Number(lease.rentAmount).toLocaleString()} RWF
+                    </p>
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                    {ownerName(lease.ownerId)}
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
+                    {Number(lease.rentAmount).toLocaleString()}
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                    {lease.startDate} → {lease.endDate ?? "Open-ended"}
+                  </Td>
+                  <Td className="px-4 py-3 sm:px-6">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${LEASE_STATUS_STYLES[lease.status]}`}
+                    >
+                      {formatLeaseStatus(lease.status)}
+                    </span>
+                  </Td>
+                  <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => viewDocument(lease)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </button>
+                      {lease.status === "active" && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => requestChange(lease, "renewal")}
+                            disabled={isProcessing}
+                            className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                          >
+                            Request Renewal
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => requestChange(lease, "termination")}
+                            disabled={isProcessing}
+                            className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            Request Termination
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </Td>
+                </Tr>
+              );
+            })
           )}
         </TBody>
       </Table>
 
-      {viewingLease && (
-        <Modal
-          title="Lease Agreement"
-          description={`${viewingLease.tenant} · ${viewingLease.property}`}
-          onClose={() => setViewingLease(null)}
-          maxWidthClassName="max-w-3xl"
-        >
-          <LeaseDocument lease={viewingLease} />
-        </Modal>
-      )}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

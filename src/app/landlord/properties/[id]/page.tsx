@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Eye } from "lucide-react";
@@ -8,6 +9,7 @@ import { getUnitsForProperty } from "@/lib/units";
 import { useLandlord } from "@/components/landlord/LandlordContext";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
 const STATUS_STYLES: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -18,8 +20,18 @@ const STATUS_STYLES: Record<string, string> = {
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { landlordName, unitOverrides } = useLandlord();
+  const [page, setPage] = useState(1);
 
   const property = PROPERTIES.find((p) => p.id === id && p.owner === landlordName);
+  const units = property ? getUnitsForProperty(property, unitOverrides) : [];
+  const totalPages = Math.max(1, Math.ceil(units.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedUnits = units.slice(
+    (page - 1) * DEFAULT_PAGE_SIZE,
+    page * DEFAULT_PAGE_SIZE,
+  );
 
   if (!property) {
     return (
@@ -35,7 +47,6 @@ export default function PropertyDetailPage() {
     );
   }
 
-  const units = getUnitsForProperty(property, unitOverrides);
   const totalUnits = units.length;
   const occupied = units.filter((u) => u.occupancyStatus === "Occupied").length;
   const occupancyPercent = totalUnits
@@ -88,7 +99,7 @@ export default function PropertyDetailPage() {
           </Tr>
         </THead>
         <TBody>
-          {units.map((unit) => (
+          {pagedUnits.map((unit) => (
             <Tr key={unit.id}>
               <Td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
                 <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
@@ -127,6 +138,14 @@ export default function PropertyDetailPage() {
           ))}
         </TBody>
       </Table>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={units.length}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       <Link
         href="/landlord/leases"

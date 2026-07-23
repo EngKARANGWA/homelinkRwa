@@ -16,10 +16,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -106,6 +102,9 @@ export default function LandlordOverviewPage() {
     .filter((p) => p.status === "Paid")
     .reduce((sum, p) => sum + p.amount, 0);
   const balanceDue = totalDueThisMonth - amountCollectedThisMonth;
+  const collectionPercent = totalDueThisMonth
+    ? Math.min(100, Math.round((amountCollectedThisMonth / totalDueThisMonth) * 100))
+    : 0;
   const outstandingPayments = paymentsDueThisMonth.filter(
     (p) => p.status !== "Paid",
   );
@@ -150,24 +149,6 @@ export default function LandlordOverviewPage() {
     },
   ];
 
-  const occupancyData = [
-    {
-      name: "Available",
-      value: myProperties.filter((p) => p.availability === "Available").length,
-    },
-    {
-      name: "Occupied",
-      value: myProperties.filter((p) => p.availability === "Occupied").length,
-    },
-  ];
-
-  const paymentStatusData = (
-    ["Paid", "Late", "Pending", "Pending Approval"] as const
-  ).map((status) => ({
-    name: status,
-    value: myPayments.filter((p) => p.status === status).length,
-  }));
-
   const rentByProperty = myProperties.map((p) => ({
     name: p.name.length > 16 ? `${p.name.slice(0, 16)}…` : p.name,
     rent: p.rent,
@@ -183,7 +164,7 @@ export default function LandlordOverviewPage() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <Card title="This Month" className="lg:col-span-2">
+        <Card title="This Month" className="flex flex-col lg:col-span-2">
           <MiniStatGroup
             stats={[
               {
@@ -205,6 +186,18 @@ export default function LandlordOverviewPage() {
               },
             ]}
           />
+          <div className="mt-6 flex flex-1 flex-col justify-end">
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>Collection progress</span>
+              <span className="font-medium text-navy">{collectionPercent}%</span>
+            </div>
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-600 transition-all"
+                style={{ width: `${collectionPercent}%` }}
+              />
+            </div>
+          </div>
         </Card>
 
         {featuredProperty && (
@@ -228,6 +221,11 @@ export default function LandlordOverviewPage() {
           { label: "Balance Due", value: `${balanceDue.toLocaleString()} RWF` },
           { label: "Tenants Outstanding", value: outstandingTenants },
         ]}
+        message={
+          balanceDue > 0
+            ? "Some tenants haven't paid this month's rent yet. Send a reminder or check the full report."
+            : "All tenants are paid up this month."
+        }
       >
         <button
           type="button"
@@ -271,58 +269,6 @@ export default function LandlordOverviewPage() {
 
       {myProperties.length > 0 && (
         <>
-          <div className="grid gap-5 lg:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="font-semibold text-navy">Occupancy</p>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={occupancyData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                  >
-                    {occupancyData.map((entry, i) => (
-                      <Cell
-                        key={entry.name}
-                        fill={CHART_COLORS[i % CHART_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="font-semibold text-navy">Payment Status</p>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={paymentStatusData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                  >
-                    {paymentStatusData.map((entry, i) => (
-                      <Cell
-                        key={entry.name}
-                        fill={CHART_COLORS[i % CHART_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="font-semibold text-navy">Rent by Property</p>
             <ResponsiveContainer width="100%" height={240}>

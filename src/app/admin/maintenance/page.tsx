@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, Eye, PlayCircle, Plus, UserPlus, Wrench } from "lucide-react";
 import { MAINTENANCE_REQUESTS, type Laborer, type MaintenanceRequest } from "@/lib/mock-admin-data";
 import { Modal } from "@/components/admin/Modal";
@@ -9,6 +9,7 @@ import { AssignHandlerForm } from "@/components/admin/AssignHandlerForm";
 import { CompleteRequestForm } from "@/components/admin/CompleteRequestForm";
 import { MaintenanceDetail } from "@/components/admin/MaintenanceDetail";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
 const STATUS_STYLES: Record<MaintenanceRequest["status"], string> = {
   Submitted: "bg-amber-50 text-amber-700",
@@ -30,6 +31,16 @@ export default function MaintenancePage() {
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [viewingRequest, setViewingRequest] = useState<MaintenanceRequest | null>(null);
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(requests.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedRequests = requests.slice(
+    (page - 1) * DEFAULT_PAGE_SIZE,
+    page * DEFAULT_PAGE_SIZE,
+  );
 
   const startProgress = (id: string) => {
     setRequests((prev) =>
@@ -96,7 +107,7 @@ export default function MaintenancePage() {
           </Tr>
         </THead>
         <TBody>
-          {requests.map((request) => (
+          {pagedRequests.map((request) => (
             <Tr key={request.id}>
               <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
                 <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
@@ -202,6 +213,14 @@ export default function MaintenancePage() {
           ))}
         </TBody>
       </Table>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={requests.length}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {isNewRequestOpen && (
         <Modal

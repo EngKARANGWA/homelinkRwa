@@ -4,6 +4,7 @@ import type {
   PaginatedResponse,
   Property,
   SuccessResponse,
+  UpdatePropertyInput,
 } from "./types";
 
 export type ListPropertiesParams = {
@@ -34,6 +35,17 @@ export async function createProperty(
 ): Promise<Property> {
   const res = await apiFetch<SuccessResponse<Property>>("/properties", {
     method: "POST",
+    body: input,
+  });
+  return res.data;
+}
+
+export async function updateProperty(
+  id: string,
+  input: UpdatePropertyInput,
+): Promise<Property> {
+  const res = await apiFetch<SuccessResponse<Property>>(`/properties/${id}`, {
+    method: "PATCH",
     body: input,
   });
   return res.data;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import {
   LANDLORDS,
@@ -11,6 +11,7 @@ import {
 } from "@/lib/mock-admin-data";
 import { downloadCSV } from "@/lib/csv";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
 const REPORT_TYPES = [
   {
@@ -60,6 +61,11 @@ export default function ReportsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [propertyFilter, setPropertyFilter] = useState("All Properties");
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [reportId, dateFrom, dateTo, propertyFilter]);
 
   const activeReport = REPORT_TYPES.find((r) => r.id === reportId)!;
 
@@ -85,6 +91,12 @@ export default function ReportsPage() {
       inRange(p.paidDate ?? p.dueDate),
   );
   const revenueTotal = revenuePerformance.reduce((sum, p) => sum + p.amount, 0);
+
+  function paginate<T>(items: T[]) {
+    const totalPages = Math.max(1, Math.ceil(items.length / DEFAULT_PAGE_SIZE));
+    const paged = items.slice((page - 1) * DEFAULT_PAGE_SIZE, page * DEFAULT_PAGE_SIZE);
+    return { paged, totalPages };
+  }
 
   const handleExport = () => {
     switch (reportId) {
@@ -248,224 +260,306 @@ export default function ReportsPage() {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        {reportId === "rental-history" && (
-          <Table variant="bare">
-            <THead>
-              <Tr>
-                <Th className="px-6 py-3">Tenant</Th>
-                <Th className="px-6 py-3">Property</Th>
-                <Th className="px-6 py-3">Owner</Th>
-                <Th className="px-6 py-3">Rent (RWF)</Th>
-                <Th className="px-6 py-3">Start</Th>
-                <Th className="px-6 py-3">End</Th>
-                <Th className="px-6 py-3">Status</Th>
-              </Tr>
-            </THead>
-            <TBody>
-              {rentalHistory.map((l) => (
-                <Tr key={l.id}>
-                  <Td className="px-6 py-3 font-medium text-navy">{l.tenant}</Td>
-                  <Td className="px-6 py-3 text-slate-500">{l.property}</Td>
-                  <Td className="px-6 py-3 text-slate-500">{l.owner}</Td>
-                  <Td className="px-6 py-3 text-slate-500">
-                    {l.rent.toLocaleString()}
-                  </Td>
-                  <Td className="px-6 py-3 text-slate-500">{l.startDate}</Td>
-                  <Td className="px-6 py-3 text-slate-500">
-                    {l.endDate ?? "Open-ended"}
-                  </Td>
-                  <Td className="px-6 py-3 text-slate-500">{l.status}</Td>
-                </Tr>
-              ))}
-              {rentalHistory.length === 0 && (
-                <EmptyRow colSpan={7}>No leases match these filters.</EmptyRow>
-              )}
-            </TBody>
-          </Table>
-        )}
-
-        {reportId === "payment-history" && (
-          <Table variant="bare">
-            <THead>
-              <Tr>
-                <Th className="px-6 py-3">Tenant</Th>
-                <Th className="px-6 py-3">Property</Th>
-                <Th className="px-6 py-3">Amount (RWF)</Th>
-                <Th className="px-6 py-3">Method</Th>
-                <Th className="px-6 py-3">Due Date</Th>
-                <Th className="px-6 py-3">Paid Date</Th>
-                <Th className="px-6 py-3">Status</Th>
-              </Tr>
-            </THead>
-            <TBody>
-              {paymentHistory.map((p) => (
-                <Tr key={p.id}>
-                  <Td className="px-6 py-3 font-medium text-navy">{p.tenant}</Td>
-                  <Td className="px-6 py-3 text-slate-500">{p.property}</Td>
-                  <Td className="px-6 py-3 text-slate-500">
-                    {p.amount.toLocaleString()}
-                  </Td>
-                  <Td className="px-6 py-3 text-slate-500">{p.method}</Td>
-                  <Td className="px-6 py-3 text-slate-500">{p.dueDate}</Td>
-                  <Td className="px-6 py-3 text-slate-500">
-                    {p.paidDate ?? "—"}
-                  </Td>
-                  <Td className="px-6 py-3 text-slate-500">{p.status}</Td>
-                </Tr>
-              ))}
-              {paymentHistory.length === 0 && (
-                <EmptyRow colSpan={7}>No payments match these filters.</EmptyRow>
-              )}
-            </TBody>
-          </Table>
-        )}
-
-        {reportId === "occupancy" && (
-          <Table variant="bare">
-            <THead>
-              <Tr>
-                <Th className="px-6 py-3">Property</Th>
-                <Th className="px-6 py-3">Owner</Th>
-                <Th className="px-6 py-3">Type</Th>
-                <Th className="px-6 py-3">Availability</Th>
-                <Th className="px-6 py-3">Approval</Th>
-              </Tr>
-            </THead>
-            <TBody>
-              {occupancy.map((p) => (
-                <Tr key={p.id}>
-                  <Td className="px-6 py-3 font-medium text-navy">{p.name}</Td>
-                  <Td className="px-6 py-3 text-slate-500">{p.owner}</Td>
-                  <Td className="px-6 py-3 text-slate-500">{p.type}</Td>
-                  <Td className="px-6 py-3 text-slate-500">
-                    {p.availability}
-                  </Td>
-                  <Td className="px-6 py-3 text-slate-500">{p.approval}</Td>
-                </Tr>
-              ))}
-              {occupancy.length === 0 && (
-                <EmptyRow colSpan={5}>No properties match these filters.</EmptyRow>
-              )}
-            </TBody>
-          </Table>
-        )}
-
-        {reportId === "maintenance-activity" && (
-          <Table variant="bare">
-            <THead>
-              <Tr>
-                <Th className="px-6 py-3">Tenant</Th>
-                <Th className="px-6 py-3">Property</Th>
-                <Th className="px-6 py-3">Issue</Th>
-                <Th className="px-6 py-3">Priority</Th>
-                <Th className="px-6 py-3">Status</Th>
-                <Th className="px-6 py-3">Assigned To</Th>
-                <Th className="px-6 py-3">Submitted</Th>
-              </Tr>
-            </THead>
-            <TBody>
-              {maintenanceActivity.map((m) => (
-                <Tr key={m.id}>
-                  <Td className="px-6 py-3 font-medium text-navy">{m.tenant}</Td>
-                  <Td className="px-6 py-3 text-slate-500">{m.property}</Td>
-                  <Td className="max-w-xs px-6 py-3 text-slate-500">
-                    {m.issue.join("; ")}
-                  </Td>
-                  <Td className="px-6 py-3 text-slate-500">{m.priority}</Td>
-                  <Td className="px-6 py-3 text-slate-500">{m.status}</Td>
-                  <Td className="px-6 py-3 text-slate-500">
-                    {m.laborers.length > 0
-                      ? `${m.laborers.length} worker${m.laborers.length === 1 ? "" : "s"}`
-                      : "—"}
-                  </Td>
-                  <Td className="px-6 py-3 text-slate-500">
-                    {m.submittedAt}
-                  </Td>
-                </Tr>
-              ))}
-              {maintenanceActivity.length === 0 && (
-                <EmptyRow colSpan={7}>No requests match these filters.</EmptyRow>
-              )}
-            </TBody>
-          </Table>
-        )}
-
-        {reportId === "revenue-performance" && (
-          <>
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-              <p className="text-sm font-medium text-slate-500">
-                Total collected
-              </p>
-              <p className="text-lg font-bold text-navy">
-                {revenueTotal.toLocaleString()} RWF
-              </p>
-            </div>
-            <Table variant="bare">
-              <THead>
-                <Tr>
-                  <Th className="px-6 py-3">Tenant</Th>
-                  <Th className="px-6 py-3">Property</Th>
-                  <Th className="px-6 py-3">Amount (RWF)</Th>
-                  <Th className="px-6 py-3">Method</Th>
-                  <Th className="px-6 py-3">Paid Date</Th>
-                </Tr>
-              </THead>
-              <TBody>
-                {revenuePerformance.map((p) => (
-                  <Tr key={p.id}>
-                    <Td className="px-6 py-3 font-medium text-navy">
-                      {p.tenant}
-                    </Td>
-                    <Td className="px-6 py-3 text-slate-500">
-                      {p.property}
-                    </Td>
-                    <Td className="px-6 py-3 text-slate-500">
-                      {p.amount.toLocaleString()}
-                    </Td>
-                    <Td className="px-6 py-3 text-slate-500">{p.method}</Td>
-                    <Td className="px-6 py-3 text-slate-500">
-                      {p.paidDate ?? "—"}
-                    </Td>
+        {reportId === "rental-history" && (() => {
+          const { paged, totalPages } = paginate(rentalHistory);
+          return (
+            <>
+              <Table variant="bare">
+                <THead>
+                  <Tr>
+                    <Th className="px-6 py-3">Tenant</Th>
+                    <Th className="px-6 py-3">Property</Th>
+                    <Th className="px-6 py-3">Owner</Th>
+                    <Th className="px-6 py-3">Rent (RWF)</Th>
+                    <Th className="px-6 py-3">Start</Th>
+                    <Th className="px-6 py-3">End</Th>
+                    <Th className="px-6 py-3">Status</Th>
                   </Tr>
-                ))}
-                {revenuePerformance.length === 0 && (
-                  <EmptyRow colSpan={5}>No revenue matches these filters.</EmptyRow>
-                )}
-              </TBody>
-            </Table>
-          </>
-        )}
+                </THead>
+                <TBody>
+                  {paged.map((l) => (
+                    <Tr key={l.id}>
+                      <Td className="px-6 py-3 font-medium text-navy">{l.tenant}</Td>
+                      <Td className="px-6 py-3 text-slate-500">{l.property}</Td>
+                      <Td className="px-6 py-3 text-slate-500">{l.owner}</Td>
+                      <Td className="px-6 py-3 text-slate-500">
+                        {l.rent.toLocaleString()}
+                      </Td>
+                      <Td className="px-6 py-3 text-slate-500">{l.startDate}</Td>
+                      <Td className="px-6 py-3 text-slate-500">
+                        {l.endDate ?? "Open-ended"}
+                      </Td>
+                      <Td className="px-6 py-3 text-slate-500">{l.status}</Td>
+                    </Tr>
+                  ))}
+                  {rentalHistory.length === 0 && (
+                    <EmptyRow colSpan={7}>No leases match these filters.</EmptyRow>
+                  )}
+                </TBody>
+              </Table>
+              <div className="px-6 pb-4">
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  totalItems={rentalHistory.length}
+                  pageSize={DEFAULT_PAGE_SIZE}
+                  onPageChange={setPage}
+                />
+              </div>
+            </>
+          );
+        })()}
 
-        {reportId === "landlord-performance" && (
-          <Table variant="bare">
-            <THead>
-              <Tr>
-                <Th className="px-6 py-3">Name</Th>
-                <Th className="px-6 py-3">Email</Th>
-                <Th className="px-6 py-3">Phone</Th>
-                <Th className="px-6 py-3">Properties</Th>
-                <Th className="px-6 py-3">Status</Th>
-                <Th className="px-6 py-3">Registered</Th>
-              </Tr>
-            </THead>
-            <TBody>
-              {LANDLORDS.map((l) => (
-                <Tr key={l.id}>
-                  <Td className="px-6 py-3 font-medium text-navy">{l.name}</Td>
-                  <Td className="px-6 py-3 text-slate-500">{l.email}</Td>
-                  <Td className="px-6 py-3 text-slate-500">{l.phone}</Td>
-                  <Td className="px-6 py-3 text-slate-500">
-                    {l.properties}
-                  </Td>
-                  <Td className="px-6 py-3 text-slate-500">{l.status}</Td>
-                  <Td className="px-6 py-3 text-slate-500">
-                    {l.registeredAt}
-                  </Td>
-                </Tr>
-              ))}
-            </TBody>
-          </Table>
-        )}
+        {reportId === "payment-history" && (() => {
+          const { paged, totalPages } = paginate(paymentHistory);
+          return (
+            <>
+              <Table variant="bare">
+                <THead>
+                  <Tr>
+                    <Th className="px-6 py-3">Tenant</Th>
+                    <Th className="px-6 py-3">Property</Th>
+                    <Th className="px-6 py-3">Amount (RWF)</Th>
+                    <Th className="px-6 py-3">Method</Th>
+                    <Th className="px-6 py-3">Due Date</Th>
+                    <Th className="px-6 py-3">Paid Date</Th>
+                    <Th className="px-6 py-3">Status</Th>
+                  </Tr>
+                </THead>
+                <TBody>
+                  {paged.map((p) => (
+                    <Tr key={p.id}>
+                      <Td className="px-6 py-3 font-medium text-navy">{p.tenant}</Td>
+                      <Td className="px-6 py-3 text-slate-500">{p.property}</Td>
+                      <Td className="px-6 py-3 text-slate-500">
+                        {p.amount.toLocaleString()}
+                      </Td>
+                      <Td className="px-6 py-3 text-slate-500">{p.method}</Td>
+                      <Td className="px-6 py-3 text-slate-500">{p.dueDate}</Td>
+                      <Td className="px-6 py-3 text-slate-500">
+                        {p.paidDate ?? "—"}
+                      </Td>
+                      <Td className="px-6 py-3 text-slate-500">{p.status}</Td>
+                    </Tr>
+                  ))}
+                  {paymentHistory.length === 0 && (
+                    <EmptyRow colSpan={7}>No payments match these filters.</EmptyRow>
+                  )}
+                </TBody>
+              </Table>
+              <div className="px-6 pb-4">
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  totalItems={paymentHistory.length}
+                  pageSize={DEFAULT_PAGE_SIZE}
+                  onPageChange={setPage}
+                />
+              </div>
+            </>
+          );
+        })()}
+
+        {reportId === "occupancy" && (() => {
+          const { paged, totalPages } = paginate(occupancy);
+          return (
+            <>
+              <Table variant="bare">
+                <THead>
+                  <Tr>
+                    <Th className="px-6 py-3">Property</Th>
+                    <Th className="px-6 py-3">Owner</Th>
+                    <Th className="px-6 py-3">Type</Th>
+                    <Th className="px-6 py-3">Availability</Th>
+                    <Th className="px-6 py-3">Approval</Th>
+                  </Tr>
+                </THead>
+                <TBody>
+                  {paged.map((p) => (
+                    <Tr key={p.id}>
+                      <Td className="px-6 py-3 font-medium text-navy">{p.name}</Td>
+                      <Td className="px-6 py-3 text-slate-500">{p.owner}</Td>
+                      <Td className="px-6 py-3 text-slate-500">{p.type}</Td>
+                      <Td className="px-6 py-3 text-slate-500">
+                        {p.availability}
+                      </Td>
+                      <Td className="px-6 py-3 text-slate-500">{p.approval}</Td>
+                    </Tr>
+                  ))}
+                  {occupancy.length === 0 && (
+                    <EmptyRow colSpan={5}>No properties match these filters.</EmptyRow>
+                  )}
+                </TBody>
+              </Table>
+              <div className="px-6 pb-4">
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  totalItems={occupancy.length}
+                  pageSize={DEFAULT_PAGE_SIZE}
+                  onPageChange={setPage}
+                />
+              </div>
+            </>
+          );
+        })()}
+
+        {reportId === "maintenance-activity" && (() => {
+          const { paged, totalPages } = paginate(maintenanceActivity);
+          return (
+            <>
+              <Table variant="bare">
+                <THead>
+                  <Tr>
+                    <Th className="px-6 py-3">Tenant</Th>
+                    <Th className="px-6 py-3">Property</Th>
+                    <Th className="px-6 py-3">Issue</Th>
+                    <Th className="px-6 py-3">Priority</Th>
+                    <Th className="px-6 py-3">Status</Th>
+                    <Th className="px-6 py-3">Assigned To</Th>
+                    <Th className="px-6 py-3">Submitted</Th>
+                  </Tr>
+                </THead>
+                <TBody>
+                  {paged.map((m) => (
+                    <Tr key={m.id}>
+                      <Td className="px-6 py-3 font-medium text-navy">{m.tenant}</Td>
+                      <Td className="px-6 py-3 text-slate-500">{m.property}</Td>
+                      <Td className="max-w-xs px-6 py-3 text-slate-500">
+                        {m.issue.join("; ")}
+                      </Td>
+                      <Td className="px-6 py-3 text-slate-500">{m.priority}</Td>
+                      <Td className="px-6 py-3 text-slate-500">{m.status}</Td>
+                      <Td className="px-6 py-3 text-slate-500">
+                        {m.laborers.length > 0
+                          ? `${m.laborers.length} worker${m.laborers.length === 1 ? "" : "s"}`
+                          : "—"}
+                      </Td>
+                      <Td className="px-6 py-3 text-slate-500">
+                        {m.submittedAt}
+                      </Td>
+                    </Tr>
+                  ))}
+                  {maintenanceActivity.length === 0 && (
+                    <EmptyRow colSpan={7}>No requests match these filters.</EmptyRow>
+                  )}
+                </TBody>
+              </Table>
+              <div className="px-6 pb-4">
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  totalItems={maintenanceActivity.length}
+                  pageSize={DEFAULT_PAGE_SIZE}
+                  onPageChange={setPage}
+                />
+              </div>
+            </>
+          );
+        })()}
+
+        {reportId === "revenue-performance" && (() => {
+          const { paged, totalPages } = paginate(revenuePerformance);
+          return (
+            <>
+              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+                <p className="text-sm font-medium text-slate-500">
+                  Total collected
+                </p>
+                <p className="text-lg font-bold text-navy">
+                  {revenueTotal.toLocaleString()} RWF
+                </p>
+              </div>
+              <Table variant="bare">
+                <THead>
+                  <Tr>
+                    <Th className="px-6 py-3">Tenant</Th>
+                    <Th className="px-6 py-3">Property</Th>
+                    <Th className="px-6 py-3">Amount (RWF)</Th>
+                    <Th className="px-6 py-3">Method</Th>
+                    <Th className="px-6 py-3">Paid Date</Th>
+                  </Tr>
+                </THead>
+                <TBody>
+                  {paged.map((p) => (
+                    <Tr key={p.id}>
+                      <Td className="px-6 py-3 font-medium text-navy">
+                        {p.tenant}
+                      </Td>
+                      <Td className="px-6 py-3 text-slate-500">
+                        {p.property}
+                      </Td>
+                      <Td className="px-6 py-3 text-slate-500">
+                        {p.amount.toLocaleString()}
+                      </Td>
+                      <Td className="px-6 py-3 text-slate-500">{p.method}</Td>
+                      <Td className="px-6 py-3 text-slate-500">
+                        {p.paidDate ?? "—"}
+                      </Td>
+                    </Tr>
+                  ))}
+                  {revenuePerformance.length === 0 && (
+                    <EmptyRow colSpan={5}>No revenue matches these filters.</EmptyRow>
+                  )}
+                </TBody>
+              </Table>
+              <div className="px-6 pb-4">
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  totalItems={revenuePerformance.length}
+                  pageSize={DEFAULT_PAGE_SIZE}
+                  onPageChange={setPage}
+                />
+              </div>
+            </>
+          );
+        })()}
+
+        {reportId === "landlord-performance" && (() => {
+          const { paged, totalPages } = paginate(LANDLORDS);
+          return (
+            <>
+              <Table variant="bare">
+                <THead>
+                  <Tr>
+                    <Th className="px-6 py-3">Name</Th>
+                    <Th className="px-6 py-3">Email</Th>
+                    <Th className="px-6 py-3">Phone</Th>
+                    <Th className="px-6 py-3">Properties</Th>
+                    <Th className="px-6 py-3">Status</Th>
+                    <Th className="px-6 py-3">Registered</Th>
+                  </Tr>
+                </THead>
+                <TBody>
+                  {paged.map((l) => (
+                    <Tr key={l.id}>
+                      <Td className="px-6 py-3 font-medium text-navy">{l.name}</Td>
+                      <Td className="px-6 py-3 text-slate-500">{l.email}</Td>
+                      <Td className="px-6 py-3 text-slate-500">{l.phone}</Td>
+                      <Td className="px-6 py-3 text-slate-500">
+                        {l.properties}
+                      </Td>
+                      <Td className="px-6 py-3 text-slate-500">{l.status}</Td>
+                      <Td className="px-6 py-3 text-slate-500">
+                        {l.registeredAt}
+                      </Td>
+                    </Tr>
+                  ))}
+                </TBody>
+              </Table>
+              <div className="px-6 pb-4">
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  totalItems={LANDLORDS.length}
+                  pageSize={DEFAULT_PAGE_SIZE}
+                  onPageChange={setPage}
+                />
+              </div>
+            </>
+          );
+        })()}
       </div>
     </div>
   );

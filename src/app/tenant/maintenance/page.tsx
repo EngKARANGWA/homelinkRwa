@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, MessageSquarePlus, Plus } from "lucide-react";
 import {
   LEASES,
@@ -12,6 +12,7 @@ import { Modal } from "@/components/admin/Modal";
 import { MaintenanceRequestForm } from "@/components/tenant/MaintenanceRequestForm";
 import { FeedbackForm } from "@/components/tenant/FeedbackForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
 const STATUS_STYLES: Record<MaintenanceRequest["status"], string> = {
   Submitted: "bg-amber-50 text-amber-700",
@@ -32,8 +33,17 @@ export default function TenantMaintenancePage() {
   const [isNewRequestOpen, setNewRequestOpen] = useState(false);
   const [feedbackId, setFeedbackId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const myRequests = requests.filter((r) => r.tenant === tenantName);
+  const totalPages = Math.max(1, Math.ceil(myRequests.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedRequests = myRequests.slice(
+    (page - 1) * DEFAULT_PAGE_SIZE,
+    page * DEFAULT_PAGE_SIZE,
+  );
   const currentLease = LEASES.find(
     (l) =>
       l.tenant === tenantName &&
@@ -110,7 +120,7 @@ export default function TenantMaintenancePage() {
           </Tr>
         </THead>
         <TBody>
-          {myRequests.map((request) => (
+          {pagedRequests.map((request) => (
             <Tr key={request.id}>
               <Td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
                 <p className="truncate text-slate-500 sm:overflow-visible sm:whitespace-normal">
@@ -171,6 +181,14 @@ export default function TenantMaintenancePage() {
           )}
         </TBody>
       </Table>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={myRequests.length}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {isNewRequestOpen && currentLease && (
         <Modal
