@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { TODAY, type Property } from "@/lib/mock-admin-data";
 import { getUnitsForProperty, type Unit, type UnitOverrides } from "@/lib/units";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
 
 const METHODS = ["Cash", "MTN Mobile Money", "Airtel Money", "Bank Transfer"];
 
@@ -75,37 +76,29 @@ export function RecordPaymentForm({
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
           Property
-          <select
+          <SearchableSelect
             value={propertyId}
-            onChange={(e) => handlePropertyChange(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-          >
-            {properties.map((property) => (
-              <option key={property.id} value={property.id}>
-                {property.name}
-              </option>
-            ))}
-          </select>
+            onChange={handlePropertyChange}
+            options={properties.map((property) => ({
+              value: property.id,
+              label: property.name,
+            }))}
+            placeholder="Select a property"
+          />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
           Tenant / Unit
-          <select
+          <SearchableSelect
             value={selectedUnit?.id ?? ""}
-            onChange={(e) => handleUnitChange(e.target.value)}
+            onChange={handleUnitChange}
             disabled={occupiedUnits.length === 0}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-          >
-            {occupiedUnits.length === 0 ? (
-              <option>No tenants</option>
-            ) : (
-              occupiedUnits.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.unitNumber} · {unit.tenant}
-                </option>
-              ))
-            )}
-          </select>
+            placeholder={occupiedUnits.length === 0 ? "No tenants" : "Select a tenant"}
+            options={occupiedUnits.map((unit) => ({
+              value: unit.id,
+              label: `${unit.unitNumber} · ${unit.tenant}`,
+            }))}
+          />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">

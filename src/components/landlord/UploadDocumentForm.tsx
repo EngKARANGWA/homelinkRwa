@@ -5,6 +5,7 @@ import { Upload } from "lucide-react";
 import { TODAY, type Property } from "@/lib/mock-admin-data";
 import { getUnitsForProperty, type UnitOverrides } from "@/lib/units";
 import type { DocumentCategory, LandlordDocument } from "@/lib/documents";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
 
 const CATEGORIES: DocumentCategory[] = [
   "Property Document",
@@ -107,36 +108,34 @@ export function UploadDocumentForm({
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
           Property
-          <select
+          <SearchableSelect
             value={propertyId}
-            onChange={(e) => {
-              setPropertyId(e.target.value);
+            onChange={(value) => {
+              setPropertyId(value);
               setUnitNumber("");
             }}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-          >
-            {properties.map((property) => (
-              <option key={property.id} value={property.id}>
-                {property.name}
-              </option>
-            ))}
-          </select>
+            options={properties.map((property) => ({
+              value: property.id,
+              label: property.name,
+            }))}
+            placeholder="Select a property"
+          />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
           Unit (optional)
-          <select
+          <SearchableSelect
             value={unitNumber}
-            onChange={(e) => setUnitNumber(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-          >
-            <option value="">Property-wide document</option>
-            {occupiedUnits.map((unit) => (
-              <option key={unit.id} value={unit.unitNumber}>
-                {unit.unitNumber} · {unit.tenant}
-              </option>
-            ))}
-          </select>
+            onChange={setUnitNumber}
+            options={[
+              { value: "", label: "Property-wide document" },
+              ...occupiedUnits.map((unit) => ({
+                value: unit.unitNumber,
+                label: `${unit.unitNumber} · ${unit.tenant}`,
+              })),
+            ]}
+            placeholder="Property-wide document"
+          />
         </label>
       </div>
 

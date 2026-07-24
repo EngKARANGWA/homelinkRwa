@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { TODAY, type Lease, type Property } from "@/lib/mock-admin-data";
 import { getUnitsForProperty, type UnitOverrides } from "@/lib/units";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
 
 export function AddTenantForm({
   properties,
@@ -94,37 +95,29 @@ export function AddTenantForm({
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
           Property
-          <select
+          <SearchableSelect
             value={propertyId}
-            onChange={(e) => handlePropertyChange(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-          >
-            {properties.map((property) => (
-              <option key={property.id} value={property.id}>
-                {property.name}
-              </option>
-            ))}
-          </select>
+            onChange={handlePropertyChange}
+            options={properties.map((property) => ({
+              value: property.id,
+              label: property.name,
+            }))}
+            placeholder="Select a property"
+          />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
           Unit
-          <select
+          <SearchableSelect
             value={selectedUnit?.unitNumber ?? ""}
-            onChange={(e) => setUnitNumber(e.target.value)}
+            onChange={setUnitNumber}
             disabled={vacantUnits.length === 0}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-          >
-            {vacantUnits.length === 0 ? (
-              <option>No vacant units</option>
-            ) : (
-              vacantUnits.map((unit) => (
-                <option key={unit.id} value={unit.unitNumber}>
-                  {unit.unitNumber}
-                </option>
-              ))
-            )}
-          </select>
+            placeholder={vacantUnits.length === 0 ? "No vacant units" : "Select a unit"}
+            options={vacantUnits.map((unit) => ({
+              value: unit.unitNumber,
+              label: unit.unitNumber,
+            }))}
+          />
         </label>
       </div>
 

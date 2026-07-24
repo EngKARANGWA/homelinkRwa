@@ -16,6 +16,7 @@ import {
   PROPERTIES,
   TODAY,
   daysVacant,
+  type Lease,
   type Property,
 } from "@/lib/mock-admin-data";
 import { getUnitsForProperty, type UnitOverrides } from "@/lib/units";
@@ -25,6 +26,7 @@ import {
   PropertyForm,
   type PropertyFormValues,
 } from "@/components/landlord/PropertyForm";
+import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const AVAILABILITY_STYLES: Record<Property["availability"], string> = {
@@ -53,12 +55,14 @@ function propertyStats(property: Property, unitOverrides: UnitOverrides) {
 }
 
 export default function LandlordPropertiesPage() {
-  const { landlordName, unitOverrides } = useLandlord();
+  const { landlordName, unitOverrides, addTenant } = useLandlord();
   const [properties, setProperties] = useState(PROPERTIES);
   const [view, setView] = useState<"cards" | "table">("cards");
   const [isAdding, setAdding] = useState(false);
+  const [isAddingTenant, setAddingTenant] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+  const [justAddedTenant, setJustAddedTenant] = useState<string | null>(null);
 
   const myProperties = properties.filter((p) => p.owner === landlordName);
 
@@ -90,6 +94,12 @@ export default function LandlordPropertiesPage() {
     );
     setEditingProperty(null);
     setJustSaved(true);
+  };
+
+  const handleAddTenant = (lease: Lease) => {
+    addTenant(lease);
+    setAddingTenant(false);
+    setJustAddedTenant(`${lease.tenant} added to ${lease.property} · ${lease.unitNumber}.`);
   };
 
   return (
@@ -132,6 +142,14 @@ export default function LandlordPropertiesPage() {
           </div>
           <button
             type="button"
+            onClick={() => setAddingTenant(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+          >
+            <Plus className="h-4 w-4" />
+            Add Tenant
+          </button>
+          <button
+            type="button"
             onClick={() => setAdding(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
           >
@@ -145,6 +163,13 @@ export default function LandlordPropertiesPage() {
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
           <CheckCircle2 className="h-4 w-4" />
           Property saved successfully.
+        </div>
+      )}
+
+      {justAddedTenant && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle2 className="h-4 w-4" />
+          {justAddedTenant}
         </div>
       )}
 
@@ -299,6 +324,21 @@ export default function LandlordPropertiesPage() {
           onClose={() => setAdding(false)}
         >
           <PropertyForm onCancel={() => setAdding(false)} onSuccess={addProperty} />
+        </Modal>
+      )}
+
+      {isAddingTenant && (
+        <Modal
+          title="Add Tenant"
+          description="Assign a new tenant to a vacant unit."
+          onClose={() => setAddingTenant(false)}
+        >
+          <AddTenantForm
+            properties={myProperties}
+            unitOverrides={unitOverrides}
+            onCancel={() => setAddingTenant(false)}
+            onSuccess={handleAddTenant}
+          />
         </Modal>
       )}
 
