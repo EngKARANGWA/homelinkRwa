@@ -95,13 +95,14 @@ export default function UnitDetailPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link
-            href={`/landlord/properties/${property.id}`}
+          <button
+            type="button"
+            onClick={() => router.back()}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-navy"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to {property.name}
-          </Link>
+            Back
+          </button>
           <h1 className="mt-2 text-2xl font-bold text-navy">
             Unit {unit.unitNumber}
             {unit.tenant ? ` · ${unit.tenant}` : ""}

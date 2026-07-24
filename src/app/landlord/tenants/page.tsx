@@ -13,14 +13,17 @@ import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboar
 
 const STATUS_STYLES: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
-  Overdue: "bg-red-50 text-red-700",
+  Overdue: "bg-amber-50 text-amber-700",
+  Arrears: "bg-red-50 text-red-700",
 };
 
 export default function LandlordTenantsPage() {
   const { landlordName, unitOverrides, addTenant } = useLandlord();
   const [search, setSearch] = useState("");
   const [propertyFilter, setPropertyFilter] = useState("All Properties");
-  const [statusFilter, setStatusFilter] = useState<"All" | "Paid" | "Overdue">("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Paid" | "Overdue" | "Arrears">(
+    "All",
+  );
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
   const [isAdding, setAdding] = useState(false);
   const [justAdded, setJustAdded] = useState<string | null>(null);
@@ -54,7 +57,9 @@ export default function LandlordTenantsPage() {
     return matchesSearch && matchesProperty && matchesStatus;
   });
 
-  const overdueTenants = allTenants.filter((t) => t.currentPaymentStatus === "Overdue");
+  const overdueTenants = allTenants.filter(
+    (t) => t.currentPaymentStatus === "Overdue" || t.currentPaymentStatus === "Arrears",
+  );
   const paidTenants = allTenants.filter((t) => t.currentPaymentStatus === "Paid");
   const totalMonthlyRent = allTenants.reduce((sum, t) => sum + t.monthlyRent, 0);
 
@@ -157,6 +162,7 @@ export default function LandlordTenantsPage() {
             <option value="All">All</option>
             <option value="Paid">Paid</option>
             <option value="Overdue">Overdue</option>
+            <option value="Arrears">Arrears</option>
           </select>
         </label>
       </div>

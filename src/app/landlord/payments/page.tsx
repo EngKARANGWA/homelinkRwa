@@ -26,23 +26,26 @@ import { Card } from "@/components/dashboard/Card";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { downloadCSV } from "@/lib/csv";
+import { formatMoney } from "@/lib/money";
 
-type RowStatus = Payment["status"] | "Overdue";
+type RowStatus = Payment["status"] | "Overdue" | "Arrears";
 
 const STATUS_STYLES: Record<RowStatus, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
   Late: "bg-red-50 text-red-700",
   Pending: "bg-amber-50 text-amber-700",
   "Pending Approval": "bg-sky-50 text-sky-700",
-  Overdue: "bg-red-50 text-red-700",
+  Overdue: "bg-amber-50 text-amber-700",
+  Arrears: "bg-red-50 text-red-700",
 };
 
 const STATUS_PRIORITY: Record<RowStatus, number> = {
-  Overdue: 0,
-  Late: 1,
-  "Pending Approval": 2,
-  Pending: 3,
-  Paid: 4,
+  Arrears: 0,
+  Overdue: 1,
+  Late: 2,
+  "Pending Approval": 3,
+  Pending: 4,
+  Paid: 5,
 };
 
 type PaymentRow = {
@@ -121,7 +124,9 @@ export default function LandlordPaymentsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [landlordName, unitOverrides],
   );
-  const overdueUnits = allUnits.filter((u) => u.currentPaymentStatus === "Overdue");
+  const overdueUnits = allUnits.filter(
+    (u) => u.currentPaymentStatus === "Overdue" || u.currentPaymentStatus === "Arrears",
+  );
   const totalInArrears = overdueUnits.reduce((sum, u) => sum + u.monthlyRent, 0);
 
   const propertyFilteredArrearsUnits = overdueUnits.filter(
@@ -129,21 +134,28 @@ export default function LandlordPaymentsPage() {
   );
 
   const filteredArrearsUnits =
-    methodFilter === "All" && (statusFilter === "All" || statusFilter === "Overdue")
-      ? propertyFilteredArrearsUnits
+    methodFilter === "All" &&
+    (statusFilter === "All" || statusFilter === "Overdue" || statusFilter === "Arrears")
+      ? propertyFilteredArrearsUnits.filter(
+          (u) => statusFilter === "All" || u.currentPaymentStatus === statusFilter,
+        )
       : [];
 
-  const TABS: { key: "All" | "Pending Approval" | "Overdue"; label: string }[] = [
+  const TABS: { key: "All" | "Pending Approval" | "Overdue" | "Arrears"; label: string }[] = [
     { key: "All", label: "All" },
     { key: "Pending Approval", label: "Pending Approval" },
-    { key: "Overdue", label: "Arrears / Overdue" },
+    { key: "Overdue", label: "Overdue" },
+    { key: "Arrears", label: "Arrears" },
   ];
   const tabCounts: Record<(typeof TABS)[number]["key"], number> = {
     All: propertyMethodFilteredPayments.length + propertyFilteredArrearsUnits.length,
     "Pending Approval": propertyMethodFilteredPayments.filter(
       (p) => p.status === "Pending Approval",
     ).length,
-    Overdue: propertyFilteredArrearsUnits.length,
+    Overdue: propertyFilteredArrearsUnits.filter((u) => u.currentPaymentStatus === "Overdue")
+      .length,
+    Arrears: propertyFilteredArrearsUnits.filter((u) => u.currentPaymentStatus === "Arrears")
+      .length,
   };
 
   const rows: PaymentRow[] = [
@@ -158,7 +170,7 @@ export default function LandlordPaymentsPage() {
         method: "—",
         dueDate: `${period} overdue`,
         dueDateSubtext: lastPaymentDate ? `Last paid ${lastPaymentDate}` : undefined,
-        status: "Overdue",
+        status: unit.currentPaymentStatus === "Arrears" ? "Arrears" : "Overdue",
         actions: { type: "unit", propertyId: unit.propertyId, unitId: unit.id },
       };
     }),
@@ -286,13 +298,13 @@ export default function LandlordPaymentsPage() {
         <IconStatCard
           icon={Wallet}
           label="Collected"
-          value={`${collected.toLocaleString()} RWF`}
+          value={`${formatMoney(collected)} RWF`}
           accent="emerald"
         />
         <IconStatCard
           icon={AlertCircle}
           label="Outstanding"
-          value={`${outstanding.toLocaleString()} RWF`}
+          value={`${formatMoney(outstanding)} RWF`}
           accent="red"
         />
         <IconStatCard icon={Percent} label="On-time Rate" value={`${onTimeRate}%`} accent="blue" />
@@ -301,7 +313,7 @@ export default function LandlordPaymentsPage() {
       <AlertBanner
         isAlert={overdueUnits.length > 0}
         stats={[
-          { label: "Total in Arrears", value: `${totalInArrears.toLocaleString()} RWF` },
+          { label: "Total in Arrears", value: `${formatMoney(totalInArrears)} RWF` },
           { label: "Units / Tenants", value: overdueUnits.length },
         ]}
       >
@@ -338,6 +350,7 @@ export default function LandlordPaymentsPage() {
           >
             <option value="All">All</option>
             <option value="Overdue">Overdue</option>
+            <option value="Arrears">Arrears</option>
             <option value="Paid">Paid</option>
             <option value="Late">Late</option>
             <option value="Pending">Pending</option>
@@ -416,7 +429,7 @@ export default function LandlordPaymentsPage() {
                   </p>
                   <p className="truncate text-xs text-slate-400 md:hidden">{row.property}</p>
                   <p className="text-xs text-slate-400 sm:hidden">
-                    {row.amount.toLocaleString()} RWF
+                    {formatMoney(row.amount)} RWF
                   </p>
                 </Td>
                 <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
@@ -425,12 +438,12 @@ export default function LandlordPaymentsPage() {
                 <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{row.unit}</Td>
                 <Td
                   className={`hidden px-6 py-3 sm:table-cell ${
-                    row.status === "Overdue" || row.status === "Late"
+                    row.status === "Overdue" || row.status === "Arrears" || row.status === "Late"
                       ? "font-medium text-red-600"
                       : "text-slate-500"
                   }`}
                 >
-                  {row.amount.toLocaleString()}
+                  {formatMoney(row.amount)}
                 </Td>
                 <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{row.method}</Td>
                 <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">

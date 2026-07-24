@@ -17,8 +17,14 @@ export function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgba(0,0,0,0.04)] lg:hidden">
       {BOTTOM_NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+        // Unit detail pages are nested under /landlord/properties/[id]/units/[unitId]
+        // but represent a tenant, not the properties list, so don't light up Properties.
         const isActive =
-          href === "/landlord" ? pathname === href : pathname.startsWith(href);
+          href === "/landlord"
+            ? pathname === href
+            : href === "/landlord/properties"
+              ? pathname.startsWith(href) && !pathname.includes("/units/")
+              : pathname.startsWith(href);
 
         return (
           <Link

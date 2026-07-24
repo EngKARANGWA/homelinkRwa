@@ -1,7 +1,7 @@
 "use client";
 
 import { AppLink as Link } from "@/components/shared/AppLink";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Eye } from "lucide-react";
 import { PROPERTIES } from "@/lib/mock-admin-data";
 import { getUnitsForProperty } from "@/lib/units";
@@ -11,12 +11,14 @@ import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 
 const STATUS_STYLES: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
-  Overdue: "bg-red-50 text-red-700",
+  Overdue: "bg-amber-50 text-amber-700",
+  Arrears: "bg-red-50 text-red-700",
   Vacant: "bg-slate-100 text-slate-600",
 };
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { landlordName, unitOverrides } = useLandlord();
 
   const property = PROPERTIES.find((p) => p.id === id && p.owner === landlordName);
@@ -45,19 +47,20 @@ export default function PropertyDetailPage() {
     .filter((u) => u.currentPaymentStatus === "Paid")
     .reduce((sum, u) => sum + u.monthlyRent, 0);
   const outstanding = units
-    .filter((u) => u.currentPaymentStatus === "Overdue")
+    .filter((u) => u.currentPaymentStatus === "Overdue" || u.currentPaymentStatus === "Arrears")
     .reduce((sum, u) => sum + u.monthlyRent, 0);
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link
-          href="/landlord/properties"
+        <button
+          type="button"
+          onClick={() => router.back()}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-navy"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Properties
-        </Link>
+          Back
+        </button>
         <h1 className="mt-2 text-2xl font-bold text-navy">{property.name}</h1>
         <p className="mt-1 text-sm text-slate-500">{property.address}</p>
       </div>

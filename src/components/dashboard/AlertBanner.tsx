@@ -3,11 +3,13 @@ export function AlertBanner({
   stats,
   message,
   children,
+  className = "",
 }: {
   isAlert: boolean;
   stats: { label: string; value: string | number }[];
   message?: string;
   children?: React.ReactNode;
+  className?: string;
 }) {
   const toneText = isAlert ? "text-amber-700" : "text-emerald-700";
   const toneBorder = isAlert
@@ -15,7 +17,9 @@ export function AlertBanner({
     : "border-emerald-200 bg-emerald-50/60";
 
   return (
-    <div className={`flex flex-col gap-4 rounded-xl border p-5 shadow-sm ${toneBorder}`}>
+    <div
+      className={`flex flex-col gap-4 rounded-xl border p-5 shadow-sm ${toneBorder} ${className}`}
+    >
       {stats.length > 0 && (
         <div className="flex flex-wrap items-center gap-8">
           {stats.map((stat) => (
