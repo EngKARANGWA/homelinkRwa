@@ -2,6 +2,7 @@
 
 import { Printer } from "lucide-react";
 import { type Lease, PROPERTIES } from "@/lib/mock-admin-data";
+import { getTenantUnitNumber } from "@/lib/units";
 import { formatMoney } from "@/lib/money";
 
 function formatDate(dateStr: string | null) {
@@ -15,6 +16,7 @@ function formatDate(dateStr: string | null) {
 
 export function LeaseDocument({ lease }: { lease: Lease }) {
   const property = PROPERTIES.find((p) => p.name === lease.property);
+  const unitNumber = getTenantUnitNumber(lease.property, lease.tenant);
   const isSigned = lease.status !== "Renewal Requested";
 
   return (
@@ -68,7 +70,10 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Property
           </p>
-          <p className="mt-1 font-medium text-navy">{lease.property}</p>
+          <p className="mt-1 font-medium text-navy">
+            {lease.property}
+            {unitNumber ? ` · Unit ${unitNumber}` : ""}
+          </p>
           {property && (
             <p className="text-sm text-slate-500">{property.address}</p>
           )}

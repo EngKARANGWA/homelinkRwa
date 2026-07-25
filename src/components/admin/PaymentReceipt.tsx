@@ -2,6 +2,7 @@
 
 import { Printer } from "lucide-react";
 import { type Payment } from "@/lib/mock-admin-data";
+import { getTenantUnitNumber } from "@/lib/units";
 import { formatMoney } from "@/lib/money";
 
 function formatDate(dateStr: string) {
@@ -13,6 +14,8 @@ function formatDate(dateStr: string) {
 }
 
 export function PaymentReceipt({ payment }: { payment: Payment }) {
+  const unitNumber = getTenantUnitNumber(payment.property, payment.tenant);
+
   return (
     <div>
       <div className="flex justify-end">
@@ -60,7 +63,10 @@ export function PaymentReceipt({ payment }: { payment: Payment }) {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Property
           </p>
-          <p className="mt-1 font-medium text-navy">{payment.property}</p>
+          <p className="mt-1 font-medium text-navy">
+            {payment.property}
+            {unitNumber ? ` · Unit ${unitNumber}` : ""}
+          </p>
         </div>
 
         <div className="mt-6 grid grid-cols-3 gap-6 text-sm">

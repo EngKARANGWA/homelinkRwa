@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, Eye } from "lucide-react";
 import { LEASES, type Lease } from "@/lib/mock-admin-data";
 import { useTenant } from "@/components/tenant/TenantContext";
+import { getTenantUnitNumber } from "@/lib/units";
 import { Modal } from "@/components/admin/Modal";
 import { LeaseDocument } from "@/components/admin/LeaseDocument";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
@@ -67,6 +68,7 @@ export default function TenantLeasePage() {
         <THead>
           <Tr>
             <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Property</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">Unit</Th>
             <Th className="hidden px-6 py-3 md:table-cell">Owner</Th>
             <Th className="hidden px-6 py-3 sm:table-cell">Rent (RWF)</Th>
             <Th className="hidden px-6 py-3 lg:table-cell">Term</Th>
@@ -75,15 +77,21 @@ export default function TenantLeasePage() {
           </Tr>
         </THead>
         <TBody>
-          {pagedLeases.map((lease) => (
+          {pagedLeases.map((lease) => {
+            const unitNumber = getTenantUnitNumber(lease.property, lease.tenant);
+            return (
             <Tr key={lease.id}>
               <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
                 <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
                   {lease.property}
                 </p>
                 <p className="truncate text-xs text-slate-400 md:hidden">
+                  {unitNumber ? `Unit ${unitNumber} · ` : ""}
                   {lease.owner} · {formatMoney(lease.rent)} RWF
                 </p>
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
+                {unitNumber ?? "—"}
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">{lease.owner}</Td>
               <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
@@ -134,9 +142,10 @@ export default function TenantLeasePage() {
                 </div>
               </Td>
             </Tr>
-          ))}
+            );
+          })}
           {pagedLeases.length === 0 && (
-            <EmptyRow colSpan={6}>No lease agreements on file yet.</EmptyRow>
+            <EmptyRow colSpan={7}>No lease agreements on file yet.</EmptyRow>
           )}
         </TBody>
       </Table>

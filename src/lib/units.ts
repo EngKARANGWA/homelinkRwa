@@ -1,4 +1,4 @@
-import { LEASES, PAYMENTS, TENANTS, TODAY, type Lease, type Payment, type Property } from "./mock-admin-data";
+import { LEASES, PAYMENTS, PROPERTIES, TENANTS, TODAY, type Lease, type Payment, type Property } from "./mock-admin-data";
 
 export type UnitPayment = {
   month: string;
@@ -385,4 +385,20 @@ export function getUnit(
   overrides: UnitOverrides = {},
 ): Unit | undefined {
   return getUnitsForProperty(property, overrides).find((u) => u.id === unitId);
+}
+
+/**
+ * Looks up which specific unit a tenant occupies within a (possibly
+ * multi-unit) property, e.g. "A03" in a 25-unit apartment building.
+ * Returns undefined for single-unit properties, where there's nothing
+ * distinct to show beyond the property name itself.
+ */
+export function getTenantUnitNumber(
+  propertyName: string,
+  tenantName: string,
+): string | undefined {
+  const property = PROPERTIES.find((p) => p.name === propertyName);
+  if (!property) return undefined;
+  const unit = getUnitsForProperty(property).find((u) => u.tenant === tenantName);
+  return unit && unit.unitNumber !== "Main" ? unit.unitNumber : undefined;
 }
