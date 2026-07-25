@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, CheckCircle2, Eye, Plus, X } from "lucide-react";
 import { PROPERTIES, TODAY, daysVacant, type Property } from "@/lib/mock-admin-data";
 import { Modal } from "@/components/admin/Modal";
 import { PropertyForm, type PropertyFormValues } from "@/components/admin/PropertyForm";
 import { PropertyDetail } from "@/components/admin/PropertyDetail";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 const APPROVAL_STYLES: Record<Property["approval"], string> = {
   Approved: "bg-emerald-50 text-emerald-700",
@@ -24,6 +26,16 @@ export default function PropertiesPage() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const [viewingProperty, setViewingProperty] = useState<Property | null>(null);
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(properties.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedProperties = properties.slice(
+    (page - 1) * DEFAULT_PAGE_SIZE,
+    page * DEFAULT_PAGE_SIZE,
+  );
 
   const updateApproval = (id: string, approval: Property["approval"]) => {
     setProperties((prev) =>
@@ -84,7 +96,7 @@ export default function PropertiesPage() {
           </Tr>
         </THead>
         <TBody>
-          {properties.map((property) => (
+          {pagedProperties.map((property) => (
             <Tr key={property.id}>
               <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
                 <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
@@ -107,7 +119,7 @@ export default function PropertiesPage() {
                 {property.type}
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                {property.rent.toLocaleString()}
+                {formatMoney(property.rent)}
               </Td>
               <Td className="hidden px-6 py-3 sm:table-cell">
                 <span
@@ -162,6 +174,14 @@ export default function PropertiesPage() {
           ))}
         </TBody>
       </Table>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={properties.length}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {isModalOpen && (
         <Modal

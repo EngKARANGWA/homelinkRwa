@@ -33,6 +33,7 @@ import { CHART_GRID_COLOR, CHART_TEXT_COLOR } from "@/lib/chart-colors";
 import { Modal } from "@/components/admin/Modal";
 import { PayNowForm } from "@/components/tenant/PayNowForm";
 import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
+import { formatMoney } from "@/lib/money";
 
 const STATUS_COLORS: Record<string, string> = {
   Paid: "#10b981",
@@ -127,7 +128,7 @@ export default function TenantOverviewPage() {
     {
       label: "Monthly Rent",
       value: currentLease
-        ? `${currentLease.rent.toLocaleString()} RWF`
+        ? `${formatMoney(currentLease.rent)} RWF`
         : "-",
     },
     {
@@ -164,7 +165,7 @@ export default function TenantOverviewPage() {
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-gold/30 bg-gold/5 p-5 shadow-sm">
           <div>
             <p className="font-semibold text-navy">
-              Rent pending - {nextPayment.amount.toLocaleString()} RWF
+              Rent pending - {formatMoney(nextPayment.amount)} RWF
             </p>
             <p className="mt-1 text-sm text-slate-500">
               {nextPayment.property} · due {nextPayment.dueDate}
@@ -181,7 +182,7 @@ export default function TenantOverviewPage() {
         </div>
       )}
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
         {stats.map(({ label, value }) => {
           const meta = STAT_META[label];
           return (
@@ -206,7 +207,7 @@ export default function TenantOverviewPage() {
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
               <XAxis dataKey="date" tick={axisTick} />
               <YAxis tick={axisTick} />
-              <Tooltip formatter={(value) => `${Number(value).toLocaleString()} RWF`} />
+              <Tooltip formatter={(value) => `${formatMoney(Number(value))} RWF`} />
               <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
                 {paymentHistory.map((entry) => (
                   <Cell key={entry.date} fill={STATUS_COLORS[entry.status]} />

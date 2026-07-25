@@ -2,6 +2,7 @@
 
 import { Printer } from "lucide-react";
 import { type Lease, PROPERTIES } from "@/lib/mock-admin-data";
+import { formatMoney } from "@/lib/money";
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return "—";
@@ -103,7 +104,7 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
               Monthly Rent
             </p>
             <p className="mt-1 font-medium text-navy">
-              {lease.rent.toLocaleString()} RWF
+              {formatMoney(lease.rent)} RWF
             </p>
           </div>
           <div>
@@ -111,7 +112,7 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
               Security Deposit
             </p>
             <p className="mt-1 font-medium text-navy">
-              {lease.deposit.toLocaleString()} RWF
+              {formatMoney(lease.deposit)} RWF
             </p>
           </div>
           <div>

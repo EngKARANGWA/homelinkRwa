@@ -25,6 +25,7 @@ import {
 } from "@/lib/chart-colors";
 import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { formatMoney } from "@/lib/money";
 
 const STATUS_STYLES: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -129,7 +130,7 @@ export default function AdminOverviewPage() {
         </Link>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
         {ADMIN_STATS.map(({ label, value }) => {
           const meta = STAT_META[label];
           return (
@@ -213,7 +214,7 @@ export default function AdminOverviewPage() {
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
               <XAxis dataKey="month" tick={axisTick} />
               <YAxis tick={axisTick} />
-              <Tooltip formatter={(value) => `${Number(value).toLocaleString()} RWF`} />
+              <Tooltip formatter={(value) => `${formatMoney(Number(value))} RWF`} />
               <Line
                 type="monotone"
                 dataKey="amount"

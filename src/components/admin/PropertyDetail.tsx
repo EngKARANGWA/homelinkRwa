@@ -1,6 +1,7 @@
 "use client";
 
 import { daysVacant, type Property } from "@/lib/mock-admin-data";
+import { formatMoney } from "@/lib/money";
 
 const APPROVAL_STYLES: Record<Property["approval"], string> = {
   Approved: "bg-emerald-50 text-emerald-700",
@@ -39,7 +40,7 @@ export function PropertyDetail({ property }: { property: Property }) {
           {property.size && ` · ${property.size}`}
         </Field>
 
-        <Field label="Monthly Rent">{property.rent.toLocaleString()} RWF</Field>
+        <Field label="Monthly Rent">{formatMoney(property.rent)} RWF</Field>
         <Field label="Availability">
           <span
             className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${AVAILABILITY_STYLES[property.availability]}`}

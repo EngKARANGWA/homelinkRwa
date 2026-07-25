@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, PlayCircle, UserPlus, Wrench } from "lucide-react";
 import {
   MAINTENANCE_REQUESTS,
@@ -15,6 +15,7 @@ import { CompleteRequestForm } from "@/components/admin/CompleteRequestForm";
 import { MaintenanceDetail } from "@/components/admin/MaintenanceDetail";
 import { Card } from "@/components/dashboard/Card";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
 const STATUS_STYLES: Record<MaintenanceRequest["status"], string> = {
   Submitted: "bg-amber-50 text-amber-700",
@@ -54,6 +55,16 @@ export default function LandlordMaintenancePage() {
     .filter((r) => priorityFilter === "All" || r.priority === priorityFilter)
     .filter((r) => !dateFrom || r.submittedAt >= dateFrom)
     .filter((r) => !dateTo || r.submittedAt <= dateTo);
+
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(myRequests.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedRequests = myRequests.slice(
+    (page - 1) * DEFAULT_PAGE_SIZE,
+    page * DEFAULT_PAGE_SIZE,
+  );
 
   const startProgress = (id: string) => {
     setRequests((prev) =>
@@ -193,7 +204,7 @@ export default function LandlordMaintenancePage() {
             </Tr>
           </THead>
           <TBody>
-            {myRequests.map((request) => (
+            {pagedRequests.map((request) => (
               <Tr key={request.id}>
                 <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
                   <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
@@ -281,11 +292,19 @@ export default function LandlordMaintenancePage() {
                 </Td>
               </Tr>
             ))}
-            {myRequests.length === 0 && (
+            {pagedRequests.length === 0 && (
               <EmptyRow colSpan={8}>No maintenance requests match these filters.</EmptyRow>
             )}
           </TBody>
         </Table>
+
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={myRequests.length}
+          pageSize={DEFAULT_PAGE_SIZE}
+          onPageChange={setPage}
+        />
       </Card>
 
       {viewingRequest && (

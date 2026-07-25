@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Download,
   Eye,
-  Percent,
   Plus,
   Wallet,
   X,
@@ -100,10 +99,6 @@ export default function LandlordPaymentsPage() {
   const outstanding = myPayments
     .filter((p) => p.status !== "Paid")
     .reduce((sum, p) => sum + p.amount, 0);
-  const onTimeRate = myPayments.length
-    ? Math.round((myPayments.filter((p) => p.status === "Paid").length / myPayments.length) * 100)
-    : 0;
-
   const propertyMethodFilteredPayments = myPayments.filter((p) => {
     const matchesProperty = propertyFilter === "All Properties" || p.property === propertyFilter;
     const matchesMethod = methodFilter === "All" || p.method === methodFilter;
@@ -232,7 +227,7 @@ export default function LandlordPaymentsPage() {
     };
     setPayments((prev) => [newPayment, ...prev]);
     setRecording(false);
-    setNotice(`Cash payment of ${values.amount.toLocaleString()} RWF recorded for ${unit.tenant}.`);
+    setNotice(`Cash payment of ${formatMoney(values.amount)} RWF recorded for ${unit.tenant}.`);
   };
 
   const handleSendArrearsReminder = () => {
@@ -294,7 +289,7 @@ export default function LandlordPaymentsPage() {
         </div>
       )}
 
-      <div className="grid gap-5 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-5">
         <IconStatCard
           icon={Wallet}
           label="Collected"
@@ -307,7 +302,6 @@ export default function LandlordPaymentsPage() {
           value={`${formatMoney(outstanding)} RWF`}
           accent="red"
         />
-        <IconStatCard icon={Percent} label="On-time Rate" value={`${onTimeRate}%`} accent="blue" />
       </div>
 
       <AlertBanner
@@ -327,7 +321,7 @@ export default function LandlordPaymentsPage() {
         </button>
       </AlertBanner>
 
-      <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
           Property
           <select
@@ -341,38 +335,40 @@ export default function LandlordPaymentsPage() {
           </select>
         </label>
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Status
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-          >
-            <option value="All">All</option>
-            <option value="Overdue">Overdue</option>
-            <option value="Arrears">Arrears</option>
-            <option value="Paid">Paid</option>
-            <option value="Late">Late</option>
-            <option value="Pending">Pending</option>
-            <option value="Pending Approval">Pending Approval</option>
-          </select>
-        </label>
+        <div className="grid grid-cols-2 gap-4">
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+            Status
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+            >
+              <option value="All">All</option>
+              <option value="Overdue">Overdue</option>
+              <option value="Arrears">Arrears</option>
+              <option value="Paid">Paid</option>
+              <option value="Late">Late</option>
+              <option value="Pending">Pending</option>
+              <option value="Pending Approval">Pending Approval</option>
+            </select>
+          </label>
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Method
-          <select
-            value={methodFilter}
-            onChange={(e) => setMethodFilter(e.target.value as typeof methodFilter)}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-          >
-            <option value="All">All</option>
-            <option value="MTN Mobile Money">MTN Mobile Money</option>
-            <option value="Airtel Money">Airtel Money</option>
-            <option value="Bank Transfer">Bank Transfer</option>
-            <option value="Card / PayPal">Card / PayPal</option>
-            <option value="Cash">Cash</option>
-          </select>
-        </label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+            Method
+            <select
+              value={methodFilter}
+              onChange={(e) => setMethodFilter(e.target.value as typeof methodFilter)}
+              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+            >
+              <option value="All">All</option>
+              <option value="MTN Mobile Money">MTN Mobile Money</option>
+              <option value="Airtel Money">Airtel Money</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Card / PayPal">Card / PayPal</option>
+              <option value="Cash">Cash</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <Card title="Transactions">

@@ -2,6 +2,7 @@
 
 import { Printer } from "lucide-react";
 import { type Payment } from "@/lib/mock-admin-data";
+import { formatMoney } from "@/lib/money";
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-GB", {
@@ -82,7 +83,7 @@ export function PaymentReceipt({ payment }: { payment: Payment }) {
               Amount
             </p>
             <p className="mt-1 font-medium text-navy">
-              {payment.amount.toLocaleString()} RWF
+              {formatMoney(payment.amount)} RWF
             </p>
           </div>
         </div>

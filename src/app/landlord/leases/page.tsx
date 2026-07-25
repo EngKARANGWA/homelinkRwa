@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, CheckCircle2, Eye, Plus, X } from "lucide-react";
 import { LEASES, PROPERTIES, type Lease } from "@/lib/mock-admin-data";
 import { useLandlord } from "@/components/landlord/LandlordContext";
@@ -8,6 +8,8 @@ import { Modal } from "@/components/admin/Modal";
 import { LeaseForm, type LeaseFormValues } from "@/components/admin/LeaseForm";
 import { LeaseDocument } from "@/components/admin/LeaseDocument";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 const STATUS_STYLES: Record<Lease["status"], string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -26,6 +28,13 @@ export default function LandlordLeasesPage() {
 
   const myLeases = leases.filter((l) => l.owner === landlordName);
   const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
+
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(myLeases.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedLeases = myLeases.slice((page - 1) * DEFAULT_PAGE_SIZE, page * DEFAULT_PAGE_SIZE);
 
   const addLease = (values: LeaseFormValues) => {
     const newLease: Lease = {
@@ -91,19 +100,19 @@ export default function LandlordLeasesPage() {
           </Tr>
         </THead>
         <TBody>
-          {myLeases.map((lease) => (
+          {pagedLeases.map((lease) => (
             <Tr key={lease.id}>
               <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
                 <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
                   {lease.tenant}
                 </p>
                 <p className="truncate text-xs text-slate-400 md:hidden">
-                  {lease.property} · {lease.rent.toLocaleString()} RWF
+                  {lease.property} · {formatMoney(lease.rent)} RWF
                 </p>
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">{lease.property}</Td>
               <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                {lease.rent.toLocaleString()}
+                {formatMoney(lease.rent)}
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                 {lease.startDate} → {lease.endDate ?? "Open-ended"}
@@ -151,11 +160,19 @@ export default function LandlordLeasesPage() {
               </Td>
             </Tr>
           ))}
-          {myLeases.length === 0 && (
+          {pagedLeases.length === 0 && (
             <EmptyRow colSpan={6}>No leases on your properties yet.</EmptyRow>
           )}
         </TBody>
       </Table>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={myLeases.length}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {isModalOpen && (
         <Modal

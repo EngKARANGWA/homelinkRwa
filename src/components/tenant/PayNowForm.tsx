@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Payment } from "@/lib/mock-admin-data";
+import { formatMoney } from "@/lib/money";
 
 const METHODS: Payment["method"][] = [
   "MTN Mobile Money",
@@ -40,7 +41,7 @@ export function PayNowForm({
             Amount due
           </p>
           <p className="mt-1 text-2xl font-bold text-navy">
-            {amount.toLocaleString()} RWF
+            {formatMoney(amount)} RWF
           </p>
         </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppLink as Link } from "@/components/shared/AppLink";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Eye, Plus, Search } from "lucide-react";
@@ -11,6 +11,8 @@ import { Modal } from "@/components/admin/Modal";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 type StatusFilter = "All" | Unit["currentPaymentStatus"];
 
@@ -32,6 +34,27 @@ export default function PropertyDetailPage() {
 
   const property = PROPERTIES.find((p) => p.id === id && p.owner === landlordName);
 
+  const units: Unit[] = property ? getUnitsForProperty(property, unitOverrides) : [];
+
+  const filteredUnits = units.filter((u) => {
+    const matchesSearch =
+      !search.trim() ||
+      u.unitNumber.toLowerCase().includes(search.toLowerCase()) ||
+      (u.tenant?.toLowerCase().includes(search.toLowerCase()) ?? false);
+    const matchesStatus = statusFilter === "All" || u.currentPaymentStatus === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filteredUnits.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedUnits = filteredUnits.slice(
+    (page - 1) * DEFAULT_PAGE_SIZE,
+    page * DEFAULT_PAGE_SIZE,
+  );
+
   if (!property) {
     return (
       <div className="flex flex-col items-center gap-3 py-24 text-center">
@@ -46,7 +69,6 @@ export default function PropertyDetailPage() {
     );
   }
 
-  const units = getUnitsForProperty(property, unitOverrides);
   const totalUnits = units.length;
   const occupied = units.filter((u) => u.occupancyStatus === "Occupied").length;
   const occupancyPercent = totalUnits
@@ -58,15 +80,6 @@ export default function PropertyDetailPage() {
   const outstanding = units
     .filter((u) => u.currentPaymentStatus === "Overdue" || u.currentPaymentStatus === "Arrears")
     .reduce((sum, u) => sum + u.monthlyRent, 0);
-
-  const filteredUnits = units.filter((u) => {
-    const matchesSearch =
-      !search.trim() ||
-      u.unitNumber.toLowerCase().includes(search.toLowerCase()) ||
-      (u.tenant?.toLowerCase().includes(search.toLowerCase()) ?? false);
-    const matchesStatus = statusFilter === "All" || u.currentPaymentStatus === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
 
   const handleAddTenant = (lease: Lease) => {
     addTenant(lease);
@@ -106,17 +119,17 @@ export default function PropertyDetailPage() {
         </div>
       )}
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
         <SummaryCard label="Units" value={totalUnits} />
         <SummaryCard label="Occupied" value={`${occupancyPercent}%`} />
         <SummaryCard
           label="Collected"
-          value={`${collected.toLocaleString()} RWF`}
+          value={`${formatMoney(collected)} RWF`}
           accent="emerald"
         />
         <SummaryCard
           label="Outstanding"
-          value={`${outstanding.toLocaleString()} RWF`}
+          value={`${formatMoney(outstanding)} RWF`}
           accent="red"
         />
       </div>
@@ -163,7 +176,7 @@ export default function PropertyDetailPage() {
           </Tr>
         </THead>
         <TBody>
-          {filteredUnits.map((unit) => (
+          {pagedUnits.map((unit) => (
             <Tr key={unit.id}>
               <Td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
                 <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
@@ -173,14 +186,14 @@ export default function PropertyDetailPage() {
                   {unit.tenant ?? "Vacant"}
                 </p>
                 <p className="truncate text-xs text-slate-400 md:hidden">
-                  {unit.monthlyRent.toLocaleString()} RWF
+                  {formatMoney(unit.monthlyRent)} RWF
                 </p>
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
                 {unit.tenant ?? "Vacant"}
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                {unit.monthlyRent.toLocaleString()}
+                {formatMoney(unit.monthlyRent)}
               </Td>
               <Td className="px-4 py-3 sm:px-6">
                 <span
@@ -200,11 +213,19 @@ export default function PropertyDetailPage() {
               </Td>
             </Tr>
           ))}
-          {filteredUnits.length === 0 && (
+          {pagedUnits.length === 0 && (
             <EmptyRow colSpan={5}>No units match these filters.</EmptyRow>
           )}
         </TBody>
       </Table>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={filteredUnits.length}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       <Link
         href="/landlord/leases"

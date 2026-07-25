@@ -350,7 +350,7 @@ export default function LandlordOverviewPage() {
                 <YAxis tickFormatter={(value) => formatMoney(Number(value))} tick={axisTick} />
                 <Tooltip
                   labelFormatter={(label) => formatMonth(String(label))}
-                  formatter={(value) => `${Number(value).toLocaleString()} RWF`}
+                  formatter={(value) => `${formatMoney(Number(value))} RWF`}
                 />
                 <Bar dataKey="amount" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} />
               </BarChart>

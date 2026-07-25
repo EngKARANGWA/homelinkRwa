@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, Download, Eye, Wallet } from "lucide-react";
 import { PAYMENTS, type Payment } from "@/lib/mock-admin-data";
 import { useTenant } from "@/components/tenant/TenantContext";
@@ -9,6 +9,8 @@ import { PaymentReceipt } from "@/components/admin/PaymentReceipt";
 import { PayNowForm } from "@/components/tenant/PayNowForm";
 import { downloadCSV } from "@/lib/csv";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 const STATUS_STYLES: Record<Payment["status"], string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -25,9 +27,19 @@ export default function TenantPaymentsPage() {
   const [viewingPayment, setViewingPayment] = useState<Payment | null>(null);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const myPayments = payments.filter((p) => p.tenant === tenantName);
   const payingPayment = myPayments.find((p) => p.id === payingId);
+
+  const totalPages = Math.max(1, Math.ceil(myPayments.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedPayments = myPayments.slice(
+    (page - 1) * DEFAULT_PAGE_SIZE,
+    page * DEFAULT_PAGE_SIZE,
+  );
 
   const payNow = (id: string, method: Payment["method"]) => {
     const needsApproval = method === "Cash" || method === "Bank Transfer";
@@ -103,18 +115,18 @@ export default function TenantPaymentsPage() {
           </Tr>
         </THead>
         <TBody>
-          {myPayments.map((payment) => (
+          {pagedPayments.map((payment) => (
             <Tr key={payment.id}>
               <Td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
                 <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
                   {payment.property}
                 </p>
                 <p className="text-xs text-slate-400 sm:hidden">
-                  {payment.amount.toLocaleString()} RWF
+                  {formatMoney(payment.amount)} RWF
                 </p>
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                {payment.amount.toLocaleString()}
+                {formatMoney(payment.amount)}
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                 {payment.method}
@@ -155,11 +167,19 @@ export default function TenantPaymentsPage() {
               </Td>
             </Tr>
           ))}
-          {myPayments.length === 0 && (
+          {pagedPayments.length === 0 && (
             <EmptyRow colSpan={6}>No payments on file yet.</EmptyRow>
           )}
         </TBody>
       </Table>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={myPayments.length}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {viewingPayment && (
         <Modal

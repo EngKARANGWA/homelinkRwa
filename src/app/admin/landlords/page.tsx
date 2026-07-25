@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, Eye, Plus } from "lucide-react";
 import { LANDLORDS, type Landlord } from "@/lib/mock-admin-data";
 import { Modal } from "@/components/admin/Modal";
 import { LandlordForm } from "@/components/admin/LandlordForm";
 import { LandlordDetail } from "@/components/admin/LandlordDetail";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
 const STATUS_STYLES: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -18,6 +19,16 @@ export default function LandlordsPage() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [justRegistered, setJustRegistered] = useState(false);
   const [viewingLandlord, setViewingLandlord] = useState<Landlord | null>(null);
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(LANDLORDS.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedLandlords = LANDLORDS.slice(
+    (page - 1) * DEFAULT_PAGE_SIZE,
+    page * DEFAULT_PAGE_SIZE,
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -58,7 +69,7 @@ export default function LandlordsPage() {
           </Tr>
         </THead>
         <TBody>
-          {LANDLORDS.map((landlord) => (
+          {pagedLandlords.map((landlord) => (
             <Tr key={landlord.id}>
               <Td className="max-w-[9rem] px-4 py-3 font-medium text-navy sm:max-w-none sm:px-6">
                 <p className="truncate sm:overflow-visible sm:whitespace-normal">
@@ -104,6 +115,14 @@ export default function LandlordsPage() {
           ))}
         </TBody>
       </Table>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={LANDLORDS.length}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {isModalOpen && (
         <Modal

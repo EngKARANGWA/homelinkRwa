@@ -29,7 +29,9 @@ import { useLandlord } from "@/components/landlord/LandlordContext";
 import { CHART_COLORS, CHART_GRID_COLOR, CHART_TEXT_COLOR } from "@/lib/chart-colors";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { downloadCSV } from "@/lib/csv";
+import { formatMoney } from "@/lib/money";
 
 const REPORT_TYPES = [
   { id: "rental-history", label: "Rental History", hasDateFilter: true, hasPropertyFilter: true },
@@ -53,7 +55,7 @@ type Column<T> = {
 const RENTAL_HISTORY_COLUMNS: Column<Lease>[] = [
   { key: "tenant", label: "Tenant", cell: (l) => l.tenant, csv: (l) => l.tenant },
   { key: "property", label: "Property", cell: (l) => l.property, csv: (l) => l.property },
-  { key: "rent", label: "Rent (RWF)", cell: (l) => l.rent.toLocaleString(), csv: (l) => l.rent },
+  { key: "rent", label: "Rent (RWF)", cell: (l) => formatMoney(l.rent), csv: (l) => l.rent },
   { key: "start", label: "Start", cell: (l) => l.startDate, csv: (l) => l.startDate },
   {
     key: "end",
@@ -70,7 +72,7 @@ const PAYMENT_HISTORY_COLUMNS: Column<Payment>[] = [
   {
     key: "amount",
     label: "Amount (RWF)",
-    cell: (p) => p.amount.toLocaleString(),
+    cell: (p) => formatMoney(p.amount),
     csv: (p) => p.amount,
   },
   { key: "method", label: "Method", cell: (p) => p.method, csv: (p) => p.method },
@@ -125,7 +127,7 @@ const REVENUE_COLUMNS: Column<Payment>[] = [
   {
     key: "amount",
     label: "Amount (RWF)",
-    cell: (p) => p.amount.toLocaleString(),
+    cell: (p) => formatMoney(p.amount),
     csv: (p) => p.amount,
   },
   { key: "method", label: "Method", cell: (p) => p.method, csv: (p) => p.method },
@@ -318,6 +320,38 @@ export default function LandlordReportsPage() {
   );
   const netProfitForActiveReport = incomeForActiveReport - expensesForActiveReport;
 
+  const activeReportRows: unknown[] =
+    reportId === "rental-history"
+      ? rentalHistory
+      : reportId === "payment-history"
+        ? paymentHistory
+        : reportId === "occupancy"
+          ? occupancy
+          : reportId === "maintenance-activity"
+            ? maintenanceActivity
+            : revenuePerformance;
+
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(activeReportRows.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const paginate = <T,>(rows: T[]): T[] =>
+    rows.slice((page - 1) * DEFAULT_PAGE_SIZE, page * DEFAULT_PAGE_SIZE);
+
+  const [expensePage, setExpensePage] = useState(1);
+  const expenseTotalPages = Math.max(
+    1,
+    Math.ceil(expenseBreakdown.length / DEFAULT_PAGE_SIZE),
+  );
+  useEffect(() => {
+    if (expensePage > expenseTotalPages) setExpensePage(expenseTotalPages);
+  }, [expensePage, expenseTotalPages]);
+  const pagedExpenseBreakdown = expenseBreakdown.slice(
+    (expensePage - 1) * DEFAULT_PAGE_SIZE,
+    expensePage * DEFAULT_PAGE_SIZE,
+  );
+
   const COLUMNS_BY_REPORT: Record<ReportId, Column<never>[]> = {
     "rental-history": RENTAL_HISTORY_COLUMNS as Column<never>[],
     "payment-history": PAYMENT_HISTORY_COLUMNS as Column<never>[],
@@ -430,19 +464,19 @@ export default function LandlordReportsPage() {
         </p>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
         <SummaryCard
           label="Total Collected"
-          value={`${totalCollected.toLocaleString()} RWF`}
+          value={`${formatMoney(totalCollected)} RWF`}
           accent="emerald"
         />
         <SummaryCard
           label="Total Outstanding"
-          value={`${totalOutstanding.toLocaleString()} RWF`}
+          value={`${formatMoney(totalOutstanding)} RWF`}
           accent="red"
         />
         <SummaryCard label="Occupancy Rate" value={`${occupancyRate}%`} />
-        <SummaryCard label="Average Rent" value={`${averageRent.toLocaleString()} RWF`} />
+        <SummaryCard label="Average Rent" value={`${formatMoney(averageRent)} RWF`} />
       </div>
 
       {revenueByMonth.length > 0 && (
@@ -453,7 +487,7 @@ export default function LandlordReportsPage() {
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
               <XAxis dataKey="month" tick={axisTick} />
               <YAxis tick={axisTick} />
-              <Tooltip formatter={(value) => `${Number(value).toLocaleString()} RWF`} />
+              <Tooltip formatter={(value) => `${formatMoney(Number(value))} RWF`} />
               <Bar dataKey="amount" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -607,21 +641,21 @@ export default function LandlordReportsPage() {
       </div>
 
       {PAYMENT_REPORT_IDS.includes(reportId) && (
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
           <SummaryCard
             label="Total Income"
-            value={`${incomeForActiveReport.toLocaleString()} RWF`}
+            value={`${formatMoney(incomeForActiveReport)} RWF`}
             accent="emerald"
           />
           <SummaryCard
             label="Total Expenses"
-            value={`${expensesForActiveReport.toLocaleString()} RWF`}
+            value={`${formatMoney(expensesForActiveReport)} RWF`}
             accent="red"
             subtitle="Completed maintenance costs"
           />
           <SummaryCard
             label="Net Profit"
-            value={`${netProfitForActiveReport.toLocaleString()} RWF`}
+            value={`${formatMoney(netProfitForActiveReport)} RWF`}
             accent={netProfitForActiveReport >= 0 ? "navy" : "red"}
           />
         </div>
@@ -647,27 +681,35 @@ export default function LandlordReportsPage() {
               </Tr>
             </THead>
             <TBody>
-              {expenseBreakdown.map((e) => (
+              {pagedExpenseBreakdown.map((e) => (
                 <Tr key={e.id}>
                   <Td className="px-6 py-3 font-medium text-navy">{e.property}</Td>
                   <Td className="max-w-xs px-6 py-3 text-slate-500">{e.workDone}</Td>
                   <Td className="px-6 py-3 text-slate-500">
-                    {e.laborCost.toLocaleString()}
+                    {formatMoney(e.laborCost)}
                   </Td>
                   <Td className="px-6 py-3 text-slate-500">
-                    {e.itemCost.toLocaleString()}
+                    {formatMoney(e.itemCost)}
                   </Td>
                   <Td className="px-6 py-3 font-medium text-red-600">
-                    {e.total.toLocaleString()}
+                    {formatMoney(e.total)}
                   </Td>
                   <Td className="px-6 py-3 text-slate-500">{e.date}</Td>
                 </Tr>
               ))}
-              {expenseBreakdown.length === 0 && (
+              {pagedExpenseBreakdown.length === 0 && (
                 <EmptyRow colSpan={6}>No completed maintenance costs in this period.</EmptyRow>
               )}
             </TBody>
           </Table>
+
+          <Pagination
+            page={expensePage}
+            totalPages={expenseTotalPages}
+            totalItems={expenseBreakdown.length}
+            pageSize={DEFAULT_PAGE_SIZE}
+            onPageChange={setExpensePage}
+          />
         </div>
       )}
 
@@ -675,7 +717,7 @@ export default function LandlordReportsPage() {
         {reportId === "rental-history" && (
           <ReportTable
             columns={activeColumns as Column<Lease>[]}
-            rows={rentalHistory}
+            rows={paginate(rentalHistory)}
             getKey={(l) => l.id}
             emptyMessage="No leases match these filters."
           />
@@ -684,7 +726,7 @@ export default function LandlordReportsPage() {
         {reportId === "payment-history" && (
           <ReportTable
             columns={activeColumns as Column<Payment>[]}
-            rows={paymentHistory}
+            rows={paginate(paymentHistory)}
             getKey={(p) => p.id}
             emptyMessage="No payments match these filters."
           />
@@ -693,7 +735,7 @@ export default function LandlordReportsPage() {
         {reportId === "occupancy" && (
           <ReportTable
             columns={activeColumns as Column<Property>[]}
-            rows={occupancy}
+            rows={paginate(occupancy)}
             getKey={(p) => p.id}
             emptyMessage="No properties match these filters."
           />
@@ -702,7 +744,7 @@ export default function LandlordReportsPage() {
         {reportId === "maintenance-activity" && (
           <ReportTable
             columns={activeColumns as Column<MaintenanceRequest>[]}
-            rows={maintenanceActivity}
+            rows={paginate(maintenanceActivity)}
             getKey={(m) => m.id}
             emptyMessage="No requests match these filters."
           />
@@ -713,17 +755,25 @@ export default function LandlordReportsPage() {
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <p className="text-sm font-medium text-slate-500">Total collected</p>
               <p className="text-lg font-bold text-navy">
-                {revenueTotal.toLocaleString()} RWF
+                {formatMoney(revenueTotal)} RWF
               </p>
             </div>
             <ReportTable
               columns={activeColumns as Column<Payment>[]}
-              rows={revenuePerformance}
+              rows={paginate(revenuePerformance)}
               getKey={(p) => p.id}
               emptyMessage="No revenue matches these filters."
             />
           </>
         )}
+
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={activeReportRows.length}
+          pageSize={DEFAULT_PAGE_SIZE}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );

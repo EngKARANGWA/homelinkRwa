@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { AppLink as Link } from "@/components/shared/AppLink";
 import {
@@ -20,6 +20,8 @@ import { useLandlord } from "@/components/landlord/LandlordContext";
 import { Modal } from "@/components/admin/Modal";
 import { EditTenantForm } from "@/components/landlord/EditTenantForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 const PAYMENT_STATUS_STYLES: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -55,6 +57,17 @@ export default function UnitDetailPage() {
 
   const property = PROPERTIES.find((p) => p.id === id && p.owner === landlordName);
   const unit = property ? getUnit(property, unitId, unitOverrides) : undefined;
+
+  const paymentHistory = unit?.paymentHistory ?? [];
+  const [historyPage, setHistoryPage] = useState(1);
+  const historyTotalPages = Math.max(1, Math.ceil(paymentHistory.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (historyPage > historyTotalPages) setHistoryPage(historyTotalPages);
+  }, [historyPage, historyTotalPages]);
+  const pagedHistory = paymentHistory.slice(
+    (historyPage - 1) * DEFAULT_PAGE_SIZE,
+    historyPage * DEFAULT_PAGE_SIZE,
+  );
 
   if (!property || !unit) {
     return (
@@ -161,10 +174,10 @@ export default function UnitDetailPage() {
               <p className="font-semibold text-navy">Lease Details</p>
               <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <Field label="Monthly Rent">
-                  {unit.monthlyRent.toLocaleString()} RWF
+                  {formatMoney(unit.monthlyRent)} RWF
                 </Field>
                 <Field label="Deposit">
-                  {unit.deposit ? `${unit.deposit.toLocaleString()} RWF` : "—"}
+                  {unit.deposit ? `${formatMoney(unit.deposit)} RWF` : "—"}
                 </Field>
                 <Field label="Start Date">{unit.startDate ?? "—"}</Field>
                 <Field label="End Date">{unit.endDate ?? "Open-ended"}</Field>
@@ -185,11 +198,11 @@ export default function UnitDetailPage() {
                   </Tr>
                 </THead>
                 <TBody>
-                  {unit.paymentHistory.map((p) => (
+                  {pagedHistory.map((p) => (
                     <Tr key={p.month}>
                       <Td className="py-2.5 text-slate-500">{monthLabel(p.month)}</Td>
                       <Td className="py-2.5 text-slate-500">
-                        {p.amount.toLocaleString()} RWF
+                        {formatMoney(p.amount)} RWF
                       </Td>
                       <Td className="py-2.5">
                         <span
@@ -202,11 +215,19 @@ export default function UnitDetailPage() {
                       </Td>
                     </Tr>
                   ))}
-                  {unit.paymentHistory.length === 0 && (
+                  {pagedHistory.length === 0 && (
                     <EmptyRow colSpan={3}>No payment history yet.</EmptyRow>
                   )}
                 </TBody>
               </Table>
+
+              <Pagination
+                page={historyPage}
+                totalPages={historyTotalPages}
+                totalItems={paymentHistory.length}
+                pageSize={DEFAULT_PAGE_SIZE}
+                onPageChange={setHistoryPage}
+              />
             </div>
           </div>
 

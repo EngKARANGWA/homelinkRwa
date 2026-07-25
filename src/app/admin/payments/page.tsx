@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, Eye } from "lucide-react";
 import { PAYMENTS, type Payment } from "@/lib/mock-admin-data";
 import { Modal } from "@/components/admin/Modal";
 import { PaymentReceipt } from "@/components/admin/PaymentReceipt";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 const STATUS_STYLES: Record<Payment["status"], string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -19,6 +21,16 @@ const TODAY = "2026-07-08";
 export default function PaymentsPage() {
   const [payments, setPayments] = useState(PAYMENTS);
   const [viewingPayment, setViewingPayment] = useState<Payment | null>(null);
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(payments.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedPayments = payments.slice(
+    (page - 1) * DEFAULT_PAGE_SIZE,
+    page * DEFAULT_PAGE_SIZE,
+  );
 
   const markAsPaid = (id: string) => {
     setPayments((prev) =>
@@ -50,7 +62,7 @@ export default function PaymentsPage() {
           </Tr>
         </THead>
         <TBody>
-          {payments.map((payment) => (
+          {pagedPayments.map((payment) => (
             <Tr key={payment.id}>
               <Td className="px-6 py-3 font-medium text-navy">
                 {payment.tenant}
@@ -59,7 +71,7 @@ export default function PaymentsPage() {
                 {payment.property}
               </Td>
               <Td className="px-6 py-3 text-slate-500">
-                {payment.amount.toLocaleString()}
+                {formatMoney(payment.amount)}
               </Td>
               <Td className="px-6 py-3 text-slate-500">
                 {payment.method}
@@ -100,6 +112,14 @@ export default function PaymentsPage() {
           ))}
         </TBody>
       </Table>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={payments.length}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {viewingPayment && (
         <Modal

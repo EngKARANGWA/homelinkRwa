@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import {
   LANDLORDS,
@@ -11,6 +11,8 @@ import {
 } from "@/lib/mock-admin-data";
 import { downloadCSV } from "@/lib/csv";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 const REPORT_TYPES = [
   {
@@ -85,6 +87,27 @@ export default function ReportsPage() {
       inRange(p.paidDate ?? p.dueDate),
   );
   const revenueTotal = revenuePerformance.reduce((sum, p) => sum + p.amount, 0);
+
+  const activeReportRows: unknown[] =
+    reportId === "rental-history"
+      ? rentalHistory
+      : reportId === "payment-history"
+        ? paymentHistory
+        : reportId === "occupancy"
+          ? occupancy
+          : reportId === "maintenance-activity"
+            ? maintenanceActivity
+            : reportId === "revenue-performance"
+              ? revenuePerformance
+              : LANDLORDS;
+
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(activeReportRows.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const paginate = <T,>(rows: T[]): T[] =>
+    rows.slice((page - 1) * DEFAULT_PAGE_SIZE, page * DEFAULT_PAGE_SIZE);
 
   const handleExport = () => {
     switch (reportId) {
@@ -262,13 +285,13 @@ export default function ReportsPage() {
               </Tr>
             </THead>
             <TBody>
-              {rentalHistory.map((l) => (
+              {paginate(rentalHistory).map((l) => (
                 <Tr key={l.id}>
                   <Td className="px-6 py-3 font-medium text-navy">{l.tenant}</Td>
                   <Td className="px-6 py-3 text-slate-500">{l.property}</Td>
                   <Td className="px-6 py-3 text-slate-500">{l.owner}</Td>
                   <Td className="px-6 py-3 text-slate-500">
-                    {l.rent.toLocaleString()}
+                    {formatMoney(l.rent)}
                   </Td>
                   <Td className="px-6 py-3 text-slate-500">{l.startDate}</Td>
                   <Td className="px-6 py-3 text-slate-500">
@@ -298,12 +321,12 @@ export default function ReportsPage() {
               </Tr>
             </THead>
             <TBody>
-              {paymentHistory.map((p) => (
+              {paginate(paymentHistory).map((p) => (
                 <Tr key={p.id}>
                   <Td className="px-6 py-3 font-medium text-navy">{p.tenant}</Td>
                   <Td className="px-6 py-3 text-slate-500">{p.property}</Td>
                   <Td className="px-6 py-3 text-slate-500">
-                    {p.amount.toLocaleString()}
+                    {formatMoney(p.amount)}
                   </Td>
                   <Td className="px-6 py-3 text-slate-500">{p.method}</Td>
                   <Td className="px-6 py-3 text-slate-500">{p.dueDate}</Td>
@@ -332,7 +355,7 @@ export default function ReportsPage() {
               </Tr>
             </THead>
             <TBody>
-              {occupancy.map((p) => (
+              {paginate(occupancy).map((p) => (
                 <Tr key={p.id}>
                   <Td className="px-6 py-3 font-medium text-navy">{p.name}</Td>
                   <Td className="px-6 py-3 text-slate-500">{p.owner}</Td>
@@ -364,7 +387,7 @@ export default function ReportsPage() {
               </Tr>
             </THead>
             <TBody>
-              {maintenanceActivity.map((m) => (
+              {paginate(maintenanceActivity).map((m) => (
                 <Tr key={m.id}>
                   <Td className="px-6 py-3 font-medium text-navy">{m.tenant}</Td>
                   <Td className="px-6 py-3 text-slate-500">{m.property}</Td>
@@ -397,7 +420,7 @@ export default function ReportsPage() {
                 Total collected
               </p>
               <p className="text-lg font-bold text-navy">
-                {revenueTotal.toLocaleString()} RWF
+                {formatMoney(revenueTotal)} RWF
               </p>
             </div>
             <Table variant="bare">
@@ -411,7 +434,7 @@ export default function ReportsPage() {
                 </Tr>
               </THead>
               <TBody>
-                {revenuePerformance.map((p) => (
+                {paginate(revenuePerformance).map((p) => (
                   <Tr key={p.id}>
                     <Td className="px-6 py-3 font-medium text-navy">
                       {p.tenant}
@@ -420,7 +443,7 @@ export default function ReportsPage() {
                       {p.property}
                     </Td>
                     <Td className="px-6 py-3 text-slate-500">
-                      {p.amount.toLocaleString()}
+                      {formatMoney(p.amount)}
                     </Td>
                     <Td className="px-6 py-3 text-slate-500">{p.method}</Td>
                     <Td className="px-6 py-3 text-slate-500">
@@ -449,7 +472,7 @@ export default function ReportsPage() {
               </Tr>
             </THead>
             <TBody>
-              {LANDLORDS.map((l) => (
+              {paginate(LANDLORDS).map((l) => (
                 <Tr key={l.id}>
                   <Td className="px-6 py-3 font-medium text-navy">{l.name}</Td>
                   <Td className="px-6 py-3 text-slate-500">{l.email}</Td>
@@ -466,6 +489,14 @@ export default function ReportsPage() {
             </TBody>
           </Table>
         )}
+
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={activeReportRows.length}
+          pageSize={DEFAULT_PAGE_SIZE}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );

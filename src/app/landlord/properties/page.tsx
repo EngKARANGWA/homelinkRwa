@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppLink as Link } from "@/components/shared/AppLink";
 import {
   Building2,
@@ -28,6 +28,8 @@ import {
 } from "@/components/landlord/PropertyForm";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 const AVAILABILITY_STYLES: Record<Property["availability"], string> = {
   Available: "bg-emerald-50 text-emerald-700",
@@ -65,6 +67,16 @@ export default function LandlordPropertiesPage() {
   const [justAddedTenant, setJustAddedTenant] = useState<string | null>(null);
 
   const myProperties = properties.filter((p) => p.owner === landlordName);
+
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(myProperties.length / DEFAULT_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedProperties = myProperties.slice(
+    (page - 1) * DEFAULT_PAGE_SIZE,
+    page * DEFAULT_PAGE_SIZE,
+  );
 
   const addProperty = (values: PropertyFormValues) => {
     const newProperty: Property = {
@@ -175,7 +187,7 @@ export default function LandlordPropertiesPage() {
 
       {view === "cards" ? (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {myProperties.map((property) => {
+          {pagedProperties.map((property) => {
             const stats = propertyStats(property, unitOverrides);
             const Icon = property.buildingType === "Commercial" ? Building2 : Home;
             return (
@@ -220,7 +232,7 @@ export default function LandlordPropertiesPage() {
                     <div>
                       <p className="text-xs text-slate-400">Collected</p>
                       <p className="mt-0.5 truncate font-semibold text-emerald-600">
-                        {stats.collected.toLocaleString()} RWF
+                        {formatMoney(stats.collected)} RWF
                       </p>
                     </div>
                   </div>
@@ -228,7 +240,7 @@ export default function LandlordPropertiesPage() {
               </div>
             );
           })}
-          {myProperties.length === 0 && (
+          {pagedProperties.length === 0 && (
             <div className="col-span-full rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-400">
               No properties registered yet.
             </div>
@@ -249,7 +261,7 @@ export default function LandlordPropertiesPage() {
             </Tr>
           </THead>
           <TBody>
-            {myProperties.map((property) => (
+            {pagedProperties.map((property) => (
               <Tr key={property.id}>
                 <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
                   <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
@@ -259,7 +271,7 @@ export default function LandlordPropertiesPage() {
                     {property.address}
                   </p>
                   <p className="truncate text-xs text-slate-400 md:hidden">
-                    {property.type} · {property.rent.toLocaleString()} RWF
+                    {property.type} · {formatMoney(property.rent)} RWF
                   </p>
                 </Td>
                 <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
@@ -269,7 +281,7 @@ export default function LandlordPropertiesPage() {
                   {property.type}
                 </Td>
                 <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {property.rent.toLocaleString()}
+                  {formatMoney(property.rent)}
                 </Td>
                 <Td className="hidden px-6 py-3 sm:table-cell">
                   <span
@@ -310,12 +322,20 @@ export default function LandlordPropertiesPage() {
                 </Td>
               </Tr>
             ))}
-            {myProperties.length === 0 && (
+            {pagedProperties.length === 0 && (
               <EmptyRow colSpan={8}>No properties registered yet.</EmptyRow>
             )}
           </TBody>
         </Table>
       )}
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={myProperties.length}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {isAdding && (
         <Modal
