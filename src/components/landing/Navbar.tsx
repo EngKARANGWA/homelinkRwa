@@ -69,14 +69,22 @@ export function Navbar() {
             </Link>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setMenuOpen(true)}
-            aria-label="Open menu"
-            className="rounded-lg p-2 text-white hover:bg-white/10 lg:hidden"
-          >
-            <Menu className="h-6 w-6" />
-          </button>
+          <div className="flex items-center gap-2 lg:hidden">
+            <Link
+              href="/login"
+              className="rounded-lg border border-white/25 px-3.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-white/10"
+            >
+              Login
+            </Link>
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Open menu"
+              className="rounded-lg p-2 text-white hover:bg-white/10"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+          </div>
         </nav>
       </header>
 

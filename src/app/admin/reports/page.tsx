@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download } from "lucide-react";
+import { CheckCircle2, Download } from "lucide-react";
 import {
   LANDLORDS,
   LEASES,
@@ -62,6 +62,7 @@ export default function ReportsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [propertyFilter, setPropertyFilter] = useState("All Properties");
+  const [notice, setNotice] = useState<string | null>(null);
 
   const activeReport = REPORT_TYPES.find((r) => r.id === reportId)!;
 
@@ -197,6 +198,7 @@ export default function ReportsPage() {
         );
         break;
     }
+    setNotice("Report downloaded — check your browser's Downloads.");
   };
 
   return (
@@ -207,6 +209,13 @@ export default function ReportsPage() {
           Filter and customize the report you want, then export it.
         </p>
       </div>
+
+      {notice && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle2 className="h-4 w-4" />
+          {notice}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">

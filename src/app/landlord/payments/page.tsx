@@ -251,6 +251,7 @@ export default function LandlordPaymentsPage() {
         p.status,
       ]),
     );
+    setNotice("rent-statement.csv downloaded — check your browser's Downloads.");
   };
 
   return (

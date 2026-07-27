@@ -157,6 +157,7 @@ export default function TenantPaymentsPage() {
         p.status,
       ]),
     );
+    setNotice("my-invoices.csv downloaded — check your browser's Downloads.");
   };
 
   const handleDownloadPayments = () => {
@@ -173,6 +174,7 @@ export default function TenantPaymentsPage() {
         p.status,
       ]),
     );
+    setNotice("my-payments.csv downloaded — check your browser's Downloads.");
   };
 
   return (

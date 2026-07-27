@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Columns3, Download } from "lucide-react";
+import { CheckCircle2, Columns3, Download } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -188,6 +188,7 @@ export default function LandlordReportsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [propertyFilter, setPropertyFilter] = useState("All Properties");
+  const [notice, setNotice] = useState<string | null>(null);
   const [hiddenColumns, setHiddenColumns] = useState<Record<ReportId, Set<string>>>({
     "rental-history": new Set(),
     "payment-history": new Set(),
@@ -453,6 +454,7 @@ export default function LandlordReportsPage() {
     }
 
     downloadCSV(filename, headers, rows);
+    setNotice(`${filename} downloaded — check your browser's Downloads.`);
   };
 
   return (
@@ -463,6 +465,13 @@ export default function LandlordReportsPage() {
           Rent collection, occupancy, and performance across your properties.
         </p>
       </div>
+
+      {notice && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle2 className="h-4 w-4" />
+          {notice}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
         <SummaryCard

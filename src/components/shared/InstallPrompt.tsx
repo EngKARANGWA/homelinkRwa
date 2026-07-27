@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Share, X } from "lucide-react";
+import { CheckCircle2, Share, X } from "lucide-react";
 
 const DISMISS_KEY = "homelink-install-dismissed-at";
 const DISMISS_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
+const INSTALLED_MESSAGE_MS = 6000;
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -38,6 +39,7 @@ export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showIosInstructions, setShowIosInstructions] = useState(false);
   const [visible, setVisible] = useState(false);
+  const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
     if (isStandaloneDisplay() || isDismissed()) return;
@@ -55,9 +57,14 @@ export function InstallPrompt() {
       setVisible(true);
     }
 
+    // Fires once the browser finishes the install, regardless of which UI
+    // triggered it — the authoritative "it actually installed" signal, so
+    // the on-screen confirmation below doesn't depend only on our own
+    // prompt() call resolving.
     function handleAppInstalled() {
-      setVisible(false);
       setDeferredPrompt(null);
+      setInstalled(true);
+      setVisible(true);
     }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -68,12 +75,22 @@ export function InstallPrompt() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!installed) return;
+    const timer = setTimeout(() => setVisible(false), INSTALLED_MESSAGE_MS);
+    return () => clearTimeout(timer);
+  }, [installed]);
+
   const handleInstall = async () => {
     if (!deferredPrompt) return;
-    setVisible(false);
     await deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
+    const { outcome } = await deferredPrompt.userChoice;
     setDeferredPrompt(null);
+    if (outcome === "accepted") {
+      setInstalled(true);
+    } else {
+      setVisible(false);
+    }
   };
 
   const handleLater = () => {
@@ -82,6 +99,30 @@ export function InstallPrompt() {
   };
 
   if (!visible) return null;
+
+  if (installed) {
+    return (
+      <div className="fixed inset-x-4 bottom-20 z-40 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-lg lg:inset-x-auto lg:right-6 lg:bottom-6 lg:w-96">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+          <CheckCircle2 className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-emerald-800">Installed!</p>
+          <p className="mt-0.5 text-xs text-emerald-700">
+            HomeLink Rwanda is now on your home screen.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setVisible(false)}
+          aria-label="Dismiss"
+          className="shrink-0 text-emerald-600 transition-colors hover:text-emerald-800"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-x-4 bottom-20 z-40 flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-lg lg:inset-x-auto lg:right-6 lg:bottom-6 lg:w-96">
