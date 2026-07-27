@@ -123,7 +123,7 @@ export default function LandlordPropertiesPage() {
             Properties you own on the platform.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center rounded-lg border border-slate-300 bg-white p-1">
             <button
               type="button"
@@ -155,18 +155,18 @@ export default function LandlordPropertiesPage() {
           <button
             type="button"
             onClick={() => setAddingTenant(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-gold/90 sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm"
           >
             <Plus className="h-4 w-4" />
-            Add Tenant
+            <span className="hidden sm:inline">Add </span>Tenant
           </button>
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-gold/90 sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm"
           >
             <Plus className="h-4 w-4" />
-            Add Property
+            <span className="hidden sm:inline">Add </span>Property
           </button>
         </div>
       </div>

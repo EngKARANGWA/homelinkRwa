@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { X } from "lucide-react";
+import { Share, X } from "lucide-react";
 
 const DISMISS_KEY = "homelink-install-dismissed-at";
 const DISMISS_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
@@ -12,15 +12,45 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
+function isDismissed(): boolean {
+  const dismissedAt = Number(localStorage.getItem(DISMISS_KEY) ?? 0);
+  return Date.now() - dismissedAt < DISMISS_COOLDOWN_MS;
+}
+
+function isStandaloneDisplay(): boolean {
+  const nav = navigator as Navigator & { standalone?: boolean };
+  return window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true;
+}
+
+// Safari on iOS never fires `beforeinstallprompt` — Apple only exposes
+// install through the manual Share sheet, with no way to trigger or even
+// detect it from JS. So iOS gets a static instructional toast instead of
+// the real one-click flow the other browsers get.
+function isIosSafari(): boolean {
+  const ua = navigator.userAgent;
+  const isIos = /iphone|ipad|ipod/i.test(ua);
+  const isWebkit = /webkit/i.test(ua);
+  const isOtherIosBrowser = /crios|fxios|edgios|opios/i.test(ua);
+  return isIos && isWebkit && !isOtherIosBrowser;
+}
+
 export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [showIosInstructions, setShowIosInstructions] = useState(false);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    if (isStandaloneDisplay() || isDismissed()) return;
+
+    if (isIosSafari()) {
+      setShowIosInstructions(true);
+      setVisible(true);
+      return;
+    }
+
     function handleBeforeInstallPrompt(event: Event) {
       event.preventDefault();
-      const dismissedAt = Number(localStorage.getItem(DISMISS_KEY) ?? 0);
-      if (Date.now() - dismissedAt < DISMISS_COOLDOWN_MS) return;
+      if (isDismissed()) return;
       setDeferredPrompt(event as BeforeInstallPromptEvent);
       setVisible(true);
     }
@@ -64,23 +94,32 @@ export function InstallPrompt() {
       />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-navy">Install HomeLink Rwanda</p>
-        <p className="mt-0.5 text-xs text-slate-500">
-          Add it to your home screen for quick, app-like access.
-        </p>
+        {showIosInstructions ? (
+          <p className="mt-0.5 text-xs text-slate-500">
+            Tap <Share className="mb-0.5 inline h-3.5 w-3.5" /> Share, then{" "}
+            <span className="font-medium text-navy">Add to Home Screen</span>.
+          </p>
+        ) : (
+          <p className="mt-0.5 text-xs text-slate-500">
+            Add it to your home screen for quick, app-like access.
+          </p>
+        )}
         <div className="mt-3 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleInstall}
-            className="rounded-lg bg-gold px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gold/90"
-          >
-            Install Now
-          </button>
+          {!showIosInstructions && (
+            <button
+              type="button"
+              onClick={handleInstall}
+              className="rounded-lg bg-gold px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gold/90"
+            >
+              Install Now
+            </button>
+          )}
           <button
             type="button"
             onClick={handleLater}
             className="rounded-lg px-3.5 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:text-navy"
           >
-            Later
+            {showIosInstructions ? "Got it" : "Later"}
           </button>
         </div>
       </div>

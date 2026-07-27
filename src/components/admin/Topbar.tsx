@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronDown, LogOut, Menu, UserCircle } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu } from "lucide-react";
+import { getInitials } from "@/lib/initials";
 
 export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -19,41 +20,41 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   }, []);
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4 lg:justify-end lg:px-10">
+    <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4 lg:justify-end lg:px-10">
       <button
         type="button"
         onClick={onMenuClick}
         aria-label="Open menu"
-        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-navy lg:hidden"
+        className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-navy lg:hidden"
       >
         <Menu className="h-5 w-5" strokeWidth={2} />
       </button>
 
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-4">
         <button
           type="button"
           aria-label="Notifications"
-          className="rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-navy"
+          className="shrink-0 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-navy"
         >
           <Bell className="h-5 w-5" strokeWidth={2} />
         </button>
 
-        <div className="relative border-l border-slate-200 pl-4" ref={menuRef}>
+        <div className="relative min-w-0 border-l border-slate-200 pl-2 sm:pl-4" ref={menuRef}>
           <button
             type="button"
             onClick={() => setMenuOpen((open) => !open)}
             aria-label="Account menu"
-            className="flex items-center gap-2 rounded-lg px-1 py-1 hover:bg-slate-50"
+            className="flex min-w-0 items-center gap-2 rounded-lg px-1 py-1 hover:bg-slate-50"
           >
-            <UserCircle className="h-8 w-8 text-slate-400" strokeWidth={1.5} />
-            <div className="leading-tight text-left">
-              <p className="text-sm font-semibold text-navy">Super Admin</p>
-              <p className="hidden text-xs text-slate-500 sm:block">
-                admin@homelinkrwanda.com
-              </p>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-semibold text-white">
+              {getInitials("Super Admin")}
+            </span>
+            <div className="hidden min-w-0 leading-tight text-left sm:block">
+              <p className="truncate text-sm font-semibold text-navy">Super Admin</p>
+              <p className="truncate text-xs text-slate-500">admin@homelinkrwanda.com</p>
             </div>
             <ChevronDown
-              className={`h-4 w-4 text-slate-400 transition-transform ${menuOpen ? "rotate-180" : ""}`}
+              className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${menuOpen ? "rotate-180" : ""}`}
               strokeWidth={2}
             />
           </button>
