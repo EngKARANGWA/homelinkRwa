@@ -4,7 +4,10 @@ import { useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import type {
   CreatePropertyInput,
+<<<<<<< HEAD
   Property,
+=======
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
   PropertyCategory,
   PropertyType,
   User,
@@ -28,14 +31,20 @@ const STEPS = ["Basic Info", "Type & Details", "Rent & Owner"];
 
 export function PropertyForm({
   owners,
+<<<<<<< HEAD
   initialProperty,
   showOwnerField = true,
+=======
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
   onSuccess,
   onCancel,
 }: {
   owners: User[];
+<<<<<<< HEAD
   initialProperty?: Property;
   showOwnerField?: boolean;
+=======
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
   onSuccess: (values: CreatePropertyInput) => void;
   onCancel: () => void;
 }) {
@@ -43,6 +52,7 @@ export function PropertyForm({
   const [step, setStep] = useState(1);
   const [stepError, setStepError] = useState<string | null>(null);
 
+<<<<<<< HEAD
   const [title, setTitle] = useState(initialProperty?.title ?? "");
   const [description, setDescription] = useState(initialProperty?.description ?? "");
   const [addressLine, setAddressLine] = useState(initialProperty?.addressLine ?? "");
@@ -74,6 +84,27 @@ export function PropertyForm({
   );
   const [ownerId, setOwnerId] = useState(initialProperty?.ownerId ?? owners[0]?.id ?? "");
 
+=======
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [addressLine, setAddressLine] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [country, setCountry] = useState("Rwanda");
+  const [postalCode, setPostalCode] = useState("");
+
+  const [category, setCategory] = useState<PropertyCategory>("residential");
+  const [type, setType] = useState<PropertyType>("apartment");
+  const [sizeSqm, setSizeSqm] = useState("");
+  const [unitsCount, setUnitsCount] = useState("");
+  const [bedrooms, setBedrooms] = useState("");
+  const [bathrooms, setBathrooms] = useState("");
+
+  const [rentAmount, setRentAmount] = useState("");
+  const [rentConditions, setRentConditions] = useState("");
+  const [ownerId, setOwnerId] = useState(owners[0]?.id ?? "");
+
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
   const typeOptions = TYPE_OPTIONS[category];
 
   const handleCategoryChange = (next: PropertyCategory) => {
@@ -102,11 +133,19 @@ export function PropertyForm({
   };
 
   const submitForm = () => {
+<<<<<<< HEAD
     if (!rentAmount.toString().trim() || Number(rentAmount) <= 0) {
       setStepError("Please enter a valid monthly rent.");
       return;
     }
     if (showOwnerField && !ownerId) {
+=======
+    if (!rentAmount.trim() || Number(rentAmount) <= 0) {
+      setStepError("Please enter a valid monthly rent.");
+      return;
+    }
+    if (!ownerId) {
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
       setStepError("Please select an owner.");
       return;
     }
@@ -127,7 +166,11 @@ export function PropertyForm({
       bathrooms: bathrooms.trim() ? Number(bathrooms) : undefined,
       rentAmount: Number(rentAmount),
       rentConditions: rentConditions.trim() || undefined,
+<<<<<<< HEAD
       ...(showOwnerField ? { ownerId } : {}),
+=======
+      ownerId,
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
     });
   };
 
@@ -346,6 +389,7 @@ export function PropertyForm({
               />
             </label>
 
+<<<<<<< HEAD
             {showOwnerField && (
               <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
                 Owner
@@ -363,6 +407,23 @@ export function PropertyForm({
                 </select>
               </label>
             )}
+=======
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+              Owner
+              <select
+                value={ownerId}
+                onChange={(e) => setOwnerId(e.target.value)}
+                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+              >
+                {owners.length === 0 && <option value="">No landlords yet</option>}
+                {owners.map((owner) => (
+                  <option key={owner.id} value={owner.id}>
+                    {owner.firstName} {owner.lastName}
+                  </option>
+                ))}
+              </select>
+            </label>
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
           </div>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">

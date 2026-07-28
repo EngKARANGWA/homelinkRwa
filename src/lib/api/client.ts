@@ -64,10 +64,10 @@ function buildUrl(path: string, query?: ApiFetchOptions["query"]) {
   return url.toString();
 }
 
-async function fetchWithAuth(
+export async function apiFetch<T>(
   path: string,
-  options: ApiFetchOptions,
-): Promise<Response> {
+  options: ApiFetchOptions = {},
+): Promise<T> {
   const { method = "GET", body, query, auth = true } = options;
 
   const doFetch = async (): Promise<Response> => {
@@ -101,14 +101,6 @@ async function fetchWithAuth(
     }
   }
 
-  return res;
-}
-
-export async function apiFetch<T>(
-  path: string,
-  options: ApiFetchOptions = {},
-): Promise<T> {
-  const res = await fetchWithAuth(path, options);
   const json = await res.json().catch(() => null);
 
   if (!res.ok || json?.success === false) {
@@ -121,23 +113,4 @@ export async function apiFetch<T>(
   }
 
   return json;
-}
-
-export async function apiFetchBlob(
-  path: string,
-  options: ApiFetchOptions = {},
-): Promise<Blob> {
-  const res = await fetchWithAuth(path, options);
-
-  if (!res.ok) {
-    const json = await res.json().catch(() => null);
-    const errBody = json as ApiErrorBody | null;
-    throw new ApiError(
-      res.status,
-      errBody?.message ?? "Failed to download file.",
-      errBody?.errors,
-    );
-  }
-
-  return res.blob();
 }

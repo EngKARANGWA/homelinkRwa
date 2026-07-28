@@ -98,9 +98,6 @@ export type CreatePropertyInput = {
   rentConditions?: string;
   ownerId?: string;
 };
-
-export type UpdatePropertyInput = Partial<CreatePropertyInput>;
-
 export type PropertyStatus = "available" | "occupied";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 
@@ -141,98 +138,6 @@ export type CreateLeaseInput = {
   paymentDate?: string;
   rentAmount: number;
 };
-
-export type LeaseStatus =
-  | "pending_signatures"
-  | "active"
-  | "renewal_requested"
-  | "termination_requested"
-  | "terminated"
-  | "expired";
-
-export type Lease = {
-  id: string;
-  propertyId: string;
-  tenantId: string;
-  ownerId: string;
-  startDate: string;
-  endDate: string | null;
-  paymentDate: string | null;
-  rentAmount: string;
-  status: LeaseStatus;
-  signedByTenant: boolean;
-  signedByOwner: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type LeaseChangeRequestType = "renewal" | "termination";
-export type LeaseChangeRequestStatus = "pending" | "approved" | "rejected";
-
-export type LeaseChangeRequest = {
-  id: string;
-  leaseId: string;
-  type: LeaseChangeRequestType;
-  status: LeaseChangeRequestStatus;
-  requestedBy: string;
-  reason: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type MoveRequestType = "move_in" | "move_out";
-export type MoveRequestStatus =
-  | "pending"
-  | "checklist_submitted"
-  | "inspected"
-  | "completed";
-
-export type MoveRequestChecklistItem = {
-  label: string;
-  checked: boolean;
-  notes?: string | null;
-};
-
-export type MoveRequest = {
-  id: string;
-  leaseId: string;
-  type: MoveRequestType;
-  status: MoveRequestStatus;
-  checklist: MoveRequestChecklistItem[];
-  inspectionNotes: string | null;
-  inspectedBy: string | null;
-  inspectedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type CreateMoveRequestInput = {
-  type: MoveRequestType;
-  notes?: string;
-};
-
-export type UpdateMoveRequestChecklistInput = {
-  checklist: MoveRequestChecklistItem[];
-};
-
-export type InspectMoveRequestInput = {
-  approved: boolean;
-  notes?: string;
-};
-
-export type LeaseDocument = {
-  id: string;
-  leaseId: string;
-  fileName: string;
-  fileUrl: string;
-  uploadedBy: string;
-  createdAt: string;
-};
-
-export type LeaseDocumentUrl = {
-  url: string;
-};
-
 export type CreateMaintenanceRequestInput = {
   propertyId: string;
   title: string;
@@ -246,45 +151,6 @@ export type PayInvoiceInput = {
   payerPhone?: string;
   payerAccount?: string;
 };
-
-export type InvoiceStatus = "pending" | "paid" | "overdue" | "cancelled";
-
-export type Invoice = {
-  id: string;
-  leaseId: string;
-  tenantId: string;
-  ownerId: string;
-  propertyId: string;
-  amount: string;
-  dueDate: string;
-  status: InvoiceStatus;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type PaymentStatus = "successful" | "pending_approval" | "rejected" | "failed";
-
-export type Payment = {
-  id: string;
-  invoiceId: string;
-  tenantId: string;
-  ownerId: string;
-  propertyId: string;
-  amount: string;
-  method: PaymentMethod;
-  status: PaymentStatus;
-  payerPhone: string | null;
-  payerAccount: string | null;
-  paidAt: string | null;
-  rejectionReason: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type PaymentReceiptUrl = {
-  url: string;
-};
-
 export type PaginationMeta = {
   page: number;
   limit: number;

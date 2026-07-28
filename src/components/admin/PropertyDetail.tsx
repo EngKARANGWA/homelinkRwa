@@ -1,7 +1,10 @@
 "use client";
 
 import type { ApprovalStatus, Property, PropertyStatus } from "@/lib/api/types";
+<<<<<<< HEAD
 import { formatMoney } from "@/lib/money";
+=======
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
 
 const APPROVAL_STYLES: Record<ApprovalStatus, string> = {
   approved: "bg-emerald-50 text-emerald-700",
@@ -97,7 +100,11 @@ export function PropertyDetail({
 
       <div className="grid grid-cols-2 gap-5">
         <Field label="Monthly Rent">
+<<<<<<< HEAD
           {formatMoney(Number(property.rentAmount))} RWF
+=======
+          {Number(property.rentAmount).toLocaleString()} RWF
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
         </Field>
         <Field label="Rent Conditions">
           {property.rentConditions ?? "—"}

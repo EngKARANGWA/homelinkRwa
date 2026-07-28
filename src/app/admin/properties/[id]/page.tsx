@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+<<<<<<< HEAD
 import { AlertCircle, ArrowLeft, Check, Pencil, X } from "lucide-react";
 import { getUser, listUsers } from "@/lib/api/admin";
 import {
@@ -15,24 +16,39 @@ import { ApiError } from "@/lib/api/client";
 import type { Property, UpdatePropertyInput, User } from "@/lib/api/types";
 import { PropertyDetail } from "@/components/admin/PropertyDetail";
 import { PropertyForm } from "@/components/admin/PropertyForm";
+=======
+import { AlertCircle, ArrowLeft, Check, X } from "lucide-react";
+import { getUser } from "@/lib/api/admin";
+import { approveProperty, getProperty, rejectProperty } from "@/lib/api/properties";
+import { ApiError } from "@/lib/api/client";
+import type { Property, User } from "@/lib/api/types";
+import { PropertyDetail } from "@/components/admin/PropertyDetail";
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
 import { Modal } from "@/components/admin/Modal";
 
 export default function PropertyDetailPage() {
   const params = useParams<{ id: string }>();
   const [property, setProperty] = useState<Property | null>(null);
   const [owner, setOwner] = useState<User | null>(null);
+<<<<<<< HEAD
   const [owners, setOwners] = useState<User[]>([]);
+=======
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isRejecting, setRejecting] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+<<<<<<< HEAD
   const [isEditing, setEditing] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+=======
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
 
   const load = () => {
     setLoading(true);
     setError(null);
+<<<<<<< HEAD
     Promise.all([
       getProperty(params.id),
       listUsers({ role: "owner", limit: 100 }),
@@ -40,6 +56,11 @@ export default function PropertyDetailPage() {
       .then(async ([p, ownersRes]) => {
         setProperty(p);
         setOwners(ownersRes.data);
+=======
+    getProperty(params.id)
+      .then(async (p) => {
+        setProperty(p);
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
         const u = await getUser(p.ownerId).catch(() => null);
         setOwner(u);
       })
@@ -51,6 +72,7 @@ export default function PropertyDetailPage() {
 
   useEffect(load, [params.id]);
 
+<<<<<<< HEAD
   const handleUpdateProperty = async (values: UpdatePropertyInput) => {
     if (!property) return;
     setEditError(null);
@@ -63,6 +85,8 @@ export default function PropertyDetailPage() {
     }
   };
 
+=======
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
   const handleApprove = async () => {
     if (!property) return;
     setActionError(null);
@@ -126,6 +150,7 @@ export default function PropertyDetailPage() {
                 {property.addressLine}, {property.city}
               </p>
             </div>
+<<<<<<< HEAD
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -156,6 +181,28 @@ export default function PropertyDetailPage() {
                 </>
               )}
             </div>
+=======
+            {property.approvalStatus === "pending" && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleApprove}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                >
+                  <Check className="h-4 w-4" />
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRejecting(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+                >
+                  <X className="h-4 w-4" />
+                  Reject
+                </button>
+              </div>
+            )}
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
           </div>
 
           {actionError && (
@@ -174,6 +221,7 @@ export default function PropertyDetailPage() {
         </>
       )}
 
+<<<<<<< HEAD
       {isEditing && property && (
         <Modal
           title="Edit Property"
@@ -194,6 +242,8 @@ export default function PropertyDetailPage() {
         </Modal>
       )}
 
+=======
+>>>>>>> 9449faea5b8da912e44a7723fb71d6c1e2db28d3
       {isRejecting && (
         <Modal
           title="Reject Property"

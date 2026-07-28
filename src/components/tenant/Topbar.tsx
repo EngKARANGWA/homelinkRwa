@@ -3,9 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, ChevronDown, LogOut, Menu, User } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu, User, UserCircle } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
-import { getInitials } from "@/lib/initials";
 
 export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const { user, signOut } = useAuth();
@@ -51,12 +50,10 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
             aria-label="Account menu"
             className="flex min-w-0 items-center gap-2 rounded-lg px-1 py-1 hover:bg-slate-50"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-semibold text-white">
-              {getInitials(name)}
-            </span>
-            <div className="hidden min-w-0 leading-tight text-left sm:block">
-              <p className="truncate text-sm font-semibold text-navy">{name}</p>
-              <p className="truncate text-xs text-slate-500">Tenant</p>
+            <UserCircle className="h-8 w-8 text-slate-400" strokeWidth={1.5} />
+            <div className="leading-tight text-left">
+              <p className="text-sm font-semibold text-navy">{name}</p>
+              <p className="hidden text-xs text-slate-500 sm:block">Tenant</p>
             </div>
             <ChevronDown
               className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${menuOpen ? "rotate-180" : ""}`}
