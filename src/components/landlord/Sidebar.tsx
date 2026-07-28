@@ -30,8 +30,18 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
       {LANDLORD_NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+        // Unit detail pages live under /landlord/properties/[id]/units/[unitId]
+        // but represent a tenant, so they should light up Tenants instead of
+        // Properties even though the URL is nested there.
+        const isUnitDetailPage = pathname.includes("/units/");
         const isActive =
-          href === "/landlord" ? pathname === href : pathname.startsWith(href);
+          href === "/landlord"
+            ? pathname === href
+            : href === "/landlord/tenants"
+              ? pathname.startsWith(href) || isUnitDetailPage
+              : href === "/landlord/properties"
+                ? pathname.startsWith(href) && !isUnitDetailPage
+                : pathname.startsWith(href);
 
         return (
           <Link

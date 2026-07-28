@@ -45,6 +45,7 @@ import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboar
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { Modal } from "@/components/admin/Modal";
 import { RecordPaymentForm } from "@/components/landlord/RecordPaymentForm";
+import { formatMoney } from "@/lib/money";
 
 type RowStatus = InvoiceStatus | PaymentStatus;
 
@@ -63,6 +64,12 @@ const STATUS_PRIORITY: Record<RowStatus, number> = {
   failed: 4,
   cancelled: 5,
 };
+
+const TABS: { key: "All" | "pending_approval" | "overdue"; label: string }[] = [
+  { key: "All", label: "All" },
+  { key: "pending_approval", label: "Pending Approval" },
+  { key: "overdue", label: "Overdue" },
+];
 
 type PaymentRow = {
   id: string;
@@ -136,23 +143,34 @@ export default function LandlordPaymentsPage() {
     .filter((inv) => inv.status === "pending" || inv.status === "overdue")
     .reduce((sum, inv) => sum + Number(inv.amount), 0);
 
-  const filteredOverdueInvoices = overdueInvoices.filter((inv) => {
-    const matchesProperty =
+  const propertyFilteredOverdueInvoices = overdueInvoices.filter(
+    (inv) =>
       propertyFilter === "All Properties" ||
-      propertyFor(inv.propertyId)?.title === propertyFilter;
-    const matchesStatus = statusFilter === "All" || statusFilter === "overdue";
-    const matchesMethod = methodFilter === "All";
-    return matchesProperty && matchesStatus && matchesMethod;
-  });
+      propertyFor(inv.propertyId)?.title === propertyFilter,
+  );
+  const filteredOverdueInvoices =
+    methodFilter === "All" && (statusFilter === "All" || statusFilter === "overdue")
+      ? propertyFilteredOverdueInvoices
+      : [];
 
-  const filteredPayments = payments.filter((p) => {
+  const propertyMethodFilteredPayments = payments.filter((p) => {
     const matchesProperty =
       propertyFilter === "All Properties" ||
       propertyFor(p.propertyId)?.title === propertyFilter;
-    const matchesStatus = statusFilter === "All" || p.status === statusFilter;
     const matchesMethod = methodFilter === "All" || p.method === methodFilter;
-    return matchesProperty && matchesStatus && matchesMethod;
+    return matchesProperty && matchesMethod;
   });
+  const filteredPayments = propertyMethodFilteredPayments.filter(
+    (p) => statusFilter === "All" || p.status === statusFilter,
+  );
+
+  const tabCounts: Record<(typeof TABS)[number]["key"], number> = {
+    All: propertyMethodFilteredPayments.length + propertyFilteredOverdueInvoices.length,
+    pending_approval: propertyMethodFilteredPayments.filter(
+      (p) => p.status === "pending_approval",
+    ).length,
+    overdue: propertyFilteredOverdueInvoices.length,
+  };
 
   const rows: PaymentRow[] = [
     ...filteredOverdueInvoices.map(
@@ -242,7 +260,7 @@ export default function LandlordPaymentsPage() {
   }) => {
     setRecordingPayment(false);
     setNotice(
-      `Noted: ${values.amount.toLocaleString()} RWF cash payment from ${values.tenantName} on ${values.paidDate}. This isn't submitted to the platform yet — recording landlord-side cash payments isn't supported by the backend.`,
+      `Noted: ${formatMoney(values.amount)} RWF cash payment from ${values.tenantName} on ${values.paidDate}. This isn't submitted to the platform yet — recording landlord-side cash payments isn't supported by the backend.`,
     );
   };
 
@@ -296,25 +314,25 @@ export default function LandlordPaymentsPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-5">
+      <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
         <IconStatCard
           icon={Wallet}
           label="Collected"
-          value={`${collected.toLocaleString()} RWF`}
+          value={`${formatMoney(collected)} RWF`}
           subtitle="All successful payments"
           accent="emerald"
         />
         <IconStatCard
           icon={AlertCircle}
           label="Outstanding"
-          value={`${outstanding.toLocaleString()} RWF`}
+          value={`${formatMoney(outstanding)} RWF`}
           subtitle="Pending & overdue invoices"
           accent="red"
         />
         <IconStatCard
           icon={AlertTriangle}
           label="Total in Arrears"
-          value={`${totalInArrears.toLocaleString()} RWF`}
+          value={`${formatMoney(totalInArrears)} RWF`}
           subtitle="Overdue invoice total"
           accent="amber"
         />
@@ -322,12 +340,10 @@ export default function LandlordPaymentsPage() {
 
       <AlertBanner
         isAlert={overdueInvoices.length > 0}
-        stats={[]}
-        message={
-          overdueInvoices.length > 0
-            ? "These tenants are behind on rent. Send a reminder to nudge them toward payment."
-            : "No tenants are currently behind on rent."
-        }
+        stats={[
+          { label: "Total in Arrears", value: `${formatMoney(totalInArrears)} RWF` },
+          { label: "Invoices Overdue", value: overdueInvoices.length },
+        ]}
       >
         <button
           type="button"
@@ -339,7 +355,7 @@ export default function LandlordPaymentsPage() {
         </button>
       </AlertBanner>
 
-      <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
           Property
           <select
@@ -353,41 +369,71 @@ export default function LandlordPaymentsPage() {
           </select>
         </label>
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Status
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-          >
-            <option value="All">All</option>
-            <option value="overdue">Overdue</option>
-            <option value="successful">Successful</option>
-            <option value="pending_approval">Pending Approval</option>
-            <option value="rejected">Rejected</option>
-            <option value="failed">Failed</option>
-          </select>
-        </label>
+        <div className="grid grid-cols-2 gap-4">
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+            Status
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+            >
+              <option value="All">All</option>
+              <option value="overdue">Overdue</option>
+              <option value="successful">Successful</option>
+              <option value="pending_approval">Pending Approval</option>
+              <option value="rejected">Rejected</option>
+              <option value="failed">Failed</option>
+            </select>
+          </label>
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Method
-          <select
-            value={methodFilter}
-            onChange={(e) => setMethodFilter(e.target.value as typeof methodFilter)}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-          >
-            <option value="All">All</option>
-            <option value="mobile_money">Mobile Money</option>
-            <option value="bank_transfer">Bank Transfer</option>
-            <option value="cash">Cash</option>
-          </select>
-        </label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+            Method
+            <select
+              value={methodFilter}
+              onChange={(e) => setMethodFilter(e.target.value as typeof methodFilter)}
+              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+            >
+              <option value="All">All</option>
+              <option value="mobile_money">Mobile Money</option>
+              <option value="bank_transfer">Bank Transfer</option>
+              <option value="cash">Cash</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <Card title="Transactions">
         <p className="mt-1 text-sm text-slate-500">
           All rent payments and invoices currently in arrears, across your properties.
         </p>
+
+        <div className="mt-4 flex items-center gap-6 overflow-x-auto border-b border-slate-200">
+          {TABS.map((tab) => {
+            const isActive = statusFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setStatusFilter(tab.key)}
+                className={`flex shrink-0 items-center gap-2 border-b-2 pb-3 text-sm font-medium transition-colors ${
+                  isActive
+                    ? "border-gold text-navy"
+                    : "border-transparent text-slate-500 hover:text-navy"
+                }`}
+              >
+                {tab.label}
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    isActive ? "bg-gold/10 text-gold" : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {tabCounts[tab.key]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         <Table variant="card">
           <THead>
             <Tr>
@@ -419,7 +465,7 @@ export default function LandlordPaymentsPage() {
                         {row.property}
                       </p>
                       <p className="text-xs text-slate-400 sm:hidden">
-                        {row.amount.toLocaleString()} RWF
+                        {formatMoney(row.amount)} RWF
                       </p>
                     </Td>
                     <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
@@ -430,7 +476,7 @@ export default function LandlordPaymentsPage() {
                         row.status === "overdue" ? "font-medium text-red-600" : "text-slate-500"
                       }`}
                     >
-                      {row.amount.toLocaleString()}
+                      {formatMoney(row.amount)}
                     </Td>
                     <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                       {row.method}

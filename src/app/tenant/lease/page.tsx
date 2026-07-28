@@ -15,6 +15,7 @@ import type { Lease, Property, User } from "@/lib/api/types";
 import { formatLeaseStatus, LEASE_STATUS_STYLES } from "@/lib/leaseStatus";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 export default function TenantLeasePage() {
   const [leases, setLeases] = useState<Lease[]>([]);
@@ -148,14 +149,14 @@ export default function TenantLeasePage() {
                       {property?.title ?? "—"}
                     </p>
                     <p className="truncate text-xs text-slate-400 md:hidden">
-                      {ownerName(lease.ownerId)} · {Number(lease.rentAmount).toLocaleString()} RWF
+                      {ownerName(lease.ownerId)} · {formatMoney(Number(lease.rentAmount))} RWF
                     </p>
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                     {ownerName(lease.ownerId)}
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                    {Number(lease.rentAmount).toLocaleString()}
+                    {formatMoney(Number(lease.rentAmount))}
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                     {lease.startDate} → {lease.endDate ?? "Open-ended"}

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -21,6 +21,7 @@ import { Modal } from "@/components/admin/Modal";
 import { EditTenantForm } from "@/components/landlord/EditTenantForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 const PAYMENT_STATUS_STYLES: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -48,25 +49,24 @@ function monthLabel(month: string): string {
 export default function UnitDetailPage() {
   const { id, unitId } = useParams<{ id: string; unitId: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { landlordName, unitOverrides, updateTenant, removeTenant, documents } = useLandlord();
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
   const [isEditing, setEditing] = useState(false);
   const [isRemoving, setRemoving] = useState(false);
-  const [paymentPage, setPaymentPage] = useState(1);
 
   const property = PROPERTIES.find((p) => p.id === id && p.owner === landlordName);
   const unit = property ? getUnit(property, unitId, unitOverrides) : undefined;
+
   const paymentHistory = unit?.paymentHistory ?? [];
-  const paymentTotalPages = Math.max(
-    1,
-    Math.ceil(paymentHistory.length / DEFAULT_PAGE_SIZE),
-  );
+  const [historyPage, setHistoryPage] = useState(1);
+  const historyTotalPages = Math.max(1, Math.ceil(paymentHistory.length / DEFAULT_PAGE_SIZE));
   useEffect(() => {
-    if (paymentPage > paymentTotalPages) setPaymentPage(paymentTotalPages);
-  }, [paymentPage, paymentTotalPages]);
-  const pagedPaymentHistory = paymentHistory.slice(
-    (paymentPage - 1) * DEFAULT_PAGE_SIZE,
-    paymentPage * DEFAULT_PAGE_SIZE,
+    if (historyPage > historyTotalPages) setHistoryPage(historyTotalPages);
+  }, [historyPage, historyTotalPages]);
+  const pagedHistory = paymentHistory.slice(
+    (historyPage - 1) * DEFAULT_PAGE_SIZE,
+    historyPage * DEFAULT_PAGE_SIZE,
   );
 
   if (!property || !unit) {
@@ -98,20 +98,24 @@ export default function UnitDetailPage() {
 
   const handleRemoveTenant = () => {
     removeTenant(unit);
-    router.push(`/landlord/properties/${property.id}`);
+    const currentId = searchParams.get("id");
+    router.push(
+      `/landlord/properties/${property.id}${currentId ? `?id=${currentId}` : ""}`,
+    );
   };
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link
-            href={`/landlord/properties/${property.id}`}
+          <button
+            type="button"
+            onClick={() => router.back()}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-navy"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to {property.name}
-          </Link>
+            Back
+          </button>
           <h1 className="mt-2 text-2xl font-bold text-navy">
             Unit {unit.unitNumber}
             {unit.tenant ? ` · ${unit.tenant}` : ""}
@@ -170,10 +174,10 @@ export default function UnitDetailPage() {
               <p className="font-semibold text-navy">Lease Details</p>
               <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <Field label="Monthly Rent">
-                  {unit.monthlyRent.toLocaleString()} RWF
+                  {formatMoney(unit.monthlyRent)} RWF
                 </Field>
                 <Field label="Deposit">
-                  {unit.deposit ? `${unit.deposit.toLocaleString()} RWF` : "—"}
+                  {unit.deposit ? `${formatMoney(unit.deposit)} RWF` : "—"}
                 </Field>
                 <Field label="Start Date">{unit.startDate ?? "—"}</Field>
                 <Field label="End Date">{unit.endDate ?? "Open-ended"}</Field>
@@ -194,11 +198,11 @@ export default function UnitDetailPage() {
                   </Tr>
                 </THead>
                 <TBody>
-                  {pagedPaymentHistory.map((p) => (
+                  {pagedHistory.map((p) => (
                     <Tr key={p.month}>
                       <Td className="py-2.5 text-slate-500">{monthLabel(p.month)}</Td>
                       <Td className="py-2.5 text-slate-500">
-                        {p.amount.toLocaleString()} RWF
+                        {formatMoney(p.amount)} RWF
                       </Td>
                       <Td className="py-2.5">
                         <span
@@ -211,17 +215,18 @@ export default function UnitDetailPage() {
                       </Td>
                     </Tr>
                   ))}
-                  {unit.paymentHistory.length === 0 && (
+                  {pagedHistory.length === 0 && (
                     <EmptyRow colSpan={3}>No payment history yet.</EmptyRow>
                   )}
                 </TBody>
               </Table>
+
               <Pagination
-                page={paymentPage}
-                totalPages={paymentTotalPages}
+                page={historyPage}
+                totalPages={historyTotalPages}
                 totalItems={paymentHistory.length}
                 pageSize={DEFAULT_PAGE_SIZE}
-                onPageChange={setPaymentPage}
+                onPageChange={setHistoryPage}
               />
             </div>
           </div>

@@ -38,16 +38,16 @@ export function Hero() {
             href="/get-started"
             className="inline-flex items-center gap-2 rounded-lg bg-gold px-6 py-3 font-semibold text-white transition-colors hover:bg-gold/90"
           >
-            Get Started Free
+            Get Started
             <ArrowRight className="h-4 w-4" />
           </Link>
-          <Link
+          {/* <Link
             href="#demo"
             className="inline-flex items-center gap-2 rounded-lg border border-white/25 px-6 py-3 font-semibold text-white transition-colors hover:bg-white/10"
           >
             Book a Demo
             <Calendar className="h-4 w-4" />
-          </Link>
+          </Link> */}
         </div>
       </div>
     </section>

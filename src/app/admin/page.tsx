@@ -25,6 +25,7 @@ import {
   CHART_TEXT_COLOR,
 } from "@/lib/chart-colors";
 import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
+import { formatMoney } from "@/lib/money";
 
 const STAT_META: Record<
   string,
@@ -96,7 +97,7 @@ export default function AdminOverviewPage() {
   const stats = [
     {
       label: "Platform Revenue",
-      value: `${data.totalPlatformRevenue.toLocaleString()} RWF`,
+      value: `${formatMoney(data.totalPlatformRevenue)} RWF`,
     },
     { label: "Active Users", value: data.activeUsers },
     { label: "Managed Properties", value: data.properties.total },
@@ -131,7 +132,7 @@ export default function AdminOverviewPage() {
         </Link>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
         {stats.map(({ label, value }) => {
           const meta = STAT_META[label];
           return (

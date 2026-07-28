@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { MAINTENANCE_HANDLERS, type Laborer } from "@/lib/mock-admin-data";
+import { formatMoney } from "@/lib/money";
 
 type LaborerRow = { name: string; role: string; contact: string; amount: string };
 
@@ -145,7 +146,7 @@ export function AssignHandlerForm({
           Total labor cost
         </span>
         <span className="text-lg font-bold text-navy">
-          {total.toLocaleString()} RWF
+          {formatMoney(total)} RWF
         </span>
       </div>
 

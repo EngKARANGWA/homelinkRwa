@@ -29,6 +29,7 @@ import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 const STATUS_STYLES: Record<PropertyStatus, string> = {
   available: "bg-emerald-50 text-emerald-700",
@@ -221,7 +222,7 @@ export default function LandlordPropertiesPage() {
                       <div>
                         <p className="text-xs text-slate-400">Rent</p>
                         <p className="mt-0.5 truncate font-semibold text-navy">
-                          {Number(property.rentAmount).toLocaleString()} RWF
+                          {formatMoney(Number(property.rentAmount))} RWF
                         </p>
                       </div>
                       <div>
@@ -267,14 +268,14 @@ export default function LandlordPropertiesPage() {
                       {property.addressLine}, {property.city}
                     </p>
                     <p className="truncate text-xs text-slate-400 md:hidden">
-                      {capitalize(property.type)} · {Number(property.rentAmount).toLocaleString()} RWF
+                      {capitalize(property.type)} · {formatMoney(Number(property.rentAmount))} RWF
                     </p>
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                     {capitalize(property.category)} · {capitalize(property.type)}
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                    {Number(property.rentAmount).toLocaleString()}
+                    {formatMoney(Number(property.rentAmount))}
                   </Td>
                   <Td className="hidden px-6 py-3 sm:table-cell">
                     <span

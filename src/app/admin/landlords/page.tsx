@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Plus } from "lucide-react";
+import { AlertCircle, CheckCircle2, Eye, Plus } from "lucide-react";
 import {
   countPropertiesForOwner,
   createHouseOwner,
@@ -12,6 +12,7 @@ import { ApiError } from "@/lib/api/client";
 import type { User } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
 import { LandlordForm } from "@/components/admin/LandlordForm";
+import { LandlordDetail } from "@/components/admin/LandlordDetail";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
@@ -36,6 +37,7 @@ export default function LandlordsPage() {
   const [isSubmitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [justRegistered, setJustRegistered] = useState(false);
+  const [viewingLandlord, setViewingLandlord] = useState<User | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -125,13 +127,14 @@ export default function LandlordsPage() {
             <Th className="hidden px-6 py-3 sm:table-cell">Properties</Th>
             <Th className="px-4 py-3 sm:px-6">Status</Th>
             <Th className="hidden px-6 py-3 md:table-cell">Registered</Th>
+            <Th className="px-4 py-3 text-right sm:px-6">Actions</Th>
           </Tr>
         </THead>
         <TBody>
           {isLoading ? (
-            <EmptyRow colSpan={6}>Loading landlords...</EmptyRow>
+            <EmptyRow colSpan={7}>Loading landlords...</EmptyRow>
           ) : landlords.length === 0 ? (
-            <EmptyRow colSpan={6}>No landlords registered yet.</EmptyRow>
+            <EmptyRow colSpan={7}>No landlords registered yet.</EmptyRow>
           ) : (
             landlords.map((landlord) => (
               <Tr key={landlord.id}>
@@ -165,6 +168,16 @@ export default function LandlordsPage() {
                 <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                   {landlord.createdAt?.slice(0, 10)}
                 </Td>
+                <Td className="whitespace-nowrap px-4 py-3 text-right sm:px-6">
+                  <button
+                    type="button"
+                    onClick={() => setViewingLandlord(landlord)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    View
+                  </button>
+                </Td>
               </Tr>
             ))
           )}
@@ -196,6 +209,19 @@ export default function LandlordsPage() {
               onSuccess={registerLandlord}
             />
           </fieldset>
+        </Modal>
+      )}
+
+      {viewingLandlord && (
+        <Modal
+          title="Landlord Details"
+          description={`${viewingLandlord.firstName} ${viewingLandlord.lastName}`}
+          onClose={() => setViewingLandlord(null)}
+        >
+          <LandlordDetail
+            landlord={viewingLandlord}
+            propertyCount={propertyCounts[viewingLandlord.id] ?? 0}
+          />
         </Modal>
       )}
     </div>

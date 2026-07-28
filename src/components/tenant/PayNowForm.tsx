@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { PayInvoiceInput, PaymentMethod } from "@/lib/api/types";
+import { formatMoney } from "@/lib/money";
 
 const METHOD_LABELS: Record<PaymentMethod, string> = {
   mobile_money: "Mobile Money",
@@ -53,7 +54,7 @@ export function PayNowForm({
             Amount due
           </p>
           <p className="mt-1 text-2xl font-bold text-navy">
-            {amount.toLocaleString()} RWF
+            {formatMoney(amount)} RWF
           </p>
         </div>
 

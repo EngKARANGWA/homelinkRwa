@@ -16,6 +16,7 @@ import type { Payment, Property, User } from "@/lib/api/types";
 import { formatStatusLabel, PAYMENT_STATUS_STYLES } from "@/lib/paymentStatus";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -163,7 +164,7 @@ export default function PaymentsPage() {
                     {propertyFor(payment.propertyId)?.title ?? "—"}
                   </Td>
                   <Td className="px-6 py-3 text-slate-500">
-                    {Number(payment.amount).toLocaleString()}
+                    {formatMoney(Number(payment.amount))}
                   </Td>
                   <Td className="px-6 py-3 text-slate-500">
                     {formatStatusLabel(payment.method)}

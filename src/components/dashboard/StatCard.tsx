@@ -33,6 +33,18 @@ const ACCENTS = {
 
 export type StatAccent = keyof typeof ACCENTS;
 
+// Auto-shrinks the value text as it gets longer, so a long value (e.g. a
+// full property name) still fits within the fixed 2-line clamp instead of
+// getting cut off with an ellipsis. Only kicks in on narrow phone widths,
+// where cards are genuinely cramped — from `md` up, cards have plenty of
+// room for a long value, so it steps back up and matches everything else.
+function valueSizeClass(value: string | number): string {
+  const length = typeof value === "string" ? value.length : 0;
+  if (length > 22) return "text-xs sm:text-sm md:text-xl lg:text-2xl";
+  if (length > 14) return "text-base sm:text-lg md:text-xl lg:text-2xl";
+  return "text-xl sm:text-2xl";
+}
+
 export function StatCard({
   label,
   value,
@@ -63,7 +75,9 @@ export function StatCard({
         </div>
 
         <p className="mt-3 truncate text-sm text-slate-500">{label}</p>
-        <p className="mt-1 line-clamp-2 text-xl leading-tight font-bold text-navy sm:text-2xl">
+        <p
+          className={`mt-1 line-clamp-2 leading-tight font-bold text-navy ${valueSizeClass(value)}`}
+        >
           {value}
         </p>
         {subtitle && <p className="mt-1 truncate text-xs text-slate-400">{subtitle}</p>}

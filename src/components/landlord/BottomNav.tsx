@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, CreditCard, LayoutDashboard, MessageSquare } from "lucide-react";
+import { Building2, CreditCard, LayoutDashboard, Users } from "lucide-react";
 
 const BOTTOM_NAV_ITEMS = [
   { label: "Dashboard", href: "/landlord", icon: LayoutDashboard },
   { label: "Properties", href: "/landlord/properties", icon: Building2 },
   { label: "Payments", href: "/landlord/payments", icon: CreditCard },
-  { label: "Messages", href: "/landlord/messages", icon: MessageSquare },
+  { label: "Tenants", href: "/landlord/tenants", icon: Users },
 ];
 
 export function BottomNav() {
@@ -17,8 +17,18 @@ export function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgba(0,0,0,0.04)] lg:hidden">
       {BOTTOM_NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+        // Unit detail pages live under /landlord/properties/[id]/units/[unitId]
+        // but represent a tenant, so they should light up Tenants instead of
+        // Properties even though the URL is nested there.
+        const isUnitDetailPage = pathname.includes("/units/");
         const isActive =
-          href === "/landlord" ? pathname === href : pathname.startsWith(href);
+          href === "/landlord"
+            ? pathname === href
+            : href === "/landlord/tenants"
+              ? pathname.startsWith(href) || isUnitDetailPage
+              : href === "/landlord/properties"
+                ? pathname.startsWith(href) && !isUnitDetailPage
+                : pathname.startsWith(href);
 
         return (
           <Link

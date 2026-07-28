@@ -36,6 +36,7 @@ export default function TenantMaintenancePage() {
   const [page, setPage] = useState(1);
 
   const myRequests = requests.filter((r) => r.tenant === tenantName);
+
   const totalPages = Math.max(1, Math.ceil(myRequests.length / DEFAULT_PAGE_SIZE));
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -176,7 +177,7 @@ export default function TenantMaintenancePage() {
               </Td>
             </Tr>
           ))}
-          {myRequests.length === 0 && (
+          {pagedRequests.length === 0 && (
             <EmptyRow colSpan={6}>No maintenance requests yet.</EmptyRow>
           )}
         </TBody>

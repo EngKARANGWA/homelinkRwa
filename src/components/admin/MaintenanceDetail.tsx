@@ -1,6 +1,7 @@
 "use client";
 
 import { type MaintenanceRequest } from "@/lib/mock-admin-data";
+import { formatMoney } from "@/lib/money";
 
 const STATUS_STYLES: Record<MaintenanceRequest["status"], string> = {
   Submitted: "bg-amber-50 text-amber-700",
@@ -88,14 +89,14 @@ export function MaintenanceDetail({ request }: { request: MaintenanceRequest }) 
                   )}
                 </div>
                 <p className="font-medium text-navy">
-                  {laborer.amount.toLocaleString()} RWF
+                  {formatMoney(laborer.amount)} RWF
                 </p>
               </div>
             ))}
             <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
               <span className="text-sm font-medium text-slate-600">Labor cost total</span>
               <span className="font-bold text-navy">
-                {totalLaborCost.toLocaleString()} RWF
+                {formatMoney(totalLaborCost)} RWF
               </span>
             </div>
           </div>
@@ -111,19 +112,19 @@ export function MaintenanceDetail({ request }: { request: MaintenanceRequest }) 
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-500">Labor cost</span>
               <span className="font-medium text-navy">
-                {totalLaborCost.toLocaleString()} RWF
+                {formatMoney(totalLaborCost)} RWF
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-500">Item / materials cost</span>
               <span className="font-medium text-navy">
-                {(request.itemCost ?? 0).toLocaleString()} RWF
+                {formatMoney(request.itemCost ?? 0)} RWF
               </span>
             </div>
             <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-sm">
               <span className="font-medium text-slate-600">Total expense</span>
               <span className="font-bold text-navy">
-                {(totalLaborCost + (request.itemCost ?? 0)).toLocaleString()} RWF
+                {formatMoney(totalLaborCost + (request.itemCost ?? 0))} RWF
               </span>
             </div>
           </div>

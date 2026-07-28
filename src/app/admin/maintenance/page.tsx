@@ -10,6 +10,7 @@ import { CompleteRequestForm } from "@/components/admin/CompleteRequestForm";
 import { MaintenanceDetail } from "@/components/admin/MaintenanceDetail";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 const STATUS_STYLES: Record<MaintenanceRequest["status"], string> = {
   Submitted: "bg-amber-50 text-amber-700",
@@ -149,9 +150,7 @@ export default function MaintenancePage() {
                 {request.status === "Completed" ? (
                   <>
                     <p className="font-medium text-navy">
-                      {(
-                        (request.laborCost ?? 0) + (request.itemCost ?? 0)
-                      ).toLocaleString()}{" "}
+                      {formatMoney((request.laborCost ?? 0) + (request.itemCost ?? 0))}{" "}
                       RWF
                     </p>
                     {request.feedback && (

@@ -1,4 +1,4 @@
-import { LEASES, PAYMENTS, TENANTS, TODAY, type Lease, type Payment, type Property } from "./mock-admin-data";
+import { LEASES, PAYMENTS, PROPERTIES, TENANTS, TODAY, type Lease, type Payment, type Property } from "./mock-admin-data";
 
 export type UnitPayment = {
   month: string;
@@ -20,7 +20,8 @@ export type Unit = {
   endDate: string | null;
   rentDueDay: number | null;
   occupancyStatus: "Occupied" | "Vacant";
-  currentPaymentStatus: "Paid" | "Overdue" | "Vacant";
+  /** Overdue = behind 1-2 months. Arrears = behind 3+ consecutive months. */
+  currentPaymentStatus: "Paid" | "Overdue" | "Arrears" | "Vacant";
   phone: string | null;
   paymentMethod: string | null;
   documents: string[];
@@ -136,6 +137,7 @@ function generatePaymentHistory(
   seed: number,
   options: { realPayments?: Payment[]; allowOverdueFiller: boolean; sinceMonth?: string },
 ): UnitPayment[] {
+  const currentMonth = TODAY.slice(0, 7);
   return monthsBack(5)
     .filter((month) => !options.sinceMonth || month >= options.sinceMonth)
     .map((month, i) => {
@@ -152,7 +154,12 @@ function generatePaymentHistory(
           paidDate: real.paidDate,
         };
       }
-      const overdue = options.allowOverdueFiller && (seed + i) % 6 === 0;
+      // No payment record at all for this month. For a real tenant, once the
+      // month is fully behind us with nothing paid, that's arrears — not a
+      // silent "Paid". Filler units keep their own semi-random pattern.
+      const overdue = options.allowOverdueFiller
+        ? (seed + i) % 6 === 0
+        : month < currentMonth;
       return {
         month,
         amount: monthlyRent,
@@ -164,6 +171,19 @@ function generatePaymentHistory(
 
 function isActiveLease(lease: Lease): boolean {
   return lease.status === "Active" || lease.status === "Renewal Requested";
+}
+
+function currentPaymentStatusFromHistory(
+  history: UnitPayment[],
+): "Paid" | "Overdue" | "Arrears" {
+  let consecutiveOverdue = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].status !== "Overdue") break;
+    consecutiveOverdue++;
+  }
+  if (consecutiveOverdue >= 3) return "Arrears";
+  if (consecutiveOverdue >= 1) return "Overdue";
+  return "Paid";
 }
 
 function buildRealUnit(
@@ -196,7 +216,7 @@ function buildRealUnit(
     endDate: lease.endDate,
     rentDueDay: 1,
     occupancyStatus: "Occupied",
-    currentPaymentStatus: paymentHistory[paymentHistory.length - 1]?.status ?? "Paid",
+    currentPaymentStatus: currentPaymentStatusFromHistory(paymentHistory),
     phone: tenantRecord?.phone ?? lease.momoNumber,
     paymentMethod: realPayments[realPayments.length - 1]?.method ?? "MTN Mobile Money",
     documents: [lease.documentName, property.documentName].filter(
@@ -224,7 +244,7 @@ function buildFillerUnit(property: Property, unitNumber: string, id: string, see
     endDate: null,
     rentDueDay: 1,
     occupancyStatus: "Occupied",
-    currentPaymentStatus: paymentHistory[paymentHistory.length - 1]?.status ?? "Paid",
+    currentPaymentStatus: currentPaymentStatusFromHistory(paymentHistory),
     phone: fillerPhone(seed),
     paymentMethod: PAYMENT_METHODS[seed % PAYMENT_METHODS.length],
     documents: [],
@@ -365,4 +385,20 @@ export function getUnit(
   overrides: UnitOverrides = {},
 ): Unit | undefined {
   return getUnitsForProperty(property, overrides).find((u) => u.id === unitId);
+}
+
+/**
+ * Looks up which specific unit a tenant occupies within a (possibly
+ * multi-unit) property, e.g. "A03" in a 25-unit apartment building.
+ * Returns undefined for single-unit properties, where there's nothing
+ * distinct to show beyond the property name itself.
+ */
+export function getTenantUnitNumber(
+  propertyName: string,
+  tenantName: string,
+): string | undefined {
+  const property = PROPERTIES.find((p) => p.name === propertyName);
+  if (!property) return undefined;
+  const unit = getUnitsForProperty(property).find((u) => u.tenant === tenantName);
+  return unit && unit.unitNumber !== "Main" ? unit.unitNumber : undefined;
 }

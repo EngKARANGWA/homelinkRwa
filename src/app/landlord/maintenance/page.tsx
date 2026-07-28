@@ -43,7 +43,6 @@ export default function LandlordMaintenancePage() {
   );
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [page, setPage] = useState(1);
 
   const myPropertyNames = PROPERTIES.filter(
     (p) => p.owner === landlordName,
@@ -57,6 +56,7 @@ export default function LandlordMaintenancePage() {
     .filter((r) => !dateFrom || r.submittedAt >= dateFrom)
     .filter((r) => !dateTo || r.submittedAt <= dateTo);
 
+  const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(myRequests.length / DEFAULT_PAGE_SIZE));
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -292,11 +292,12 @@ export default function LandlordMaintenancePage() {
                 </Td>
               </Tr>
             ))}
-            {myRequests.length === 0 && (
+            {pagedRequests.length === 0 && (
               <EmptyRow colSpan={8}>No maintenance requests match these filters.</EmptyRow>
             )}
           </TBody>
         </Table>
+
         <Pagination
           page={page}
           totalPages={totalPages}

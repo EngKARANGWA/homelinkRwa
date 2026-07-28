@@ -3,24 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  ArrowRight,
   Banknote,
   CalendarClock,
   CheckCircle2,
+  FileText,
   Home,
   Wallet,
   Wrench,
 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import {
   LEASES,
   MAINTENANCE_REQUESTS,
@@ -29,11 +19,12 @@ import {
   type Payment,
 } from "@/lib/mock-admin-data";
 import { useTenant } from "@/components/tenant/TenantContext";
-import { CHART_GRID_COLOR, CHART_TEXT_COLOR } from "@/lib/chart-colors";
+import { getTenantUnitNumber } from "@/lib/units";
 import { Modal } from "@/components/admin/Modal";
 import { PayNowForm } from "@/components/tenant/PayNowForm";
 import type { PayInvoiceInput } from "@/lib/api/types";
 import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
+import { formatMoney } from "@/lib/money";
 
 const PAY_METHOD_LABELS: Record<PayInvoiceInput["method"], Payment["method"]> = {
   mobile_money: "MTN Mobile Money",
@@ -41,12 +32,19 @@ const PAY_METHOD_LABELS: Record<PayInvoiceInput["method"], Payment["method"]> = 
   cash: "Cash",
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  Paid: "#10b981",
-  Late: "#f43f5e",
-  Pending: "#f59e0b",
-  "Pending Approval": "#0ea5e9",
-};
+const QUICK_ACTIONS = [
+  { label: "Pay Rent", href: "/tenant/payments", icon: Wallet },
+  { label: "Invoices", href: "/tenant/payments", icon: FileText },
+  { label: "Maintenance", href: "/tenant/maintenance", icon: Wrench },
+  { label: "Lease", href: "/tenant/lease", icon: Home },
+] as const;
+
+function shortDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  });
+}
 
 const STAT_META: Record<
   string,
@@ -78,8 +76,6 @@ const STAT_META: Record<
   },
 };
 
-const axisTick = { fontSize: 12, fill: CHART_TEXT_COLOR };
-
 export default function TenantOverviewPage() {
   const { tenantName } = useTenant();
   const [payments, setPayments] = useState(PAYMENTS);
@@ -102,6 +98,13 @@ export default function TenantOverviewPage() {
   const nextPayment = myPayments
     .filter((p) => p.status !== "Paid" && p.status !== "Pending Approval")
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+
+  const currentUnitNumber = currentLease
+    ? getTenantUnitNumber(currentLease.property, tenantName)
+    : undefined;
+  const nextPaymentUnitNumber = nextPayment
+    ? getTenantUnitNumber(nextPayment.property, tenantName)
+    : undefined;
 
   const payNow = (values: PayInvoiceInput) => {
     if (!nextPayment) return;
@@ -127,15 +130,16 @@ export default function TenantOverviewPage() {
     );
   };
 
-  const stats = [
+  const stats: { label: string; value: string | number; subtitle?: string }[] = [
     {
       label: "Current Property",
       value: currentLease ? currentLease.property : "No active lease",
+      subtitle: currentUnitNumber ? `Unit ${currentUnitNumber}` : undefined,
     },
     {
       label: "Monthly Rent",
       value: currentLease
-        ? `${currentLease.rent.toLocaleString()} RWF`
+        ? `${formatMoney(currentLease.rent)} RWF`
         : "-",
     },
     {
@@ -144,13 +148,9 @@ export default function TenantOverviewPage() {
     },
     {
       label: "Next Payment Due",
-      value: nextPayment ? nextPayment.dueDate : "All paid up",
+      value: nextPayment ? shortDate(nextPayment.dueDate) : "All paid up",
     },
   ];
-
-  const paymentHistory = [...myPayments]
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-    .map((p) => ({ date: p.dueDate, amount: p.amount, status: p.status }));
 
   return (
     <div className="flex flex-col gap-8">
@@ -172,10 +172,12 @@ export default function TenantOverviewPage() {
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-gold/30 bg-gold/5 p-5 shadow-sm">
           <div>
             <p className="font-semibold text-navy">
-              Rent pending - {nextPayment.amount.toLocaleString()} RWF
+              Rent pending - {formatMoney(nextPayment.amount)} RWF
             </p>
             <p className="mt-1 text-sm text-slate-500">
-              {nextPayment.property} · due {nextPayment.dueDate}
+              {nextPayment.property}
+              {nextPaymentUnitNumber ? ` · Unit ${nextPaymentUnitNumber}` : ""} · due{" "}
+              {nextPayment.dueDate}
             </p>
           </div>
           <button
@@ -189,15 +191,15 @@ export default function TenantOverviewPage() {
         </div>
       )}
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map(({ label, value }) => {
+      <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+        {stats.map(({ label, value, subtitle }) => {
           const meta = STAT_META[label];
           return (
             <StatCard
               key={label}
               label={label}
               value={value}
-              subtitle={meta?.subtitle}
+              subtitle={subtitle ?? meta?.subtitle}
               href={meta?.href ?? "/tenant"}
               icon={meta?.icon ?? Home}
               accent={meta?.accent ?? "blue"}
@@ -206,64 +208,20 @@ export default function TenantOverviewPage() {
         })}
       </div>
 
-      {paymentHistory.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="font-semibold text-navy">Payment History</p>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={paymentHistory}>
-              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
-              <XAxis dataKey="date" tick={axisTick} />
-              <YAxis tick={axisTick} />
-              <Tooltip formatter={(value) => `${Number(value).toLocaleString()} RWF`} />
-              <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
-                {paymentHistory.map((entry) => (
-                  <Cell key={entry.date} fill={STATUS_COLORS[entry.status]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-500">
-            {Object.entries(STATUS_COLORS).map(([status, color]) => (
-              <div key={status} className="flex items-center gap-1.5">
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: color }}
-                />
-                {status}
-              </div>
-            ))}
-          </div>
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="font-semibold text-navy">Quick Actions</p>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {QUICK_ACTIONS.map(({ label, href, icon: Icon }) => (
+            <Link
+              key={label}
+              href={href}
+              className="flex items-center justify-center gap-2 rounded-full border border-slate-200 px-4 py-2.5 text-sm font-medium text-navy transition-colors hover:border-gold/40 hover:bg-slate-50"
+            >
+              <Icon className="h-4 w-4 shrink-0 text-slate-500" />
+              {label}
+            </Link>
+          ))}
         </div>
-      )}
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Link
-          href="/tenant/maintenance"
-          className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:border-gold/40"
-        >
-          <div>
-            <p className="font-semibold text-navy">Submit a maintenance request</p>
-            <p className="mt-1 text-sm text-slate-500">
-              Something needs fixing? Let your landlord know.
-            </p>
-          </div>
-          <ArrowRight className="h-5 w-5 shrink-0 text-gold" />
-        </Link>
-
-        <Link
-          href="/tenant/payments"
-          className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:border-gold/40"
-        >
-          <div>
-            <p className="font-semibold text-navy">Pay rent</p>
-            <p className="mt-1 text-sm text-slate-500">
-              {nextPayment
-                ? "View your payment history or pay what's due."
-                : "View your payment history — you're all paid up."}
-            </p>
-          </div>
-          <ArrowRight className="h-5 w-5 shrink-0 text-gold" />
-        </Link>
       </div>
 
       {isPaying && nextPayment && (
@@ -275,7 +233,7 @@ export default function TenantOverviewPage() {
           <PayNowForm
             amount={nextPayment.amount}
             onCancel={() => setPaying(false)}
-            onSuccess={(method) => payNow(method)}
+            onSuccess={(values) => payNow(values)}
           />
         </Modal>
       )}

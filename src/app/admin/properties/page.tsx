@@ -24,6 +24,7 @@ import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 const APPROVAL_STYLES: Record<ApprovalStatus, string> = {
   approved: "bg-emerald-50 text-emerald-700",
@@ -208,7 +209,7 @@ export default function PropertiesPage() {
                   {capitalize(property.category)} · {capitalize(property.type)}
                 </Td>
                 <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {Number(property.rentAmount).toLocaleString()}
+                  {formatMoney(Number(property.rentAmount))}
                 </Td>
                 <Td className="hidden px-6 py-3 sm:table-cell">
                   <span

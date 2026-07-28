@@ -26,10 +26,7 @@ export default function TenantsPage() {
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
-  const pagedTenants = tenants.slice(
-    (page - 1) * DEFAULT_PAGE_SIZE,
-    page * DEFAULT_PAGE_SIZE,
-  );
+  const pagedTenants = tenants.slice((page - 1) * DEFAULT_PAGE_SIZE, page * DEFAULT_PAGE_SIZE);
 
   const verifyTenant = (id: string) => {
     setTenants((prev) =>

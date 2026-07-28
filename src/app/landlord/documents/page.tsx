@@ -41,7 +41,6 @@ export default function LandlordDocumentsPage() {
   const [propertyFilter, setPropertyFilter] = useState("All Properties");
   const [isUploading, setUploading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
 
   const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
   const propertyOptions = ["All Properties", ...myProperties.map((p) => p.name)];
@@ -65,10 +64,8 @@ export default function LandlordDocumentsPage() {
     return matchesSearch && matchesCategory && matchesProperty;
   });
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredDocuments.length / DEFAULT_PAGE_SIZE),
-  );
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filteredDocuments.length / DEFAULT_PAGE_SIZE));
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
@@ -125,7 +122,7 @@ export default function LandlordDocumentsPage() {
         </div>
       )}
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
         <SummaryCard label="Total Documents" value={counts.total} />
         <SummaryCard label="Property Documents" value={counts.property} accent="blue" />
         <SummaryCard label="Lease Agreements" value={counts.lease} accent="emerald" />
@@ -245,7 +242,7 @@ export default function LandlordDocumentsPage() {
               </Tr>
             );
           })}
-          {filteredDocuments.length === 0 && (
+          {pagedDocuments.length === 0 && (
             <EmptyRow colSpan={6}>No documents match these filters.</EmptyRow>
           )}
         </TBody>

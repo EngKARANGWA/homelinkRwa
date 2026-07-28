@@ -3,11 +3,13 @@ export function AlertBanner({
   stats,
   message,
   children,
+  className = "",
 }: {
   isAlert: boolean;
   stats: { label: string; value: string | number }[];
   message?: string;
   children?: React.ReactNode;
+  className?: string;
 }) {
   const toneText = isAlert ? "text-amber-700" : "text-emerald-700";
   const toneBorder = isAlert
@@ -16,7 +18,7 @@ export function AlertBanner({
 
   return (
     <div
-      className={`flex flex-wrap items-center gap-4 rounded-xl border p-5 shadow-sm ${toneBorder}`}
+      className={`flex flex-col gap-4 rounded-xl border p-5 shadow-sm ${toneBorder} ${className}`}
     >
       {stats.length > 0 && (
         <div className="flex flex-wrap items-center gap-8">
@@ -31,15 +33,13 @@ export function AlertBanner({
         </div>
       )}
       {message && (
-        <div
-          className={`flex-1 rounded-lg border bg-white/60 px-4 py-2.5 text-sm ${toneText} ${toneBorder}`}
+        <p
+          className={`rounded-lg border bg-white/60 px-4 py-2.5 text-sm ${toneText} ${toneBorder}`}
         >
           {message}
-        </div>
+        </p>
       )}
-      {children && (
-        <div className="ml-auto flex flex-wrap items-center gap-3">{children}</div>
-      )}
+      {children && <div className="flex flex-wrap items-center gap-3">{children}</div>}
     </div>
   );
 }

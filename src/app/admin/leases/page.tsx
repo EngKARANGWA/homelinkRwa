@@ -19,6 +19,7 @@ import { Modal } from "@/components/admin/Modal";
 import { LeaseForm } from "@/components/admin/LeaseForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 export default function LeasesPage() {
   const [leases, setLeases] = useState<Lease[]>([]);
@@ -185,7 +186,7 @@ export default function LeasesPage() {
                       {tenantName}
                     </p>
                     <p className="truncate text-xs text-slate-400 md:hidden">
-                      {property?.title ?? "—"} · {Number(lease.rentAmount).toLocaleString()} RWF
+                      {property?.title ?? "—"} · {formatMoney(Number(lease.rentAmount))} RWF
                     </p>
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
@@ -195,7 +196,7 @@ export default function LeasesPage() {
                     {userName(owners, lease.ownerId)}
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                    {Number(lease.rentAmount).toLocaleString()}
+                    {formatMoney(Number(lease.rentAmount))}
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                     {lease.startDate} → {lease.endDate ?? "Open-ended"}

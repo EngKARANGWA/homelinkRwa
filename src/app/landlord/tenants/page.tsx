@@ -11,21 +11,24 @@ import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
 
 const STATUS_STYLES: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
-  Overdue: "bg-red-50 text-red-700",
+  Overdue: "bg-amber-50 text-amber-700",
+  Arrears: "bg-red-50 text-red-700",
 };
 
 export default function LandlordTenantsPage() {
   const { landlordName, unitOverrides, addTenant } = useLandlord();
   const [search, setSearch] = useState("");
   const [propertyFilter, setPropertyFilter] = useState("All Properties");
-  const [statusFilter, setStatusFilter] = useState<"All" | "Paid" | "Overdue">("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Paid" | "Overdue" | "Arrears">(
+    "All",
+  );
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
   const [isAdding, setAdding] = useState(false);
   const [justAdded, setJustAdded] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
 
   const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
   const propertyOptions = ["All Properties", ...myProperties.map((p) => p.name)];
@@ -56,6 +59,7 @@ export default function LandlordTenantsPage() {
     return matchesSearch && matchesProperty && matchesStatus;
   });
 
+  const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(filteredTenants.length / DEFAULT_PAGE_SIZE));
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -65,7 +69,9 @@ export default function LandlordTenantsPage() {
     page * DEFAULT_PAGE_SIZE,
   );
 
-  const overdueTenants = allTenants.filter((t) => t.currentPaymentStatus === "Overdue");
+  const overdueTenants = allTenants.filter(
+    (t) => t.currentPaymentStatus === "Overdue" || t.currentPaymentStatus === "Arrears",
+  );
   const paidTenants = allTenants.filter((t) => t.currentPaymentStatus === "Paid");
   const totalMonthlyRent = allTenants.reduce((sum, t) => sum + t.monthlyRent, 0);
 
@@ -120,13 +126,13 @@ export default function LandlordTenantsPage() {
         </div>
       )}
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
         <SummaryCard label="Total Tenants" value={allTenants.length} />
         <SummaryCard label="Paid" value={paidTenants.length} accent="emerald" />
         <SummaryCard label="Overdue" value={overdueTenants.length} accent="red" />
         <SummaryCard
           label="Total Monthly Rent"
-          value={`${totalMonthlyRent.toLocaleString()} RWF`}
+          value={`${formatMoney(totalMonthlyRent)} RWF`}
         />
       </div>
 
@@ -168,6 +174,7 @@ export default function LandlordTenantsPage() {
             <option value="All">All</option>
             <option value="Paid">Paid</option>
             <option value="Overdue">Overdue</option>
+            <option value="Arrears">Arrears</option>
           </select>
         </label>
       </div>
@@ -195,7 +202,7 @@ export default function LandlordTenantsPage() {
                   {tenant.propertyName} · {tenant.unitNumber}
                 </p>
                 <p className="text-xs text-slate-400 sm:hidden">
-                  {tenant.monthlyRent.toLocaleString()} RWF
+                  {formatMoney(tenant.monthlyRent)} RWF
                 </p>
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
@@ -205,7 +212,7 @@ export default function LandlordTenantsPage() {
                 {tenant.unitNumber}
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                {tenant.monthlyRent.toLocaleString()}
+                {formatMoney(tenant.monthlyRent)}
               </Td>
               <Td className="px-4 py-3 sm:px-6">
                 <span
@@ -228,7 +235,7 @@ export default function LandlordTenantsPage() {
               </Td>
             </Tr>
           ))}
-          {filteredTenants.length === 0 && (
+          {pagedTenants.length === 0 && (
             <EmptyRow colSpan={7}>No tenants match these filters.</EmptyRow>
           )}
         </TBody>

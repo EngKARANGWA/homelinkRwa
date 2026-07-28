@@ -15,6 +15,11 @@ export function downloadCSV(
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
+  // Some browsers won't reliably fire a download from a detached element,
+  // and revoking the blob URL synchronously can race ahead of the browser
+  // actually starting the download — both silently do nothing.
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
