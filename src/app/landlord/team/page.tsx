@@ -135,7 +135,7 @@ export default function LandlordTeamPage() {
             <div className="col-span-full rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-400">
               Loading users...
             </div>
-          ) : invites.length === 0 ? (
+          ) : (invites || []).length === 0 ? (
             <div className="col-span-full rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-400">
               No users or invites found.
             </div>
