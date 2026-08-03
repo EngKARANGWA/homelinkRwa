@@ -8,7 +8,7 @@ const BOTTOM_NAV_ITEMS = [
   { label: "Dashboard", href: "/landlord", icon: LayoutDashboard },
   { label: "Properties", href: "/landlord/properties", icon: Building2 },
   { label: "Payments", href: "/landlord/payments", icon: CreditCard },
-  { label: "Tenants", href: "/landlord/tenants", icon: Users },
+  { label: "Team", href: "/landlord/team", icon: Users },
 ];
 
 export function BottomNav() {

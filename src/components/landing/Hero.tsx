@@ -48,7 +48,7 @@ export function Hero() {
             Book a Demo
             <Calendar className="h-4 w-4" />
           </Link> */}
-        </div>
+         </div>
       </div>
     </section>
   );

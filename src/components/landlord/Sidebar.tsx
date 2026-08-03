@@ -22,6 +22,7 @@ const LANDLORD_NAV_ITEMS = [
   { label: "Reports", href: "/landlord/reports", icon: BarChart3 },
   { label: "Maintenance", href: "/landlord/maintenance", icon: Wrench },
   { label: "Documents", href: "/landlord/documents", icon: FolderOpen },
+  { label: "Team", href: "/landlord/team", icon: Users },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

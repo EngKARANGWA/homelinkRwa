@@ -5,6 +5,7 @@ import {
   FileText,
   LayoutDashboard,
   Settings,
+  ShieldCheck,
   UserCircle,
   Users,
   Wrench,
@@ -19,5 +20,7 @@ export const ADMIN_NAV_ITEMS = [
   { label: "Maintenance", href: "/admin/maintenance", icon: Wrench },
   { label: "Payments", href: "/admin/payments", icon: CreditCard },
   { label: "Reports", href: "/admin/reports", icon: BarChart3 },
+  { label: "Role Management", href: "/admin/roles", icon: ShieldCheck },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
+

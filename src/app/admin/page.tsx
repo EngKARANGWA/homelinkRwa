@@ -17,7 +17,7 @@ const STAT_LINKS: Record<string, string> = {
 
 export default function AdminOverviewPage() {
   const [data, setData] = useState<AdminDashboard | null>(null);
-  const [isLoading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = () => {

@@ -55,3 +55,11 @@ export async function countPropertiesForOwner(ownerId: string): Promise<number> 
   });
   return res.meta.total;
 }
+
+export async function updateUserRole(id: string, role: Role): Promise<User> {
+  const res = await apiFetch<SuccessResponse<User>>(`/admin/users/${id}/role`, {
+    method: "PATCH",
+    body: { role },
+  });
+  return res.data;
+}
