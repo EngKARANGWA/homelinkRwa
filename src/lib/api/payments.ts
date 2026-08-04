@@ -1,15 +1,19 @@
 import { apiFetch, apiFetchBlob } from "./client";
 import type {
   Invoice,
+  InvoiceStatus,
   PaginatedResponse,
   PayInvoiceInput,
   Payment,
   PaymentReceiptUrl,
+  PaymentStatus,
   SuccessResponse,
 } from "./types";
 
 export type ListInvoicesParams = {
-  status?: string;
+  status?: InvoiceStatus;
+  period?: string;
+  leaseId?: string;
   page?: number;
   limit?: number;
 };
@@ -37,7 +41,8 @@ export async function payInvoice(
 }
 
 export type ListPaymentsParams = {
-  status?: string;
+  status?: PaymentStatus;
+  invoiceId?: string;
   page?: number;
   limit?: number;
 };
@@ -65,17 +70,17 @@ export async function approvePayment(id: string): Promise<Payment> {
 
 export async function rejectPayment(
   id: string,
-  rejectionReason?: string,
+  reason: string,
 ): Promise<Payment> {
   const res = await apiFetch<SuccessResponse<Payment>>(
     `/payments/${id}/reject`,
-    { method: "PATCH", body: rejectionReason ? { rejectionReason } : undefined },
+    { method: "PATCH", body: { reason } },
   );
   return res.data;
 }
 
 export async function exportPaymentsWorkbook(
-  params: { status?: string } = {},
+  params: { status?: PaymentStatus; invoiceId?: string } = {},
 ): Promise<void> {
   const blob = await apiFetchBlob("/payments/export", { query: params });
   const url = URL.createObjectURL(blob);

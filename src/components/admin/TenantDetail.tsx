@@ -1,12 +1,18 @@
 "use client";
 
-import { type Tenant } from "@/lib/mock-admin-data";
+import type { User } from "@/lib/api/types";
 
-const STATUS_STYLES: Record<Tenant["status"], string> = {
+const STATUS_STYLES: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700",
   Pending: "bg-amber-50 text-amber-700",
   Inactive: "bg-slate-100 text-slate-600",
 };
+
+function statusFor(user: User): "Active" | "Pending" | "Inactive" {
+  if (!user.isApproved) return "Pending";
+  if (!user.isActive) return "Inactive";
+  return "Active";
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -19,21 +25,23 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-export function TenantDetail({ tenant }: { tenant: Tenant }) {
+export function TenantDetail({ tenant }: { tenant: User }) {
+  const status = statusFor(tenant);
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-      <Field label="Name">{tenant.name}</Field>
+      <Field label="Name">
+        {tenant.firstName} {tenant.lastName}
+      </Field>
       <Field label="Status">
         <span
-          className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[tenant.status]}`}
+          className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[status]}`}
         >
-          {tenant.status}
+          {status}
         </span>
       </Field>
       <Field label="Email">{tenant.email}</Field>
-      <Field label="Phone">{tenant.phone}</Field>
-      <Field label="Current Property">{tenant.property}</Field>
-      <Field label="Registered">{tenant.registeredAt}</Field>
+      <Field label="Phone">{tenant.phone || "—"}</Field>
+      <Field label="Registered">{new Date(tenant.createdAt).toLocaleDateString()}</Field>
     </div>
   );
 }

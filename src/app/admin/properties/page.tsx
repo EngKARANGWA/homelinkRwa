@@ -9,7 +9,6 @@ import { ApiError } from "@/lib/api/client";
 import type { ApprovalStatus, CreatePropertyInput, Property, PropertyStatus, User } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
-import { CheckCircle2 } from "lucide-react";
 
 const APPROVAL_STYLES: Record<ApprovalStatus, string> = {
   approved: "bg-emerald-50 text-emerald-700",

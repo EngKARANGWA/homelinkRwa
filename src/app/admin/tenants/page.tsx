@@ -1,36 +1,63 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Eye, Plus, ShieldCheck } from "lucide-react";
-import { TENANTS, type Tenant } from "@/lib/mock-admin-data";
+import { AlertCircle, CheckCircle2, Eye, Plus, ShieldCheck } from "lucide-react";
+import { listUsers } from "@/lib/api/admin";
+import { ApiError } from "@/lib/api/client";
+import type { User } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
 import { TenantForm } from "@/components/admin/TenantForm";
 import { TenantDetail } from "@/components/admin/TenantDetail";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 
-const STATUS_STYLES: Record<Tenant["status"], string> = {
+const STATUS_STYLES: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700",
   Pending: "bg-amber-50 text-amber-700",
   Inactive: "bg-slate-100 text-slate-600",
 };
 
+function statusFor(user: User): "Active" | "Pending" | "Inactive" {
+  if (!user.isApproved) return "Pending";
+  if (!user.isActive) return "Inactive";
+  return "Active";
+}
+
 export default function TenantsPage() {
-  const [tenants, setTenants] = useState(TENANTS);
+  const [tenants, setTenants] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
-  const [viewingTenant, setViewingTenant] = useState<Tenant | null>(null);
+  const [viewingTenant, setViewingTenant] = useState<User | null>(null);
   const [page, setPage] = useState(1);
 
-  const totalPages = Math.max(1, Math.ceil(tenants.length / DEFAULT_PAGE_SIZE));
+  const loadTenants = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await listUsers({ role: "tenant", page, limit: DEFAULT_PAGE_SIZE });
+      setTenants(res.data);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to load tenants.");
+      console.error("Failed to load tenants:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
-  const pagedTenants = tenants.slice((page - 1) * DEFAULT_PAGE_SIZE, page * DEFAULT_PAGE_SIZE);
+    loadTenants();
+  }, [page]);
+
+  const totalPages = 1; // Pagination would come from API response
 
   const verifyTenant = (id: string) => {
+    // This would typically call an API endpoint to verify/approve a tenant
     setTenants((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: "Active" } : t)),
+      prev.map((t) =>
+        t.id === id ? { ...t, isApproved: true } : t,
+      ),
     );
   };
 
@@ -53,6 +80,22 @@ export default function TenantsPage() {
         </button>
       </div>
 
+      {error && (
+        <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 text-red-600 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-red-700">{error}</p>
+            <button
+              type="button"
+              onClick={loadTenants}
+              className="mt-2 text-sm font-medium text-red-600 hover:text-red-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
       {justAdded && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
           <CheckCircle2 className="h-4 w-4" />
@@ -60,83 +103,96 @@ export default function TenantsPage() {
         </div>
       )}
 
-      <Table variant="standalone">
-        <THead>
-          <Tr>
-            <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Name</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">Email</Th>
-            <Th className="hidden px-6 py-3 lg:table-cell">Phone</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">Current Property</Th>
-            <Th className="px-4 py-3 sm:px-6">Status</Th>
-            <Th className="hidden px-6 py-3 lg:table-cell">Registered</Th>
-            <Th className="px-4 py-3 sm:px-6">Actions</Th>
-          </Tr>
-        </THead>
-        <TBody>
-          {pagedTenants.map((tenant) => (
-            <Tr key={tenant.id}>
-              <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
-                <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                  {tenant.name}
-                </p>
-                <p className="truncate text-xs text-slate-400 md:hidden">
-                  {tenant.email}
-                </p>
-              </Td>
-              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                {tenant.email}
-              </Td>
-              <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                {tenant.phone}
-              </Td>
-              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                {tenant.property}
-              </Td>
-              <Td className="px-4 py-3 sm:px-6">
-                <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[tenant.status]}`}
-                >
-                  {tenant.status}
-                </span>
-              </Td>
-              <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                {tenant.registeredAt}
-              </Td>
-              <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setViewingTenant(tenant)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    View
-                  </button>
-                  {tenant.status === "Pending" && (
-                    <button
-                      type="button"
-                      onClick={() => verifyTenant(tenant.id)}
-                      aria-label={`Verify ${tenant.name}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-gold" />
+            <p className="mt-2 text-sm text-slate-500">Loading tenants...</p>
+          </div>
+        </div>
+      ) : tenants.length === 0 ? (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-6 py-8 text-center">
+          <ShieldCheck className="mx-auto h-8 w-8 text-slate-400" />
+          <p className="mt-2 text-sm font-medium text-slate-600">No tenants yet</p>
+          <p className="text-xs text-slate-500">Registered tenants will appear here.</p>
+        </div>
+      ) : (
+        <>
+          <Table variant="standalone">
+            <THead>
+              <Tr>
+                <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Name</Th>
+                <Th className="hidden px-6 py-3 md:table-cell">Email</Th>
+                <Th className="hidden px-6 py-3 lg:table-cell">Phone</Th>
+                <Th className="px-4 py-3 sm:px-6">Status</Th>
+                <Th className="hidden px-6 py-3 lg:table-cell">Registered</Th>
+                <Th className="px-4 py-3 sm:px-6">Actions</Th>
+              </Tr>
+            </THead>
+            <TBody>
+              {tenants.map((tenant) => (
+                <Tr key={tenant.id}>
+                  <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                    <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                      {`${tenant.firstName} ${tenant.lastName}`}
+                    </p>
+                    <p className="truncate text-xs text-slate-400 md:hidden">
+                      {tenant.email}
+                    </p>
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                    {tenant.email}
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                    {tenant.phone || "—"}
+                  </Td>
+                  <Td className="px-4 py-3 sm:px-6">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[statusFor(tenant)]}`}
                     >
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Verify</span>
-                    </button>
-                  )}
-                </div>
-              </Td>
-            </Tr>
-          ))}
-        </TBody>
-      </Table>
+                      {statusFor(tenant)}
+                    </span>
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                    {new Date(tenant.createdAt).toLocaleDateString()}
+                  </Td>
+                  <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setViewingTenant(tenant)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </button>
+                      {!tenant.isApproved && (
+                        <button
+                          type="button"
+                          onClick={() => verifyTenant(tenant.id)}
+                          aria-label={`Verify ${tenant.firstName} ${tenant.lastName}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Verify</span>
+                        </button>
+                      )}
+                    </div>
+                  </Td>
+                </Tr>
+              ))}
+            </TBody>
+          </Table>
 
-      <Pagination
-        page={page}
-        totalPages={totalPages}
-        totalItems={tenants.length}
-        pageSize={DEFAULT_PAGE_SIZE}
-        onPageChange={setPage}
-      />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={tenants.length}
+            pageSize={DEFAULT_PAGE_SIZE}
+            onPageChange={setPage}
+          />
+        </>
+      )}
 
       {isModalOpen && (
         <Modal
@@ -149,6 +205,8 @@ export default function TenantsPage() {
             onSuccess={() => {
               setModalOpen(false);
               setJustAdded(true);
+              setTimeout(() => setJustAdded(false), 5000);
+              loadTenants();
             }}
           />
         </Modal>
@@ -157,7 +215,7 @@ export default function TenantsPage() {
       {viewingTenant && (
         <Modal
           title="Tenant Details"
-          description={viewingTenant.name}
+          description={`${viewingTenant.firstName} ${viewingTenant.lastName}`}
           onClose={() => setViewingTenant(null)}
         >
           <TenantDetail tenant={viewingTenant} />

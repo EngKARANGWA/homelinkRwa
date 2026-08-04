@@ -9,12 +9,11 @@ import {
   CheckCircle2,
   Download,
   Eye,
-  Plus,
   Wallet,
   X,
 } from "lucide-react";
-import { listUsers } from "@/lib/api/admin";
 import { listProperties } from "@/lib/api/properties";
+import { listLeases } from "@/lib/api/leases";
 import {
   approvePayment,
   exportPaymentsWorkbook,
@@ -27,10 +26,10 @@ import { ApiError } from "@/lib/api/client";
 import type {
   Invoice,
   InvoiceStatus,
+  Lease,
   Payment,
   PaymentStatus,
   Property,
-  User,
 } from "@/lib/api/types";
 import {
   formatStatusLabel,
@@ -43,8 +42,6 @@ import { AlertBanner } from "@/components/dashboard/AlertBanner";
 import { Card } from "@/components/dashboard/Card";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
-import { Modal } from "@/components/admin/Modal";
-import { RecordPaymentForm } from "@/components/landlord/RecordPaymentForm";
 import { formatMoney } from "@/lib/money";
 
 type RowStatus = InvoiceStatus | PaymentStatus;
@@ -56,18 +53,16 @@ const STATUS_STYLES: Record<RowStatus, string> = {
 
 const STATUS_PRIORITY: Record<RowStatus, number> = {
   overdue: 0,
-  pending_approval: 1,
-  pending: 2,
-  successful: 3,
+  pending: 1,
+  unpaid: 2,
+  success: 3,
   paid: 3,
-  rejected: 4,
   failed: 4,
-  cancelled: 5,
 };
 
-const TABS: { key: "All" | "pending_approval" | "overdue"; label: string }[] = [
+const TABS: { key: "All" | "pending" | "overdue"; label: string }[] = [
   { key: "All", label: "All" },
-  { key: "pending_approval", label: "Pending Approval" },
+  { key: "pending", label: "Pending Approval" },
   { key: "overdue", label: "Overdue" },
 ];
 
@@ -87,24 +82,36 @@ export default function LandlordPaymentsPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
-  const [tenants, setTenants] = useState<User[]>([]);
+  const [leases, setLeases] = useState<Lease[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [isRecordingPayment, setRecordingPayment] = useState(false);
   const [propertyFilter, setPropertyFilter] = useState("All Properties");
   const [statusFilter, setStatusFilter] = useState<"All" | RowStatus>("All");
   const [methodFilter, setMethodFilter] = useState<"All" | Payment["method"]>("All");
   const [page, setPage] = useState(1);
 
-  const propertyFor = (id: string) => properties.find((p) => p.id === id);
-  const tenantName = (id: string) => {
-    const tenant = tenants.find((t) => t.id === id);
-    return tenant ? `${tenant.firstName} ${tenant.lastName}` : "—";
-  };
+  const leaseById = new Map(leases.map((l) => [l.id, l]));
+  const invoiceById = new Map(invoices.map((i) => [i.id, i]));
+  const propertyById = new Map(properties.map((p) => [p.id, p]));
+  const tenantName = (id: string) => `Tenant ${id.slice(0, 8).toUpperCase()}`;
   const propertyOptions = ["All Properties", ...properties.map((p) => p.title)];
+
+  const leaseForInvoice = (invoice: Invoice) => leaseById.get(invoice.leaseId);
+  const leaseForPayment = (payment: Payment) => {
+    const invoice = invoiceById.get(payment.invoiceId);
+    return invoice ? leaseById.get(invoice.leaseId) : undefined;
+  };
+  const propertyForInvoice = (invoice: Invoice) => {
+    const lease = leaseForInvoice(invoice);
+    return lease ? propertyById.get(lease.propertyId) : undefined;
+  };
+  const propertyForPayment = (payment: Payment) => {
+    const lease = leaseForPayment(payment);
+    return lease ? propertyById.get(lease.propertyId) : undefined;
+  };
 
   const load = () => {
     if (!user) return;
@@ -114,13 +121,13 @@ export default function LandlordPaymentsPage() {
       listInvoices({ limit: 100 }),
       listPayments({ page, limit: DEFAULT_PAGE_SIZE }),
       listProperties({ ownerId: user.id, limit: 100 }),
-      listUsers({ role: "tenant", limit: 100 }),
+      listLeases({ limit: 100 }),
     ])
-      .then(([invoicesRes, paymentsRes, propertiesRes, tenantsRes]) => {
+      .then(([invoicesRes, paymentsRes, propertiesRes, leasesRes]) => {
         setInvoices(invoicesRes.data);
         setPayments(paymentsRes.data);
         setProperties(propertiesRes.data);
-        setTenants(tenantsRes.data);
+        setLeases(leasesRes.data);
       })
       .catch((err) =>
         setError(err instanceof ApiError ? err.message : "Failed to load payments."),
@@ -132,21 +139,21 @@ export default function LandlordPaymentsPage() {
 
   const overdueInvoices = invoices.filter((inv) => inv.status === "overdue");
   const totalInArrears = overdueInvoices.reduce(
-    (sum, inv) => sum + Number(inv.amount),
+    (sum, inv) => sum + Number(inv.amountDue),
     0,
   );
 
   const collected = payments
-    .filter((p) => p.status === "successful")
+    .filter((p) => p.status === "success")
     .reduce((sum, p) => sum + Number(p.amount), 0);
   const outstanding = invoices
-    .filter((inv) => inv.status === "pending" || inv.status === "overdue")
-    .reduce((sum, inv) => sum + Number(inv.amount), 0);
+    .filter((inv) => inv.status === "unpaid" || inv.status === "overdue")
+    .reduce((sum, inv) => sum + Number(inv.amountDue), 0);
 
   const propertyFilteredOverdueInvoices = overdueInvoices.filter(
     (inv) =>
       propertyFilter === "All Properties" ||
-      propertyFor(inv.propertyId)?.title === propertyFilter,
+      propertyForInvoice(inv)?.title === propertyFilter,
   );
   const filteredOverdueInvoices =
     methodFilter === "All" && (statusFilter === "All" || statusFilter === "overdue")
@@ -156,7 +163,7 @@ export default function LandlordPaymentsPage() {
   const propertyMethodFilteredPayments = payments.filter((p) => {
     const matchesProperty =
       propertyFilter === "All Properties" ||
-      propertyFor(p.propertyId)?.title === propertyFilter;
+      propertyForPayment(p)?.title === propertyFilter;
     const matchesMethod = methodFilter === "All" || p.method === methodFilter;
     return matchesProperty && matchesMethod;
   });
@@ -166,9 +173,8 @@ export default function LandlordPaymentsPage() {
 
   const tabCounts: Record<(typeof TABS)[number]["key"], number> = {
     All: propertyMethodFilteredPayments.length + propertyFilteredOverdueInvoices.length,
-    pending_approval: propertyMethodFilteredPayments.filter(
-      (p) => p.status === "pending_approval",
-    ).length,
+    pending: propertyMethodFilteredPayments.filter((p) => p.approvalStatus === "pending")
+      .length,
     overdue: propertyFilteredOverdueInvoices.length,
   };
 
@@ -176,9 +182,9 @@ export default function LandlordPaymentsPage() {
     ...filteredOverdueInvoices.map(
       (invoice): PaymentRow => ({
         id: `invoice-${invoice.id}`,
-        tenant: tenantName(invoice.tenantId),
-        property: propertyFor(invoice.propertyId)?.title ?? "—",
-        amount: Number(invoice.amount),
+        tenant: tenantName(leaseForInvoice(invoice)?.tenantId ?? "—"),
+        property: propertyForInvoice(invoice)?.title ?? "—",
+        amount: Number(invoice.amountDue),
         method: "—",
         date: invoice.dueDate,
         status: invoice.status,
@@ -189,7 +195,7 @@ export default function LandlordPaymentsPage() {
       (payment): PaymentRow => ({
         id: `payment-${payment.id}`,
         tenant: tenantName(payment.tenantId),
-        property: propertyFor(payment.propertyId)?.title ?? "—",
+        property: propertyForPayment(payment)?.title ?? "—",
         amount: Number(payment.amount),
         method: formatStatusLabel(payment.method),
         date: payment.paidAt ?? "—",
@@ -206,13 +212,18 @@ export default function LandlordPaymentsPage() {
   const pagedRows = rows.slice((page - 1) * DEFAULT_PAGE_SIZE, page * DEFAULT_PAGE_SIZE);
 
   const resolvePayment = async (paymentId: string, approve: boolean) => {
+    let reason = "";
+    if (!approve) {
+      reason = window.prompt("Reason for rejecting this payment:")?.trim() ?? "";
+      if (!reason) return;
+    }
     setActionError(null);
     setProcessingId(paymentId);
     try {
       if (approve) {
         await approvePayment(paymentId);
       } else {
-        await rejectPayment(paymentId);
+        await rejectPayment(paymentId, reason);
       }
       setNotice(approve ? "Payment approved." : "Payment rejected.");
       load();
@@ -252,18 +263,6 @@ export default function LandlordPaymentsPage() {
     }
   };
 
-  const handleRecordPayment = (values: {
-    propertyId: string;
-    tenantName: string;
-    amount: number;
-    paidDate: string;
-  }) => {
-    setRecordingPayment(false);
-    setNotice(
-      `Noted: ${formatMoney(values.amount)} RWF cash payment from ${values.tenantName} on ${values.paidDate}. This isn't submitted to the platform yet — recording landlord-side cash payments isn't supported by the backend.`,
-    );
-  };
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -281,14 +280,6 @@ export default function LandlordPaymentsPage() {
           >
             <Download className="h-4 w-4" />
             Export Excel
-          </button>
-          <button
-            type="button"
-            onClick={() => setRecordingPayment(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" />
-            Record Payment (Cash)
           </button>
         </div>
       </div>
@@ -379,9 +370,8 @@ export default function LandlordPaymentsPage() {
             >
               <option value="All">All</option>
               <option value="overdue">Overdue</option>
-              <option value="successful">Successful</option>
-              <option value="pending_approval">Pending Approval</option>
-              <option value="rejected">Rejected</option>
+              <option value="success">Successful</option>
+              <option value="pending">Pending Approval</option>
               <option value="failed">Failed</option>
             </select>
           </label>
@@ -497,7 +487,7 @@ export default function LandlordPaymentsPage() {
                           const payment = row.actions.payment;
                           return (
                             <div className="flex flex-wrap items-center gap-2">
-                              {payment.status === "successful" && (
+                              {payment.status === "success" && (
                                 <button
                                   type="button"
                                   onClick={() => viewReceipt(payment)}
@@ -507,7 +497,7 @@ export default function LandlordPaymentsPage() {
                                   Receipt
                                 </button>
                               )}
-                              {payment.status === "pending_approval" && (
+                              {payment.approvalStatus === "pending" && (
                                 <>
                                   <button
                                     type="button"
@@ -547,20 +537,6 @@ export default function LandlordPaymentsPage() {
           onPageChange={setPage}
         />
       </Card>
-
-      {isRecordingPayment && (
-        <Modal
-          title="Record Payment (Cash)"
-          description="Note a cash payment you've received from a tenant."
-          onClose={() => setRecordingPayment(false)}
-        >
-          <RecordPaymentForm
-            properties={properties}
-            onSuccess={handleRecordPayment}
-            onCancel={() => setRecordingPayment(false)}
-          />
-        </Modal>
-      )}
     </div>
   );
 }

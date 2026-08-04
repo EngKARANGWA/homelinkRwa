@@ -219,8 +219,8 @@ export default function LeasesPage() {
                         View
                       </button>
 
-                      {(lease.status === "renewal_requested" ||
-                        lease.status === "termination_requested") && (
+                      {(lease.status === "pending_renewal" ||
+                        lease.status === "pending_termination") && (
                         <>
                           <button
                             type="button"

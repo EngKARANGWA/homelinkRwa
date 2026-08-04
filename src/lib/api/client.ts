@@ -114,3 +114,53 @@ export async function apiFetch<T>(
 
   return json;
 }
+
+export async function apiFetchBlob(
+  path: string,
+  options: ApiFetchOptions = {},
+): Promise<Blob> {
+  const { method = "GET", body, query, auth = true } = options;
+
+  const doFetch = async (): Promise<Response> => {
+    const headers: Record<string, string> = {};
+    const formData = isFormData(body);
+    if (!formData) headers["Content-Type"] = "application/json";
+    if (auth) {
+      const token = getAccessToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+    }
+    return fetch(buildUrl(path, query), {
+      method,
+      headers,
+      body:
+        body === undefined ? undefined : formData ? body : JSON.stringify(body),
+    });
+  };
+
+  let res = await doFetch();
+
+  if (res.status === 401 && auth) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      res = await doFetch();
+    } else {
+      clearTokens();
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+      throw new ApiError(401, "Session expired. Please log in again.");
+    }
+  }
+
+  if (!res.ok) {
+    const json = await res.json().catch(() => null);
+    const errBody = json as ApiErrorBody | null;
+    throw new ApiError(
+      res.status,
+      errBody?.message ?? "Something went wrong. Please try again.",
+      errBody?.errors,
+    );
+  }
+
+  return res.blob();
+}

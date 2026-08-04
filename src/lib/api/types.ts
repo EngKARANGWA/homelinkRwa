@@ -98,6 +98,26 @@ export type CreatePropertyInput = {
   rentConditions?: string;
   ownerId?: string;
 };
+
+export type UpdatePropertyInput = {
+  title?: string;
+  description?: string;
+  type?: PropertyType;
+  category?: PropertyCategory;
+  sizeSqm?: number;
+  unitsCount?: number;
+  addressLine?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  rentAmount?: number;
+  rentConditions?: string;
+  ownerId?: string;
+};
+
 export type PropertyStatus = "available" | "occupied";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 
@@ -130,24 +150,183 @@ export type Property = {
   updatedAt: string;
 };
 
+export type PropertyUnit = {
+  id: string;
+  propertyId: string;
+  label: string;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  rentAmount: string;
+  status: PropertyStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateUnitInput = {
+  label: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  rentAmount: number;
+};
+
+export type LeaseStatus =
+  | "draft"
+  | "pending_signatures"
+  | "active"
+  | "pending_renewal"
+  | "pending_termination"
+  | "terminated"
+  | "expired";
+
+export type Lease = {
+  id: string;
+  propertyId: string;
+  unitId: string;
+  tenantId: string;
+  ownerId: string;
+  startDate: string;
+  endDate: string | null;
+  paymentDate: string | null;
+  rentAmount: number;
+  deposit: number | null;
+  status: LeaseStatus;
+  documentUrl: string | null;
+  documentsConfirmed: boolean;
+  tenantSignedAt: string | null;
+  ownerSignedAt: string | null;
+  terminatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type CreateLeaseInput = {
   propertyId: string;
+  unitId: string;
   tenantId: string;
   startDate: string;
   endDate?: string;
   paymentDate?: string;
   rentAmount: number;
+  deposit?: number;
 };
+
+export type LeaseChangeRequest = {
+  id: string;
+  leaseId: string;
+  type: "renewal" | "termination";
+  reason?: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LeaseDocumentUrl = {
+  url: string;
+  expiresAt?: string;
+};
+
+export type LeaseDocument = {
+  id: string;
+  leaseId: string;
+  url: string;
+  documentType: string;
+  uploadedAt: string;
+};
+
+export type MoveRequest = {
+  id: string;
+  leaseId: string;
+  requestDate: string;
+  proposedMoveDate: string;
+  status: "pending" | "approved" | "rejected";
+  reason?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateMoveRequestInput = {
+  leaseId: string;
+  proposedMoveDate: string;
+  reason?: string;
+};
+
+export type InspectMoveRequestInput = {
+  moveRequestId: string;
+  inspectionDate: string;
+  notes?: string;
+};
+
+export type UpdateMoveRequestChecklistInput = {
+  moveRequestId: string;
+  items: { description: string; checked: boolean }[];
+};
+
 export type CreateMaintenanceRequestInput = {
   propertyId: string;
   title: string;
   description: string;
 };
 
+export type InvoiceStatus = "unpaid" | "paid" | "overdue";
+
+export type Invoice = {
+  id: string;
+  invoiceNumber: string;
+  leaseId: string;
+  period: string;
+  amountDue: number;
+  dueDate: string;
+  status: InvoiceStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type PaymentMethod = "mobile_money" | "bank_transfer" | "cash";
+export type PaymentCarrier = "mtn" | "airtel";
+
+export type PaymentStatus = "pending" | "success" | "failed";
+export type PaymentApprovalStatus = "not_required" | "pending" | "approved" | "rejected";
+
+export type Payment = {
+  id: string;
+  paymentNumber: string;
+  invoiceId: string;
+  tenantId: string;
+  amount: number;
+  method: PaymentMethod;
+  provider: string;
+  providerReference: string;
+  status: PaymentStatus;
+  approvalStatus: PaymentApprovalStatus;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  failureReason: string | null;
+  receiptUrl: string | null;
+  paidAt: string | null;
+  createdAt: string;
+};
+
+export type PaymentReceiptUrl = {
+  url: string;
+  expiresAt?: string;
+};
+
+export type OwnerDashboard = {
+  revenue: { thisMonth: number; thisYear: number };
+  outstandingRent: number;
+  occupancy: {
+    totalProperties: number;
+    occupiedProperties: number;
+    vacantUnits: number;
+    occupancyRatePercent: number;
+  };
+  maintenanceExpenses: { thisMonth: number; thisYear: number };
+  netProfit: { thisMonth: number; thisYear: number };
+};
 
 export type PayInvoiceInput = {
   method: PaymentMethod;
+  carrier?: PaymentCarrier;
   payerPhone?: string;
   payerAccount?: string;
 };

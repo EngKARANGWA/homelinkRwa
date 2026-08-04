@@ -1,9 +1,12 @@
 import { apiFetch } from "./client";
 import type {
   CreatePropertyInput,
+  CreateUnitInput,
   PaginatedResponse,
   Property,
+  PropertyUnit,
   SuccessResponse,
+  UpdatePropertyInput,
 } from "./types";
 
 export type ListPropertiesParams = {
@@ -38,6 +41,18 @@ export async function createProperty(
   });
   return res.data;
 }
+
+export async function updateProperty(
+  id: string,
+  input: UpdatePropertyInput,
+): Promise<Property> {
+  const res = await apiFetch<SuccessResponse<Property>>(`/properties/${id}`, {
+    method: "PUT",
+    body: input,
+  });
+  return res.data;
+}
+
 export async function approveProperty(id: string): Promise<Property> {
   const res = await apiFetch<SuccessResponse<Property>>(
     `/properties/${id}/approve`,
@@ -53,6 +68,24 @@ export async function rejectProperty(
   const res = await apiFetch<SuccessResponse<Property>>(
     `/properties/${id}/reject`,
     { method: "PATCH", body: { rejectionReason } },
+  );
+  return res.data;
+}
+
+export async function listUnits(propertyId: string): Promise<PropertyUnit[]> {
+  const res = await apiFetch<SuccessResponse<PropertyUnit[]>>(
+    `/properties/${propertyId}/units`,
+  );
+  return res.data;
+}
+
+export async function createUnit(
+  propertyId: string,
+  input: CreateUnitInput,
+): Promise<PropertyUnit> {
+  const res = await apiFetch<SuccessResponse<PropertyUnit>>(
+    `/properties/${propertyId}/units`,
+    { method: "POST", body: input },
   );
   return res.data;
 }

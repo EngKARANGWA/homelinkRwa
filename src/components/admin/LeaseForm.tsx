@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import type { CreateLeaseInput, Property, User } from "@/lib/api/types";
+import { useEffect, useState } from "react";
+import { listUnits } from "@/lib/api/properties";
+import type { CreateLeaseInput, Property, PropertyUnit, User } from "@/lib/api/types";
 
 export function LeaseForm({
   properties,
@@ -15,6 +16,8 @@ export function LeaseForm({
   onCancel: () => void;
 }) {
   const [propertyId, setPropertyId] = useState(properties[0]?.id ?? "");
+  const [units, setUnits] = useState<PropertyUnit[]>([]);
+  const [unitId, setUnitId] = useState("");
   const [tenantId, setTenantId] = useState(tenants[0]?.id ?? "");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -22,17 +25,31 @@ export function LeaseForm({
   const [rentAmount, setRentAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!propertyId) {
+      setUnits([]);
+      setUnitId("");
+      return;
+    }
+    listUnits(propertyId).then((allUnits) => {
+      const available = allUnits.filter((u) => u.status === "available");
+      setUnits(available);
+      setUnitId(available[0]?.id ?? "");
+    });
+  }, [propertyId]);
+
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (!propertyId || !tenantId || !startDate || !rentAmount.trim()) {
-          setError("Please fill in the property, tenant, start date, and rent.");
+        if (!propertyId || !unitId || !tenantId || !startDate || !rentAmount.trim()) {
+          setError("Please fill in the property, unit, tenant, start date, and rent.");
           return;
         }
         setError(null);
         onSuccess({
           propertyId,
+          unitId,
           tenantId,
           startDate,
           endDate: endDate || undefined,
@@ -60,6 +77,25 @@ export function LeaseForm({
                 {property.title}
               </option>
             ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
+          Unit
+          <select
+            value={unitId}
+            onChange={(e) => setUnitId(e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+          >
+            {units.length === 0 ? (
+              <option value="">No available units</option>
+            ) : (
+              units.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.label}
+                </option>
+              ))
+            )}
           </select>
         </label>
 

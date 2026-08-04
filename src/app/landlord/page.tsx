@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  AlertCircle,
   ArrowRight,
   Bell,
   Building2,
   CheckCircle2,
-  Eye,
   FileText,
   Wallet,
   Wrench,
@@ -21,16 +21,21 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  LEASES,
-  MAINTENANCE_REQUESTS,
-  PAYMENTS,
-  PROPERTIES,
-  TODAY,
-  type Payment,
-} from "@/lib/mock-admin-data";
-import { useLandlord } from "@/components/landlord/LandlordContext";
-import { getUnitsForProperty, type Unit } from "@/lib/units";
+import { useAuth } from "@/components/auth/AuthContext";
+import { getOwnerDashboard } from "@/lib/api/dashboard";
+import { listProperties, listUnits } from "@/lib/api/properties";
+import { listLeases } from "@/lib/api/leases";
+import { listInvoices, listPayments } from "@/lib/api/payments";
+import { listMaintenanceRequests } from "@/lib/api/maintenance";
+import { ApiError } from "@/lib/api/client";
+import type {
+  Invoice,
+  Lease,
+  OwnerDashboard,
+  Payment,
+  Property,
+  PropertyUnit,
+} from "@/lib/api/types";
 import {
   CHART_COLORS,
   CHART_GRID_COLOR,
@@ -41,24 +46,16 @@ import { AlertBanner } from "@/components/dashboard/AlertBanner";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { formatMoney } from "@/lib/money";
 
-type TransactionRowStatus = Payment["status"] | "Overdue" | "Arrears";
+type TransactionRowStatus = "Overdue" | "Pending Approval";
 
 const TRANSACTION_STATUS_STYLES: Record<TransactionRowStatus, string> = {
-  Paid: "bg-emerald-50 text-emerald-700",
-  Late: "bg-red-50 text-red-700",
-  Pending: "bg-amber-50 text-amber-700",
+  Overdue: "bg-red-50 text-red-700",
   "Pending Approval": "bg-sky-50 text-sky-700",
-  Overdue: "bg-amber-50 text-amber-700",
-  Arrears: "bg-red-50 text-red-700",
 };
 
 const TRANSACTION_STATUS_PRIORITY: Record<TransactionRowStatus, number> = {
-  Arrears: 0,
-  Overdue: 1,
-  Late: 2,
-  "Pending Approval": 3,
-  Pending: 4,
-  Paid: 5,
+  Overdue: 0,
+  "Pending Approval": 1,
 };
 
 type TransactionRow = {
@@ -70,31 +67,12 @@ type TransactionRow = {
   method: string;
   dueDate: string;
   status: TransactionRowStatus;
-  actions: { type: "unit"; propertyId: string; unitId: string } | { type: "payment" };
 };
 
-function daysBetween(from: string, to: string): number {
-  const ms = new Date(to).getTime() - new Date(from).getTime();
-  return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
-}
-
-function arrearsPeriodLabel(unit: Unit): string {
-  const paidEntries = unit.paymentHistory.filter((p) => p.status === "Paid" && p.paidDate);
-  if (paidEntries.length === 0) return "No payments on file";
-  const last = paidEntries[paidEntries.length - 1];
-  const days = daysBetween(last.paidDate as string, TODAY);
-  const period = days < 60 ? `${days} days` : `${Math.round(days / 30)} months`;
-  return `${period} overdue`;
-}
-
-const TRANSACTION_TABS: {
-  key: "All" | "Pending Approval" | "Overdue" | "Arrears";
-  label: string;
-}[] = [
+const TRANSACTION_TABS: { key: "All" | TransactionRowStatus; label: string }[] = [
   { key: "All", label: "All" },
   { key: "Pending Approval", label: "Pending Approval" },
   { key: "Overdue", label: "Overdue" },
-  { key: "Arrears", label: "Arrears" },
 ];
 
 const STAT_META: Record<
@@ -139,57 +117,70 @@ function formatMonth(month: string): string {
 }
 
 export default function LandlordOverviewPage() {
-  const { landlordName, unitOverrides } = useLandlord();
+  const { user } = useAuth();
+  const [dashboard, setDashboard] = useState<OwnerDashboard | null>(null);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [leases, setLeases] = useState<Lease[]>([]);
+  const [units, setUnits] = useState<PropertyUnit[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [pendingMaintenanceCount, setPendingMaintenanceCount] = useState(0);
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"All" | TransactionRowStatus>("All");
 
-  const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
-  const myPropertyNames = myProperties.map((p) => p.name);
-  const myLeases = LEASES.filter((l) => l.owner === landlordName);
-  const myMaintenance = MAINTENANCE_REQUESTS.filter((m) =>
-    myPropertyNames.includes(m.property),
-  );
-  const myPayments = PAYMENTS.filter((p) => p.owner === landlordName);
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      getOwnerDashboard(),
+      listProperties({ ownerId: user.id, limit: 100 }),
+      listLeases({ status: "active", limit: 100 }),
+      listInvoices({ limit: 100 }),
+      listPayments({ limit: 100 }),
+      listMaintenanceRequests({ limit: 100 }),
+    ])
+      .then(async ([dash, propertiesRes, leasesRes, invoicesRes, paymentsRes, maintenanceRes]) => {
+        setDashboard(dash);
+        setProperties(propertiesRes.data);
+        setLeases(leasesRes.data);
+        setInvoices(invoicesRes.data);
+        setPayments(paymentsRes.data);
+        setPendingMaintenanceCount(
+          maintenanceRes.data.filter((m) => m.status !== "completed").length,
+        );
+        const unitsByProperty = await Promise.all(
+          propertiesRes.data.map((p) => listUnits(p.id)),
+        );
+        setUnits(unitsByProperty.flat());
+      })
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : "Failed to load your dashboard."),
+      )
+      .finally(() => setLoading(false));
+  }, [user]);
 
-  const allTenantUnits = myProperties.flatMap((property) =>
-    getUnitsForProperty(property, unitOverrides).filter(
-      (u) => u.occupancyStatus === "Occupied",
-    ),
-  );
+  const leaseById = new Map(leases.map((l) => [l.id, l]));
+  const propertyById = new Map(properties.map((p) => [p.id, p]));
+  const unitById = new Map(units.map((u) => [u.id, u]));
+  const tenantLabel = (id: string) => `Tenant ${id.slice(0, 8).toUpperCase()}`;
 
-  const overdueTenantUnits = allTenantUnits.filter(
-    (u) => u.currentPaymentStatus === "Overdue" || u.currentPaymentStatus === "Arrears",
-  );
-  const overdueOnlyUnits = allTenantUnits.filter((u) => u.currentPaymentStatus === "Overdue");
-  const arrearsOnlyUnits = allTenantUnits.filter((u) => u.currentPaymentStatus === "Arrears");
-  const arrearsBalance = overdueTenantUnits.reduce((sum, u) => sum + u.monthlyRent, 0);
-  const overdueOnlyBalance = overdueOnlyUnits.reduce((sum, u) => sum + u.monthlyRent, 0);
-  const arrearsOnlyBalance = arrearsOnlyUnits.reduce((sum, u) => sum + u.monthlyRent, 0);
+  const overdueInvoices = invoices.filter((inv) => inv.status === "overdue");
+  const pendingApprovalPayments = payments.filter((p) => p.approvalStatus === "pending");
 
-  const pendingApprovalPayments = myPayments.filter((p) => p.status === "Pending Approval");
-  const pendingApprovalBalance = pendingApprovalPayments.reduce(
-    (sum, p) => sum + p.amount,
-    0,
+  const overdueTenantIds = new Set(
+    overdueInvoices
+      .map((inv) => leaseById.get(inv.leaseId)?.tenantId)
+      .filter((id): id is string => Boolean(id)),
   );
+  const pendingApprovalTenantIds = new Set(pendingApprovalPayments.map((p) => p.tenantId));
 
-  let balanceDue: number;
-  let outstandingTenants: number;
-  if (statusFilter === "Arrears") {
-    balanceDue = arrearsOnlyBalance;
-    outstandingTenants = arrearsOnlyUnits.length;
-  } else if (statusFilter === "Overdue") {
-    balanceDue = overdueOnlyBalance;
-    outstandingTenants = overdueOnlyUnits.length;
-  } else if (statusFilter === "Pending Approval") {
-    balanceDue = pendingApprovalBalance;
-    outstandingTenants = new Set(pendingApprovalPayments.map((p) => p.tenant)).size;
-  } else {
-    balanceDue = arrearsBalance + pendingApprovalBalance;
-    outstandingTenants = new Set([
-      ...overdueTenantUnits.map((u) => u.tenant),
-      ...pendingApprovalPayments.map((p) => p.tenant),
-    ]).size;
-  }
+  const balanceDue =
+    (dashboard?.outstandingRent ?? 0) +
+    pendingApprovalPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const outstandingTenants = new Set([...overdueTenantIds, ...pendingApprovalTenantIds]).size;
 
   const handleSendReminder = () => {
     setReminderNotice(
@@ -200,33 +191,23 @@ export default function LandlordOverviewPage() {
   };
 
   const stats = [
-    { label: "My Properties", value: myProperties.length },
-    {
-      label: "Active Leases",
-      value: myLeases.filter((l) => l.status === "Active").length,
-    },
-    {
-      label: "Pending Maintenance",
-      value: myMaintenance.filter((m) => m.status !== "Completed").length,
-    },
+    { label: "My Properties", value: dashboard?.occupancy.totalProperties ?? properties.length },
+    { label: "Active Leases", value: leases.length },
+    { label: "Pending Maintenance", value: pendingMaintenanceCount },
     {
       label: "Revenue Collected",
-      value: `${formatMoney(
-        myPayments
-          .filter((p) => p.status === "Paid")
-          .reduce((sum, p) => sum + p.amount, 0),
-      )} RWF`,
+      value: `${formatMoney(dashboard?.revenue.thisMonth ?? 0)} RWF`,
     },
   ];
 
   const revenueByMonth = (() => {
-    const currentYear = TODAY.slice(0, 4);
+    const currentYear = new Date().getFullYear().toString();
     const totals = new Map<string, number>();
-    myPayments
-      .filter((p) => p.status === "Paid")
+    payments
+      .filter((p) => p.status === "success" && p.paidAt)
       .forEach((p) => {
-        const month = (p.paidDate ?? p.dueDate).slice(0, 7);
-        totals.set(month, (totals.get(month) ?? 0) + p.amount);
+        const month = (p.paidAt as string).slice(0, 7);
+        totals.set(month, (totals.get(month) ?? 0) + Number(p.amount));
       });
     return Array.from({ length: 12 }, (_, i) => {
       const month = `${currentYear}-${String(i + 1).padStart(2, "0")}`;
@@ -234,51 +215,45 @@ export default function LandlordOverviewPage() {
     });
   })();
 
-  const filteredPayments = myPayments.filter(
-    (p) => statusFilter === "All" || p.status === statusFilter,
-  );
-
-  const filteredArrearsUnits =
-    statusFilter === "All" || statusFilter === "Overdue" || statusFilter === "Arrears"
-      ? overdueTenantUnits.filter(
-          (u) => statusFilter === "All" || u.currentPaymentStatus === statusFilter,
-        )
-      : [];
+  const filteredOverdueInvoices =
+    statusFilter === "All" || statusFilter === "Overdue" ? overdueInvoices : [];
+  const filteredPendingPayments =
+    statusFilter === "All" || statusFilter === "Pending Approval" ? pendingApprovalPayments : [];
 
   const transactionTabCounts: Record<(typeof TRANSACTION_TABS)[number]["key"], number> = {
-    All: myPayments.length + overdueTenantUnits.length,
-    "Pending Approval": myPayments.filter((p) => p.status === "Pending Approval").length,
-    Overdue: overdueOnlyUnits.length,
-    Arrears: arrearsOnlyUnits.length,
+    All: overdueInvoices.length + pendingApprovalPayments.length,
+    "Pending Approval": pendingApprovalPayments.length,
+    Overdue: overdueInvoices.length,
   };
 
   const transactionRows: TransactionRow[] = [
-    ...filteredArrearsUnits.map(
-      (unit): TransactionRow => ({
-        id: `unit-${unit.id}`,
-        tenant: unit.tenant ?? "Unknown tenant",
-        property: unit.propertyName,
-        unit: unit.unitNumber,
-        amount: unit.monthlyRent,
+    ...filteredOverdueInvoices.map((invoice): TransactionRow => {
+      const lease = leaseById.get(invoice.leaseId);
+      return {
+        id: `invoice-${invoice.id}`,
+        tenant: lease ? tenantLabel(lease.tenantId) : "—",
+        property: lease ? propertyById.get(lease.propertyId)?.title ?? "—" : "—",
+        unit: lease ? unitById.get(lease.unitId)?.label ?? "—" : "—",
+        amount: Number(invoice.amountDue),
         method: "—",
-        dueDate: arrearsPeriodLabel(unit),
-        status: unit.currentPaymentStatus === "Arrears" ? "Arrears" : "Overdue",
-        actions: { type: "unit", propertyId: unit.propertyId, unitId: unit.id },
-      }),
-    ),
-    ...filteredPayments.map(
-      (payment): TransactionRow => ({
+        dueDate: invoice.dueDate,
+        status: "Overdue",
+      };
+    }),
+    ...filteredPendingPayments.map((payment): TransactionRow => {
+      const invoice = invoices.find((inv) => inv.id === payment.invoiceId);
+      const lease = invoice ? leaseById.get(invoice.leaseId) : undefined;
+      return {
         id: `payment-${payment.id}`,
-        tenant: payment.tenant,
-        property: payment.property,
-        unit: "—",
-        amount: payment.amount,
+        tenant: tenantLabel(payment.tenantId),
+        property: lease ? propertyById.get(lease.propertyId)?.title ?? "—" : "—",
+        unit: lease ? unitById.get(lease.unitId)?.label ?? "—" : "—",
+        amount: Number(payment.amount),
         method: payment.method,
-        dueDate: payment.dueDate,
-        status: payment.status,
-        actions: { type: "payment" },
-      }),
-    ),
+        dueDate: payment.createdAt,
+        status: "Pending Approval",
+      };
+    }),
   ].sort(
     (a, b) => TRANSACTION_STATUS_PRIORITY[a.status] - TRANSACTION_STATUS_PRIORITY[b.status],
   );
@@ -289,9 +264,18 @@ export default function LandlordOverviewPage() {
       <div>
         <h1 className="text-2xl font-bold text-navy">Overview</h1>
         <p className="mt-1 text-sm text-slate-500">
-          A quick look at your properties, {landlordName}.
+          A quick look at your properties.
         </p>
       </div>
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            {error}
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
         {stats.map(({ label, value }) => {
@@ -300,7 +284,7 @@ export default function LandlordOverviewPage() {
             <StatCard
               key={label}
               label={label}
-              value={value}
+              value={isLoading ? "…" : value}
               subtitle={meta?.subtitle}
               href={meta?.href ?? "/landlord"}
               icon={meta?.icon ?? Building2}
@@ -340,7 +324,7 @@ export default function LandlordOverviewPage() {
           </Link>
         </AlertBanner>
 
-        {myProperties.length > 0 && (
+        {properties.length > 0 && (
           <div className="order-1 rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:order-2">
             <p className="font-semibold text-navy">Revenue by Month</p>
             <ResponsiveContainer width="100%" height={240}>
@@ -371,7 +355,7 @@ export default function LandlordOverviewPage() {
           <div>
             <h2 className="font-semibold text-navy">Transactions</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Rent payments and tenants currently in arrears, across your properties.
+              Overdue invoices and payments awaiting your approval, across your properties.
             </p>
           </div>
           <Link
@@ -418,60 +402,45 @@ export default function LandlordOverviewPage() {
               <Th className="hidden px-6 py-3 lg:table-cell">Unit</Th>
               <Th className="hidden px-6 py-3 sm:table-cell">Amount (RWF)</Th>
               <Th className="hidden px-6 py-3 lg:table-cell">Method</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Due Date</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">Date</Th>
               <Th className="px-4 py-3 sm:px-6">Status</Th>
-              <Th className="px-4 py-3 text-right sm:px-6">Actions</Th>
             </Tr>
           </THead>
           <TBody>
-            {visibleTransactions.map((row) => (
-              <Tr key={row.id}>
-                <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
-                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                    {row.tenant}
-                  </p>
-                  <p className="truncate text-xs text-slate-400 md:hidden">{row.property}</p>
-                  <p className="text-xs text-slate-400 sm:hidden">
-                    {formatMoney(row.amount)} RWF
-                  </p>
-                </Td>
-                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {row.property}
-                </Td>
-                <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{row.unit}</Td>
-                <Td
-                  className={`hidden px-6 py-3 sm:table-cell ${
-                    row.status === "Overdue" || row.status === "Arrears" || row.status === "Late"
-                      ? "font-medium text-red-600"
-                      : "text-slate-500"
-                  }`}
-                >
-                  {formatMoney(row.amount)}
-                </Td>
-                <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{row.method}</Td>
-                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">{row.dueDate}</Td>
-                <Td className="px-4 py-3 sm:px-6">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${TRANSACTION_STATUS_STYLES[row.status]}`}
-                  >
-                    {row.status}
-                  </span>
-                </Td>
-                <Td className="px-4 py-3 text-right sm:px-6">
-                  {row.actions.type === "unit" && (
-                    <Link
-                      href={`/landlord/properties/${row.actions.propertyId}/units/${row.actions.unitId}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            {isLoading ? (
+              <EmptyRow colSpan={7}>Loading transactions...</EmptyRow>
+            ) : visibleTransactions.length === 0 ? (
+              <EmptyRow colSpan={7}>No transactions match this filter.</EmptyRow>
+            ) : (
+              visibleTransactions.map((row) => (
+                <Tr key={row.id}>
+                  <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                    <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                      {row.tenant}
+                    </p>
+                    <p className="truncate text-xs text-slate-400 md:hidden">{row.property}</p>
+                    <p className="text-xs text-slate-400 sm:hidden">
+                      {formatMoney(row.amount)} RWF
+                    </p>
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                    {row.property}
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{row.unit}</Td>
+                  <Td className="hidden px-6 py-3 font-medium text-red-600 sm:table-cell">
+                    {formatMoney(row.amount)}
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{row.method}</Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">{row.dueDate}</Td>
+                  <Td className="px-4 py-3 sm:px-6">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${TRANSACTION_STATUS_STYLES[row.status]}`}
                     >
-                      <Eye className="h-3.5 w-3.5" />
-                      View
-                    </Link>
-                  )}
-                </Td>
-              </Tr>
-            ))}
-            {visibleTransactions.length === 0 && (
-              <EmptyRow colSpan={8}>No transactions match this filter.</EmptyRow>
+                      {row.status}
+                    </span>
+                  </Td>
+                </Tr>
+              ))
             )}
           </TBody>
         </Table>

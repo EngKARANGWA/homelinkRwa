@@ -1,10 +1,11 @@
 import type { LeaseStatus } from "@/lib/api/types";
 
 export const LEASE_STATUS_STYLES: Record<LeaseStatus, string> = {
+  draft: "bg-slate-100 text-slate-600",
   pending_signatures: "bg-sky-50 text-sky-700",
   active: "bg-emerald-50 text-emerald-700",
-  renewal_requested: "bg-amber-50 text-amber-700",
-  termination_requested: "bg-amber-50 text-amber-700",
+  pending_renewal: "bg-amber-50 text-amber-700",
+  pending_termination: "bg-amber-50 text-amber-700",
   terminated: "bg-red-50 text-red-700",
   expired: "bg-slate-100 text-slate-600",
 };

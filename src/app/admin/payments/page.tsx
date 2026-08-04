@@ -4,15 +4,17 @@ import { useEffect, useState } from "react";
 import { AlertCircle, Check, Download, Eye, X } from "lucide-react";
 import { listUsers } from "@/lib/api/admin";
 import { listProperties } from "@/lib/api/properties";
+import { listLeases } from "@/lib/api/leases";
 import {
   approvePayment,
   exportPaymentsWorkbook,
   getPaymentReceipt,
+  listInvoices,
   listPayments,
   rejectPayment,
 } from "@/lib/api/payments";
 import { ApiError } from "@/lib/api/client";
-import type { Payment, Property, User } from "@/lib/api/types";
+import type { Invoice, Lease, Payment, Property, User } from "@/lib/api/types";
 import { formatStatusLabel, PAYMENT_STATUS_STYLES } from "@/lib/paymentStatus";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
@@ -20,6 +22,8 @@ import { formatMoney } from "@/lib/money";
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [leases, setLeases] = useState<Lease[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [tenants, setTenants] = useState<User[]>([]);
   const [isLoading, setLoading] = useState(true);
@@ -30,7 +34,14 @@ export default function PaymentsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
-  const propertyFor = (id: string) => properties.find((p) => p.id === id);
+  const leaseById = new Map(leases.map((l) => [l.id, l]));
+  const invoiceById = new Map(invoices.map((i) => [i.id, i]));
+  const propertyById = new Map(properties.map((p) => [p.id, p]));
+  const propertyFor = (payment: Payment) => {
+    const invoice = invoiceById.get(payment.invoiceId);
+    const lease = invoice ? leaseById.get(invoice.leaseId) : undefined;
+    return lease ? propertyById.get(lease.propertyId) : undefined;
+  };
   const tenantName = (id: string) => {
     const tenant = tenants.find((t) => t.id === id);
     return tenant ? `${tenant.firstName} ${tenant.lastName}` : "—";
@@ -41,13 +52,17 @@ export default function PaymentsPage() {
     setError(null);
     Promise.all([
       listPayments({ page, limit: DEFAULT_PAGE_SIZE }),
+      listInvoices({ limit: 100 }),
+      listLeases({ limit: 100 }),
       listProperties({ limit: 100 }),
       listUsers({ role: "tenant", limit: 100 }),
     ])
-      .then(([paymentsRes, propertiesRes, tenantsRes]) => {
+      .then(([paymentsRes, invoicesRes, leasesRes, propertiesRes, tenantsRes]) => {
         setPayments(paymentsRes.data);
         setTotalPages(paymentsRes.meta.totalPages);
         setTotalItems(paymentsRes.meta.total);
+        setInvoices(invoicesRes.data);
+        setLeases(leasesRes.data);
         setProperties(propertiesRes.data);
         setTenants(tenantsRes.data);
       })
@@ -60,13 +75,18 @@ export default function PaymentsPage() {
   useEffect(load, [page]);
 
   const resolvePayment = async (id: string, approve: boolean) => {
+    let reason = "";
+    if (!approve) {
+      reason = window.prompt("Reason for rejecting this payment:")?.trim() ?? "";
+      if (!reason) return;
+    }
     setActionError(null);
     setProcessingId(id);
     try {
       if (approve) {
         await approvePayment(id);
       } else {
-        await rejectPayment(id);
+        await rejectPayment(id, reason);
       }
       load();
     } catch (err) {
@@ -161,7 +181,7 @@ export default function PaymentsPage() {
                     {tenantName(payment.tenantId)}
                   </Td>
                   <Td className="px-6 py-3 text-slate-500">
-                    {propertyFor(payment.propertyId)?.title ?? "—"}
+                    {propertyFor(payment)?.title ?? "—"}
                   </Td>
                   <Td className="px-6 py-3 text-slate-500">
                     {formatMoney(Number(payment.amount))}
@@ -181,7 +201,7 @@ export default function PaymentsPage() {
                   </Td>
                   <Td className="px-6 py-3">
                     <div className="flex items-center gap-2">
-                      {payment.status === "successful" && (
+                      {payment.status === "success" && (
                         <button
                           type="button"
                           onClick={() => viewReceipt(payment)}
@@ -191,7 +211,7 @@ export default function PaymentsPage() {
                           Receipt
                         </button>
                       )}
-                      {payment.status === "pending_approval" && (
+                      {payment.approvalStatus === "pending" && (
                         <>
                           <button
                             type="button"

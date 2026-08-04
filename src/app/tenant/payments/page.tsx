@@ -9,9 +9,11 @@ import {
   payInvoice,
 } from "@/lib/api/payments";
 import { listProperties } from "@/lib/api/properties";
+import { listLeases } from "@/lib/api/leases";
 import { ApiError } from "@/lib/api/client";
 import type {
   Invoice,
+  Lease,
   PayInvoiceInput,
   Payment,
   PaymentMethod,
@@ -59,11 +61,11 @@ function monthLabel(dateStr: string) {
 }
 
 function invoiceNumber(invoice: Invoice) {
-  return `INV-${invoice.id.slice(0, 8).toUpperCase()}`;
+  return invoice.invoiceNumber;
 }
 
 function paymentId(payment: Payment) {
-  return `PMT-${payment.id.slice(0, 8).toUpperCase()}`;
+  return payment.paymentNumber;
 }
 
 function paymentReference(payment: Payment) {
@@ -75,6 +77,7 @@ export default function TenantPaymentsPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [leases, setLeases] = useState<Lease[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -86,22 +89,30 @@ export default function TenantPaymentsPage() {
   const [paymentTotalPages, setPaymentTotalPages] = useState(1);
   const [paymentTotalItems, setPaymentTotalItems] = useState(0);
 
-  const propertyFor = (id: string) => properties.find((p) => p.id === id);
+  const leaseById = new Map(leases.map((l) => [l.id, l]));
+  const propertyById = new Map(properties.map((p) => [p.id, p]));
+  const propertyForInvoice = (invoice: Invoice | null | undefined) => {
+    if (!invoice) return undefined;
+    const lease = leaseById.get(invoice.leaseId);
+    return lease ? propertyById.get(lease.propertyId) : undefined;
+  };
 
   const load = () => {
     setLoading(true);
     setError(null);
     Promise.all([
       listInvoices({ limit: 100 }),
-      listPayments({ status: "successful", page: paymentPage, limit: DEFAULT_PAGE_SIZE }),
+      listPayments({ status: "success", page: paymentPage, limit: DEFAULT_PAGE_SIZE }),
       listProperties({ limit: 100 }),
+      listLeases({ limit: 100 }),
     ])
-      .then(([invoicesRes, paymentsRes, propertiesRes]) => {
+      .then(([invoicesRes, paymentsRes, propertiesRes, leasesRes]) => {
         setInvoices(invoicesRes.data);
         setPayments(paymentsRes.data);
         setPaymentTotalPages(paymentsRes.meta.totalPages);
         setPaymentTotalItems(paymentsRes.meta.total);
         setProperties(propertiesRes.data);
+        setLeases(leasesRes.data);
       })
       .catch((err) =>
         setError(err instanceof ApiError ? err.message : "Failed to load payments."),
@@ -112,14 +123,12 @@ export default function TenantPaymentsPage() {
   useEffect(load, [paymentPage]);
 
   const outstandingInvoices = invoices
-    .filter((inv) => inv.status === "pending" || inv.status === "overdue")
+    .filter((inv) => inv.status === "unpaid" || inv.status === "overdue")
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   const pendingInvoice = outstandingInvoices[0] ?? null;
   const otherPendingCount = Math.max(outstandingInvoices.length - 1, 0);
 
-  const primaryProperty =
-    propertyFor((pendingInvoice ?? invoices[0])?.propertyId ?? "") ??
-    propertyFor(payments[0]?.propertyId ?? "");
+  const primaryProperty = propertyForInvoice(pendingInvoice ?? invoices[0]) ?? properties[0];
 
   const invoiceTotalPages = Math.max(1, Math.ceil(invoices.length / DEFAULT_PAGE_SIZE));
   useEffect(() => {
@@ -165,7 +174,7 @@ export default function TenantPaymentsPage() {
         invoiceNumber(inv),
         monthLabel(inv.dueDate),
         inv.dueDate,
-        Number(inv.amount),
+        Number(inv.amountDue),
         formatStatusLabel(inv.status),
       ]),
     );
@@ -281,7 +290,7 @@ export default function TenantPaymentsPage() {
                         {invoiceNumber(invoice)}
                       </p>
                       <p className="truncate text-xs text-slate-400 sm:hidden">
-                        {monthLabel(invoice.dueDate)} · {formatMoney(Number(invoice.amount))} RWF
+                        {monthLabel(invoice.dueDate)} · {formatMoney(Number(invoice.amountDue))} RWF
                       </p>
                     </Td>
                     <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
@@ -291,7 +300,7 @@ export default function TenantPaymentsPage() {
                       {formatDate(invoice.dueDate)}
                     </Td>
                     <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                      {formatMoney(Number(invoice.amount))}
+                      {formatMoney(Number(invoice.amountDue))}
                     </Td>
                     <Td className="px-4 py-3 sm:px-6">
                       <span
@@ -301,11 +310,11 @@ export default function TenantPaymentsPage() {
                       </span>
                     </Td>
                     <Td className="px-4 py-3 sm:px-6">
-                      {(invoice.status === "pending" || invoice.status === "overdue") && (
+                      {(invoice.status === "unpaid" || invoice.status === "overdue") && (
                         <button
                           type="button"
                           onClick={() => setPayingInvoice(invoice)}
-                          aria-label={`Pay now for ${propertyFor(invoice.propertyId)?.title ?? "this invoice"}`}
+                          aria-label={`Pay now for ${propertyForInvoice(invoice)?.title ?? "this invoice"}`}
                           className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1 text-xs font-semibold text-white hover:bg-gold/90"
                         >
                           <Wallet className="h-3.5 w-3.5" />
@@ -335,7 +344,7 @@ export default function TenantPaymentsPage() {
             <AlertBanner
               isAlert
               stats={[
-                { label: "Amount Due", value: `${formatMoney(Number(pendingInvoice.amount))} RWF` },
+                { label: "Amount Due", value: `${formatMoney(Number(pendingInvoice.amountDue))} RWF` },
                 { label: "Due Date", value: formatDate(pendingInvoice.dueDate) },
                 { label: "Status", value: formatStatusLabel(pendingInvoice.status) },
               ]}
@@ -448,11 +457,11 @@ export default function TenantPaymentsPage() {
       {payingInvoice && (
         <Modal
           title="Pay Rent"
-          description={propertyFor(payingInvoice.propertyId)?.title ?? "Invoice"}
+          description={propertyForInvoice(payingInvoice)?.title ?? "Invoice"}
           onClose={() => setPayingInvoice(null)}
         >
           <PayNowForm
-            amount={Number(payingInvoice.amount)}
+            amount={Number(payingInvoice.amountDue)}
             onCancel={() => setPayingInvoice(null)}
             onSuccess={(values) => handlePay(values, payingInvoice)}
           />
