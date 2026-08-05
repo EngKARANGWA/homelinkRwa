@@ -324,6 +324,24 @@ export type OwnerDashboard = {
   netProfit: { thisMonth: number; thisYear: number };
 };
 
+export type TenantDashboard = {
+  activeLease: {
+    id: string;
+    propertyTitle: string;
+    addressLine: string;
+    city: string;
+    rentAmount: number;
+    startDate: string;
+    endDate: string | null;
+    status: string;
+  } | null;
+  outstandingBalance: number;
+  nextDueInvoice: { id: string; period: string; amountDue: number; dueDate: string } | null;
+  paymentsThisYear: number;
+  maintenanceRequests: { open: number; inProgress: number; completed: number };
+  unreadNotifications: number;
+};
+
 export type PayInvoiceInput = {
   method: PaymentMethod;
   carrier?: PaymentCarrier;

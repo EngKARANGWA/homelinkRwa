@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { AlertCircle, CheckCircle2, Eye } from "lucide-react";
-import { listUsers } from "@/lib/api/admin";
 import { listProperties } from "@/lib/api/properties";
 import {
   getLeaseDocument,
@@ -11,7 +10,7 @@ import {
   requestLeaseTermination,
 } from "@/lib/api/leases";
 import { ApiError } from "@/lib/api/client";
-import type { Lease, Property, User } from "@/lib/api/types";
+import type { Lease, Property } from "@/lib/api/types";
 import { formatLeaseStatus, LEASE_STATUS_STYLES } from "@/lib/leaseStatus";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
@@ -20,7 +19,6 @@ import { formatMoney } from "@/lib/money";
 export default function TenantLeasePage() {
   const [leases, setLeases] = useState<Lease[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
-  const [owners, setOwners] = useState<User[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -31,10 +29,7 @@ export default function TenantLeasePage() {
   const [totalItems, setTotalItems] = useState(0);
 
   const propertyFor = (id: string) => properties.find((p) => p.id === id);
-  const ownerName = (id: string) => {
-    const owner = owners.find((o) => o.id === id);
-    return owner ? `${owner.firstName} ${owner.lastName}` : "—";
-  };
+  const ownerName = (id: string) => `Owner ${id.slice(0, 8).toUpperCase()}`;
 
   const load = () => {
     setLoading(true);
@@ -42,14 +37,12 @@ export default function TenantLeasePage() {
     Promise.all([
       listLeases({ page, limit: DEFAULT_PAGE_SIZE }),
       listProperties({ limit: 100 }),
-      listUsers({ role: "owner", limit: 100 }),
     ])
-      .then(([leasesRes, propertiesRes, ownersRes]) => {
+      .then(([leasesRes, propertiesRes]) => {
         setLeases(leasesRes.data);
         setTotalPages(leasesRes.meta.totalPages);
         setTotalItems(leasesRes.meta.total);
         setProperties(propertiesRes.data);
-        setOwners(ownersRes.data);
       })
       .catch((err) =>
         setError(err instanceof ApiError ? err.message : "Failed to load your leases."),
@@ -72,16 +65,33 @@ export default function TenantLeasePage() {
   };
 
   const requestChange = async (lease: Lease, type: "renewal" | "termination") => {
+    if (type === "renewal") {
+      const proposedEndDate = window.prompt(
+        "Proposed new end date (YYYY-MM-DD):",
+        lease.endDate ?? "",
+      )?.trim();
+      if (!proposedEndDate) return;
+      setActionError(null);
+      setProcessingId(lease.id);
+      try {
+        await requestLeaseRenewal(lease.id, { proposedEndDate });
+        setNotice("Renewal request sent to your landlord.");
+        load();
+      } catch (err) {
+        setActionError(
+          err instanceof ApiError ? err.message : "Failed to submit the request.",
+        );
+      } finally {
+        setProcessingId(null);
+      }
+      return;
+    }
+
     setActionError(null);
     setProcessingId(lease.id);
     try {
-      if (type === "renewal") {
-        await requestLeaseRenewal(lease.id);
-        setNotice("Renewal request sent to your landlord.");
-      } else {
-        await requestLeaseTermination(lease.id);
-        setNotice("Termination request sent to your landlord.");
-      }
+      await requestLeaseTermination(lease.id);
+      setNotice("Termination request sent to your landlord.");
       load();
     } catch (err) {
       setActionError(

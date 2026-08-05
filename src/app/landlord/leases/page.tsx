@@ -93,6 +93,11 @@ export default function LandlordLeasesPage() {
   };
 
   const resolveRequest = async (lease: Lease, approve: boolean) => {
+    let decisionNotes = "";
+    if (!approve) {
+      decisionNotes = window.prompt("Reason for rejecting this request:")?.trim() ?? "";
+      if (!decisionNotes) return;
+    }
     setActionError(null);
     setProcessingId(lease.id);
     try {
@@ -105,7 +110,7 @@ export default function LandlordLeasesPage() {
       if (approve) {
         await approveLeaseChangeRequest(pending.id);
       } else {
-        await rejectLeaseChangeRequest(pending.id);
+        await rejectLeaseChangeRequest(pending.id, decisionNotes);
       }
       load();
     } catch (err) {

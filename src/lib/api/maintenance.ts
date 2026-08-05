@@ -1,40 +1,36 @@
 import { apiFetch } from "./client";
 import type { PaginatedResponse, SuccessResponse } from "./types";
 
-export type MaintenanceRequestStatus = "submitted" | "assigned" | "in_progress" | "completed";
 export type MaintenancePriority = "low" | "medium" | "high";
-
-export type Laborer = {
-  id: string;
-  name: string;
-  role: string;
-  contact: string;
-  amount: number;
-};
+export type MaintenanceStatus = "submitted" | "assigned" | "in_progress" | "completed";
 
 export type MaintenanceRequest = {
   id: string;
-  tenantId: string;
-  tenantName: string;
   propertyId: string;
-  propertyName: string;
+  tenantId: string;
   title: string;
   description: string;
-  issues: string[];
   priority: MaintenancePriority;
-  status: MaintenanceRequestStatus;
-  assignedLaborers: Laborer[];
-  workDone: string | null;
-  laborCost: number | null;
-  itemCost: number | null;
-  feedback: string | null;
-  submittedAt: string;
+  status: MaintenanceStatus;
+  assignedTo: string | null;
+  itemsCost: string | null;
+  laborCost: string | null;
+  completionNotes: string | null;
+  completedAt: string | null;
+  createdAt: string;
   updatedAt: string;
 };
 
+export type MaintenanceFeedback = {
+  id: string;
+  requestId: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+};
+
 export type ListMaintenanceParams = {
-  status?: MaintenanceRequestStatus;
-  priority?: MaintenancePriority;
+  status?: MaintenanceStatus;
   propertyId?: string;
   page?: number;
   limit?: number;
@@ -44,19 +40,13 @@ export type CreateMaintenanceRequestInput = {
   propertyId: string;
   title: string;
   description: string;
-  issues?: string[];
   priority?: MaintenancePriority;
 };
 
-export type AssignLaborersInput = {
-  laborers: Laborer[];
-};
-
 export type CompleteMaintenanceInput = {
-  workDone: string;
+  itemsCost?: number;
   laborCost?: number;
-  itemCost?: number;
-  feedback?: string;
+  completionNotes?: string;
 };
 
 export async function listMaintenanceRequests(
@@ -77,28 +67,28 @@ export async function getMaintenanceRequest(id: string): Promise<MaintenanceRequ
 export async function createMaintenanceRequest(
   input: CreateMaintenanceRequestInput,
 ): Promise<MaintenanceRequest> {
-  const res = await apiFetch<SuccessResponse<MaintenanceRequest>>("/maintenance", {
+  const res = await apiFetch<SuccessResponse<MaintenanceRequest>>("/maintenance-requests", {
     method: "POST",
     body: input,
   });
   return res.data;
 }
 
-export async function assignLaborers(
+export async function assignMaintenanceRequest(
   id: string,
-  input: AssignLaborersInput,
+  assignedTo: string,
 ): Promise<MaintenanceRequest> {
-  const res = await apiFetch<SuccessResponse<MaintenanceRequest>>(`/maintenance/${id}/assign`, {
-    method: "PATCH",
-    body: input,
-  });
+  const res = await apiFetch<SuccessResponse<MaintenanceRequest>>(
+    `/maintenance-requests/${id}/assign`,
+    { method: "PATCH", body: { assignedTo } },
+  );
   return res.data;
 }
 
-export async function startProgress(id: string): Promise<MaintenanceRequest> {
+export async function startMaintenanceProgress(id: string): Promise<MaintenanceRequest> {
   const res = await apiFetch<SuccessResponse<MaintenanceRequest>>(
-    `/maintenance/${id}/start-progress`,
-    { method: "PATCH" },
+    `/maintenance-requests/${id}/status`,
+    { method: "PATCH", body: { status: "in_progress" } },
   );
   return res.data;
 }
@@ -107,9 +97,30 @@ export async function completeMaintenanceRequest(
   id: string,
   input: CompleteMaintenanceInput,
 ): Promise<MaintenanceRequest> {
-  const res = await apiFetch<SuccessResponse<MaintenanceRequest>>(`/maintenance/${id}/complete`, {
-    method: "PATCH",
-    body: input,
-  });
+  const res = await apiFetch<SuccessResponse<MaintenanceRequest>>(
+    `/maintenance-requests/${id}/complete`,
+    { method: "PATCH", body: input },
+  );
+  return res.data;
+}
+
+export async function submitMaintenanceFeedback(
+  id: string,
+  rating: number,
+  comment?: string,
+): Promise<MaintenanceFeedback> {
+  const res = await apiFetch<SuccessResponse<MaintenanceFeedback>>(
+    `/maintenance-requests/${id}/feedback`,
+    { method: "POST", body: { rating, comment } },
+  );
+  return res.data;
+}
+
+export async function getMaintenanceFeedback(
+  id: string,
+): Promise<MaintenanceFeedback | null> {
+  const res = await apiFetch<SuccessResponse<MaintenanceFeedback | null>>(
+    `/maintenance-requests/${id}/feedback`,
+  );
   return res.data;
 }

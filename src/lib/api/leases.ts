@@ -53,13 +53,19 @@ export async function getLeaseDocument(id: string): Promise<LeaseDocumentUrl> {
   return res.data;
 }
 
+export type RequestLeaseRenewalInput = {
+  proposedRent?: number;
+  proposedEndDate?: string;
+  reason?: string;
+};
+
 export async function requestLeaseRenewal(
   id: string,
-  reason?: string,
+  input: RequestLeaseRenewalInput,
 ): Promise<LeaseChangeRequest> {
   const res = await apiFetch<SuccessResponse<LeaseChangeRequest>>(
     `/leases/${id}/renewal-requests`,
-    { method: "POST", body: reason ? { reason } : undefined },
+    { method: "POST", body: input },
   );
   return res.data;
 }
@@ -96,11 +102,11 @@ export async function approveLeaseChangeRequest(
 
 export async function rejectLeaseChangeRequest(
   id: string,
-  rejectionReason?: string,
+  decisionNotes: string,
 ): Promise<LeaseChangeRequest> {
   const res = await apiFetch<SuccessResponse<LeaseChangeRequest>>(
     `/leases/change-requests/${id}/reject`,
-    { method: "PATCH", body: rejectionReason ? { rejectionReason } : undefined },
+    { method: "PATCH", body: { decisionNotes } },
   );
   return res.data;
 }

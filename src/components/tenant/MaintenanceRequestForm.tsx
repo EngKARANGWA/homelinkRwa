@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import type { MaintenancePriority } from "@/lib/api/maintenance";
+
+export type NewMaintenanceRequestValues = {
+  title: string;
+  description: string;
+  priority: MaintenancePriority;
+};
 
 export function MaintenanceRequestForm({
   property,
@@ -9,28 +15,24 @@ export function MaintenanceRequestForm({
   onCancel,
 }: {
   property: string;
-  onSuccess: (items: string[], priority: "Low" | "Medium" | "High") => void;
+  onSuccess: (values: NewMaintenanceRequestValues) => void;
   onCancel: () => void;
 }) {
-  const [items, setItems] = useState<string[]>([""]);
-
-  const updateItem = (index: number, value: string) => {
-    setItems((prev) => prev.map((item, i) => (i === index ? value : item)));
-  };
-
-  const removeItem = (index: number) => {
-    setItems((prev) => prev.filter((_, i) => i !== index));
-  };
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<MaintenancePriority>("medium");
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        const formData = new FormData(e.currentTarget);
-        onSuccess(
-          items.map((item) => item.trim()).filter(Boolean),
-          String(formData.get("priority")) as "Low" | "Medium" | "High",
-        );
+        if (!title.trim() || !description.trim()) {
+          setError("Please enter a title and description.");
+          return;
+        }
+        setError(null);
+        onSuccess({ title: title.trim(), description: description.trim(), priority });
       }}
     >
       <div className="flex flex-col gap-5">
@@ -41,50 +43,44 @@ export function MaintenanceRequestForm({
           <p className="mt-1 text-sm font-medium text-navy">{property}</p>
         </div>
 
-        <div className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Issues
-          <div className="flex flex-col gap-2">
-            {items.map((item, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  required
-                  value={item}
-                  onChange={(e) => updateItem(index, e.target.value)}
-                  placeholder="e.g. Kitchen sink is leaking under the cabinet."
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeItem(index)}
-                  aria-label="Remove item"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-400 hover:bg-slate-50 hover:text-red-600"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => setItems((prev) => [...prev, ""])}
-            className="mt-1 inline-flex w-fit items-center gap-1.5 text-sm font-medium text-gold hover:underline"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add item
-          </button>
-        </div>
+        {error && (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          Title
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Kitchen sink leaking"
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          Description
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            placeholder="e.g. Kitchen sink is leaking under the cabinet."
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+          />
+        </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
           Priority
           <select
-            name="priority"
-            defaultValue="Medium"
+            value={priority}
+            onChange={(e) => setPriority(e.target.value as MaintenancePriority)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            <option>Low</option>
-            <option>Medium</option>
-            <option>High</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
           </select>
         </label>
       </div>

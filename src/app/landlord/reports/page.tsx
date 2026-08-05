@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, Columns3, Download } from "lucide-react";
+import { AlertCircle, CheckCircle2, Columns3, Download } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -15,139 +15,122 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useAuth } from "@/components/auth/AuthContext";
+import { getOwnerDashboard } from "@/lib/api/dashboard";
+import { listProperties } from "@/lib/api/properties";
 import {
-  LEASES,
-  MAINTENANCE_REQUESTS,
-  PAYMENTS,
-  PROPERTIES,
-  type Lease,
-  type MaintenanceRequest,
-  type Payment,
-  type Property,
-} from "@/lib/mock-admin-data";
-import { useLandlord } from "@/components/landlord/LandlordContext";
+  exportReport,
+  getMaintenanceActivityReport,
+  getOccupancyReport,
+  getPaymentHistoryReport,
+  getRentalHistoryReport,
+  getRevenuePerformanceReport,
+  type MaintenanceActivityRow,
+  type OccupancyRow,
+  type PaymentHistoryRow,
+  type RentalHistoryRow,
+  type ReportId,
+  type RevenuePerformanceRow,
+} from "@/lib/api/reports";
+import { ApiError } from "@/lib/api/client";
+import type { OwnerDashboard, Property } from "@/lib/api/types";
 import { CHART_COLORS, CHART_GRID_COLOR, CHART_TEXT_COLOR } from "@/lib/chart-colors";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
-import { downloadCSV } from "@/lib/csv";
 import { formatMoney } from "@/lib/money";
 
-const REPORT_TYPES = [
+const REPORT_TYPES: {
+  id: ReportId;
+  label: string;
+  hasDateFilter: boolean;
+  hasPropertyFilter: boolean;
+}[] = [
   { id: "rental-history", label: "Rental History", hasDateFilter: true, hasPropertyFilter: true },
-  { id: "payment-history", label: "Payment History", hasDateFilter: true, hasPropertyFilter: true },
-  { id: "occupancy", label: "Occupancy", hasDateFilter: false, hasPropertyFilter: true },
-  { id: "maintenance-activity", label: "Maintenance Activity", hasDateFilter: true, hasPropertyFilter: true },
-  { id: "revenue-performance", label: "Revenue Performance", hasDateFilter: true, hasPropertyFilter: true },
-] as const;
+  { id: "payment-history", label: "Payment History", hasDateFilter: true, hasPropertyFilter: false },
+  { id: "occupancy", label: "Occupancy", hasDateFilter: true, hasPropertyFilter: true },
+  {
+    id: "maintenance-activity",
+    label: "Maintenance Activity",
+    hasDateFilter: true,
+    hasPropertyFilter: true,
+  },
+  {
+    id: "revenue-performance",
+    label: "Revenue Performance",
+    hasDateFilter: true,
+    hasPropertyFilter: false,
+  },
+];
 
-type ReportId = (typeof REPORT_TYPES)[number]["id"];
-
-const PAYMENT_REPORT_IDS: ReportId[] = ["payment-history", "revenue-performance"];
+const INCOME_REPORT_IDS: ReportId[] = ["payment-history", "revenue-performance"];
 
 type Column<T> = {
   key: string;
   label: string;
   cell: (row: T) => React.ReactNode;
-  csv: (row: T) => string | number;
 };
 
-const RENTAL_HISTORY_COLUMNS: Column<Lease>[] = [
-  { key: "tenant", label: "Tenant", cell: (l) => l.tenant, csv: (l) => l.tenant },
-  { key: "property", label: "Property", cell: (l) => l.property, csv: (l) => l.property },
-  { key: "rent", label: "Rent (RWF)", cell: (l) => formatMoney(l.rent), csv: (l) => l.rent },
-  { key: "start", label: "Start", cell: (l) => l.startDate, csv: (l) => l.startDate },
-  {
-    key: "end",
-    label: "End",
-    cell: (l) => l.endDate ?? "Open-ended",
-    csv: (l) => l.endDate ?? "Open-ended",
-  },
-  { key: "status", label: "Status", cell: (l) => l.status, csv: (l) => l.status },
+const RENTAL_HISTORY_COLUMNS: Column<RentalHistoryRow>[] = [
+  { key: "Property", label: "Property", cell: (r) => r.Property },
+  { key: "Address", label: "Address", cell: (r) => r.Address },
+  { key: "RentAmount", label: "Rent (RWF)", cell: (r) => formatMoney(Number(r.RentAmount)) },
+  { key: "StartDate", label: "Start", cell: (r) => r.StartDate },
+  { key: "EndDate", label: "End", cell: (r) => r.EndDate ?? "Open-ended" },
+  { key: "Status", label: "Status", cell: (r) => r.Status },
 ];
 
-const PAYMENT_HISTORY_COLUMNS: Column<Payment>[] = [
-  { key: "tenant", label: "Tenant", cell: (p) => p.tenant, csv: (p) => p.tenant },
-  { key: "property", label: "Property", cell: (p) => p.property, csv: (p) => p.property },
-  {
-    key: "amount",
-    label: "Amount (RWF)",
-    cell: (p) => formatMoney(p.amount),
-    csv: (p) => p.amount,
-  },
-  { key: "method", label: "Method", cell: (p) => p.method, csv: (p) => p.method },
-  { key: "dueDate", label: "Due Date", cell: (p) => p.dueDate, csv: (p) => p.dueDate },
-  {
-    key: "paidDate",
-    label: "Paid Date",
-    cell: (p) => p.paidDate ?? "—",
-    csv: (p) => p.paidDate ?? "—",
-  },
-  { key: "status", label: "Status", cell: (p) => p.status, csv: (p) => p.status },
+const PAYMENT_HISTORY_COLUMNS: Column<PaymentHistoryRow>[] = [
+  { key: "Date", label: "Date", cell: (r) => r.Date },
+  { key: "Amount", label: "Amount (RWF)", cell: (r) => formatMoney(Number(r.Amount)) },
+  { key: "Method", label: "Method", cell: (r) => r.Method },
+  { key: "Status", label: "Status", cell: (r) => r.Status },
+  { key: "Reference", label: "Reference", cell: (r) => r.Reference },
 ];
 
-const OCCUPANCY_COLUMNS: Column<Property>[] = [
-  { key: "property", label: "Property", cell: (p) => p.name, csv: (p) => p.name },
-  { key: "type", label: "Type", cell: (p) => p.type, csv: (p) => p.type },
+const OCCUPANCY_COLUMNS: Column<OccupancyRow>[] = [
+  { key: "Property", label: "Property", cell: (r) => r.Property },
+  { key: "Status", label: "Status", cell: (r) => r.Status },
+  { key: "LeaseCount", label: "Leases", cell: (r) => r.LeaseCount },
+  { key: "OccupiedDays", label: "Occupied Days", cell: (r) => r.OccupiedDays },
+  { key: "PeriodDays", label: "Period Days", cell: (r) => r.PeriodDays },
   {
-    key: "availability",
-    label: "Availability",
-    cell: (p) => p.availability,
-    csv: (p) => p.availability,
+    key: "OccupancyRatePercent",
+    label: "Occupancy Rate",
+    cell: (r) => `${r.OccupancyRatePercent}%`,
   },
-  { key: "approval", label: "Approval", cell: (p) => p.approval, csv: (p) => p.approval },
 ];
 
-const MAINTENANCE_COLUMNS: Column<MaintenanceRequest>[] = [
-  { key: "tenant", label: "Tenant", cell: (m) => m.tenant, csv: (m) => m.tenant },
-  { key: "property", label: "Property", cell: (m) => m.property, csv: (m) => m.property },
-  {
-    key: "issue",
-    label: "Issue",
-    cell: (m) => m.issue.join("; "),
-    csv: (m) => m.issue.join("; "),
-  },
-  { key: "priority", label: "Priority", cell: (m) => m.priority, csv: (m) => m.priority },
-  { key: "status", label: "Status", cell: (m) => m.status, csv: (m) => m.status },
-  {
-    key: "assignedTo",
-    label: "Assigned To",
-    cell: (m) =>
-      m.laborers.length > 0
-        ? `${m.laborers.length} worker${m.laborers.length === 1 ? "" : "s"}`
-        : "—",
-    csv: (m) => m.laborers.map((l) => l.name).join("; ") || "—",
-  },
-  { key: "submitted", label: "Submitted", cell: (m) => m.submittedAt, csv: (m) => m.submittedAt },
+const MAINTENANCE_COLUMNS: Column<MaintenanceActivityRow>[] = [
+  { key: "Property", label: "Property", cell: (r) => r.Property },
+  { key: "Title", label: "Title", cell: (r) => r.Title },
+  { key: "Status", label: "Status", cell: (r) => r.Status },
+  { key: "ItemsCost", label: "Items Cost (RWF)", cell: (r) => formatMoney(Number(r.ItemsCost)) },
+  { key: "LaborCost", label: "Labor Cost (RWF)", cell: (r) => formatMoney(Number(r.LaborCost)) },
+  { key: "CreatedAt", label: "Created", cell: (r) => r.CreatedAt },
+  { key: "CompletedAt", label: "Completed", cell: (r) => r.CompletedAt || "—" },
 ];
 
-const REVENUE_COLUMNS: Column<Payment>[] = [
-  { key: "tenant", label: "Tenant", cell: (p) => p.tenant, csv: (p) => p.tenant },
-  { key: "property", label: "Property", cell: (p) => p.property, csv: (p) => p.property },
-  {
-    key: "amount",
-    label: "Amount (RWF)",
-    cell: (p) => formatMoney(p.amount),
-    csv: (p) => p.amount,
-  },
-  { key: "method", label: "Method", cell: (p) => p.method, csv: (p) => p.method },
-  {
-    key: "paidDate",
-    label: "Paid Date",
-    cell: (p) => p.paidDate ?? "—",
-    csv: (p) => p.paidDate ?? "—",
-  },
+const REVENUE_COLUMNS: Column<RevenuePerformanceRow>[] = [
+  { key: "Month", label: "Month", cell: (r) => r.Month },
+  { key: "Revenue", label: "Revenue (RWF)", cell: (r) => formatMoney(Number(r.Revenue)) },
 ];
+
+const COLUMNS_BY_REPORT: Record<ReportId, Column<never>[]> = {
+  "rental-history": RENTAL_HISTORY_COLUMNS as Column<never>[],
+  "payment-history": PAYMENT_HISTORY_COLUMNS as Column<never>[],
+  occupancy: OCCUPANCY_COLUMNS as Column<never>[],
+  "maintenance-activity": MAINTENANCE_COLUMNS as Column<never>[],
+  "revenue-performance": REVENUE_COLUMNS as Column<never>[],
+};
 
 function ReportTable<T>({
   columns,
   rows,
-  getKey,
   emptyMessage,
 }: {
   columns: Column<T>[];
   rows: T[];
-  getKey: (row: T) => string;
   emptyMessage: string;
 }) {
   return (
@@ -162,12 +145,12 @@ function ReportTable<T>({
         </Tr>
       </THead>
       <TBody>
-        {rows.map((row) => (
-          <Tr key={getKey(row)}>
-            {columns.map((col, i) => (
+        {rows.map((row, i) => (
+          <Tr key={i}>
+            {columns.map((col, j) => (
               <Td
                 key={col.key}
-                className={`px-6 py-3 ${i === 0 ? "font-medium text-navy" : "text-slate-500"}`}
+                className={`px-6 py-3 ${j === 0 ? "font-medium text-navy" : "text-slate-500"}`}
               >
                 {col.cell(row)}
               </Td>
@@ -183,12 +166,13 @@ function ReportTable<T>({
 const axisTick = { fontSize: 12, fill: CHART_TEXT_COLOR };
 
 export default function LandlordReportsPage() {
-  const { landlordName } = useLandlord();
+  const { user } = useAuth();
   const [reportId, setReportId] = useState<ReportId>("rental-history");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [propertyFilter, setPropertyFilter] = useState("All Properties");
   const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [hiddenColumns, setHiddenColumns] = useState<Record<ReportId, Set<string>>>({
     "rental-history": new Set(),
     "payment-history": new Set(),
@@ -198,6 +182,16 @@ export default function LandlordReportsPage() {
   });
   const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
   const columnsMenuRef = useRef<HTMLDivElement>(null);
+
+  const [dashboard, setDashboard] = useState<OwnerDashboard | null>(null);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [revenueByMonth, setRevenueByMonth] = useState<RevenuePerformanceRow[]>([]);
+  const [paymentStatusRows, setPaymentStatusRows] = useState<PaymentHistoryRow[]>([]);
+
+  const [isLoading, setLoading] = useState(true);
+  const [rows, setRows] = useState<unknown[]>([]);
+  const [expenseRows, setExpenseRows] = useState<MaintenanceActivityRow[]>([]);
+  const [reportSummary, setReportSummary] = useState<Record<string, unknown>>({});
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -209,157 +203,134 @@ export default function LandlordReportsPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
-  const myPropertyNames = myProperties.map((p) => p.name);
-  const myLeases = LEASES.filter((l) => l.owner === landlordName);
-  const myPayments = PAYMENTS.filter((p) => p.owner === landlordName);
-  const myMaintenance = MAINTENANCE_REQUESTS.filter((m) =>
-    myPropertyNames.includes(m.property),
-  );
+  // Page-level KPIs and charts — independent of the report selector/date filter.
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([
+      getOwnerDashboard(),
+      listProperties({ ownerId: user.id, limit: 100 }),
+      getRevenuePerformanceReport(),
+      getPaymentHistoryReport(),
+    ])
+      .then(([dash, propertiesRes, revenue, paymentHistory]) => {
+        setDashboard(dash);
+        setProperties(propertiesRes.data);
+        setRevenueByMonth(revenue.rows);
+        setPaymentStatusRows(paymentHistory.rows);
+      })
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : "Failed to load report data."),
+      );
+  }, [user]);
 
-  const propertyOptions = ["All Properties", ...myPropertyNames];
   const activeReport = REPORT_TYPES.find((r) => r.id === reportId)!;
+  const range = { from: dateFrom || undefined, to: dateTo || undefined };
 
-  const inRange = (date: string) =>
-    (!dateFrom || date >= dateFrom) && (!dateTo || date <= dateTo);
-  const matchesProperty = (propertyName: string) =>
-    propertyFilter === "All Properties" || propertyName === propertyFilter;
+  // The selected report's rows — refetched whenever the report type or date range changes.
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
+    const loadReport = async () => {
+      switch (reportId) {
+        case "rental-history": {
+          const res = await getRentalHistoryReport(range);
+          setRows(res.rows);
+          setReportSummary(res.summary ?? {});
+          break;
+        }
+        case "payment-history": {
+          const res = await getPaymentHistoryReport(range);
+          setRows(res.rows);
+          setReportSummary(res.summary ?? {});
+          break;
+        }
+        case "occupancy": {
+          const res = await getOccupancyReport(range);
+          setRows(res.rows);
+          setReportSummary(res.summary ?? {});
+          break;
+        }
+        case "maintenance-activity": {
+          const res = await getMaintenanceActivityReport(range);
+          setRows(res.rows);
+          setReportSummary(res.summary ?? {});
+          break;
+        }
+        case "revenue-performance": {
+          const res = await getRevenuePerformanceReport(range);
+          setRows(res.rows);
+          setReportSummary(res.summary ?? {});
+          break;
+        }
+      }
+      if (INCOME_REPORT_IDS.includes(reportId)) {
+        const maintenance = await getMaintenanceActivityReport(range);
+        setExpenseRows(maintenance.rows);
+      } else {
+        setExpenseRows([]);
+      }
+    };
+    loadReport()
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load report."))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, reportId, dateFrom, dateTo]);
 
-  const rentalHistory = myLeases.filter(
-    (l) => matchesProperty(l.property) && inRange(l.startDate),
-  );
-  const paymentHistory = myPayments.filter(
-    (p) => matchesProperty(p.property) && inRange(p.dueDate),
-  );
-  const occupancy = myProperties.filter((p) => matchesProperty(p.name));
-  const maintenanceActivity = myMaintenance.filter(
-    (m) => matchesProperty(m.property) && inRange(m.submittedAt),
-  );
-  const revenuePerformance = myPayments.filter(
-    (p) =>
-      p.status === "Paid" &&
-      matchesProperty(p.property) &&
-      inRange(p.paidDate ?? p.dueDate),
-  );
-  const revenueTotal = revenuePerformance.reduce((sum, p) => sum + p.amount, 0);
+  const propertyOptions = ["All Properties", ...properties.map((p) => p.title)];
 
-  const totalCollected = myPayments
-    .filter((p) => p.status === "Paid")
-    .reduce((sum, p) => sum + p.amount, 0);
-  const totalOutstanding = myPayments
-    .filter((p) => p.status !== "Paid")
-    .reduce((sum, p) => sum + p.amount, 0);
-  const occupiedCount = myProperties.filter((p) => p.availability === "Occupied").length;
-  const occupancyRate = myProperties.length
-    ? Math.round((occupiedCount / myProperties.length) * 100)
-    : 0;
-  const averageRent = myProperties.length
-    ? Math.round(myProperties.reduce((sum, p) => sum + p.rent, 0) / myProperties.length)
+  const hasPropertyField = (row: unknown): row is { Property: string } =>
+    typeof row === "object" && row !== null && "Property" in row;
+
+  const filteredRows =
+    activeReport.hasPropertyFilter && propertyFilter !== "All Properties"
+      ? rows.filter((row) => hasPropertyField(row) && row.Property === propertyFilter)
+      : rows;
+
+  const totalCollected = dashboard?.revenue.thisYear ?? 0;
+  const totalOutstanding = dashboard?.outstandingRent ?? 0;
+  const occupancyRate = dashboard?.occupancy.occupancyRatePercent ?? 0;
+  const averageRent = properties.length
+    ? Math.round(
+        properties.reduce((sum, p) => sum + Number(p.rentAmount), 0) / properties.length,
+      )
     : 0;
 
   const occupancyData = [
-    {
-      name: "Available",
-      value: myProperties.filter((p) => p.availability === "Available").length,
-    },
-    {
-      name: "Occupied",
-      value: myProperties.filter((p) => p.availability === "Occupied").length,
-    },
+    { name: "Available", value: properties.filter((p) => p.status === "available").length },
+    { name: "Occupied", value: properties.filter((p) => p.status === "occupied").length },
   ];
 
-  const paymentStatusData = (
-    ["Paid", "Late", "Pending", "Pending Approval"] as const
-  ).map((status) => ({
+  const paymentStatusData = (["pending", "success", "failed"] as const).map((status) => ({
     name: status,
-    value: myPayments.filter((p) => p.status === status).length,
+    value: paymentStatusRows.filter((p) => p.Status === status).length,
   }));
 
-  const revenueByMonth = (() => {
-    const totals = new Map<string, number>();
-    myPayments
-      .filter((p) => p.status === "Paid")
-      .forEach((p) => {
-        const month = (p.paidDate ?? p.dueDate).slice(0, 7);
-        totals.set(month, (totals.get(month) ?? 0) + p.amount);
-      });
-    return Array.from(totals.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, amount]) => ({ month, amount }));
-  })();
-
-  // Income/expense/profit for the payment-related reports, scoped to the
-  // currently active date range + property filters so it matches what's
-  // shown (and exported). Expenses are completed maintenance work — the
-  // only cost data this app tracks — kept as an itemized breakdown so the
-  // total is traceable back to the jobs that make it up.
-  const incomeForActiveReport =
+  const income =
     reportId === "payment-history"
-      ? paymentHistory
-          .filter((p) => p.status === "Paid")
-          .reduce((sum, p) => sum + p.amount, 0)
-      : revenueTotal;
-  const expenseBreakdown = myMaintenance
-    .filter(
-      (m) =>
-        matchesProperty(m.property) &&
-        m.status === "Completed" &&
-        inRange(m.submittedAt),
-    )
-    .map((m) => ({
-      id: m.id,
-      property: m.property,
-      workDone: m.workDone ?? m.issue.join("; "),
-      laborCost: m.laborCost ?? 0,
-      itemCost: m.itemCost ?? 0,
-      total: (m.laborCost ?? 0) + (m.itemCost ?? 0),
-      date: m.submittedAt,
-    }));
-  const expensesForActiveReport = expenseBreakdown.reduce(
-    (sum, e) => sum + e.total,
-    0,
-  );
-  const netProfitForActiveReport = incomeForActiveReport - expensesForActiveReport;
-
-  const activeReportRows: unknown[] =
-    reportId === "rental-history"
-      ? rentalHistory
-      : reportId === "payment-history"
-        ? paymentHistory
-        : reportId === "occupancy"
-          ? occupancy
-          : reportId === "maintenance-activity"
-            ? maintenanceActivity
-            : revenuePerformance;
+      ? Number(reportSummary.totalAmount ?? 0)
+      : reportId === "revenue-performance"
+        ? Number(reportSummary.totalRevenue ?? 0)
+        : 0;
+  const expenses = expenseRows.reduce((sum, r) => sum + Number(r.ItemsCost) + Number(r.LaborCost), 0);
+  const netProfit = income - expenses;
 
   const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(activeReportRows.length / DEFAULT_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / DEFAULT_PAGE_SIZE));
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
-  const paginate = <T,>(rows: T[]): T[] =>
-    rows.slice((page - 1) * DEFAULT_PAGE_SIZE, page * DEFAULT_PAGE_SIZE);
+  const pagedRows = filteredRows.slice((page - 1) * DEFAULT_PAGE_SIZE, page * DEFAULT_PAGE_SIZE);
 
   const [expensePage, setExpensePage] = useState(1);
-  const expenseTotalPages = Math.max(
-    1,
-    Math.ceil(expenseBreakdown.length / DEFAULT_PAGE_SIZE),
-  );
+  const expenseTotalPages = Math.max(1, Math.ceil(expenseRows.length / DEFAULT_PAGE_SIZE));
   useEffect(() => {
     if (expensePage > expenseTotalPages) setExpensePage(expenseTotalPages);
   }, [expensePage, expenseTotalPages]);
-  const pagedExpenseBreakdown = expenseBreakdown.slice(
+  const pagedExpenseRows = expenseRows.slice(
     (expensePage - 1) * DEFAULT_PAGE_SIZE,
     expensePage * DEFAULT_PAGE_SIZE,
   );
-
-  const COLUMNS_BY_REPORT: Record<ReportId, Column<never>[]> = {
-    "rental-history": RENTAL_HISTORY_COLUMNS as Column<never>[],
-    "payment-history": PAYMENT_HISTORY_COLUMNS as Column<never>[],
-    occupancy: OCCUPANCY_COLUMNS as Column<never>[],
-    "maintenance-activity": MAINTENANCE_COLUMNS as Column<never>[],
-    "revenue-performance": REVENUE_COLUMNS as Column<never>[],
-  };
 
   const toggleColumn = (key: string) => {
     setHiddenColumns((prev) => {
@@ -378,83 +349,14 @@ export default function LandlordReportsPage() {
     (col) => !hiddenColumns[reportId].has(col.key),
   );
 
-  const handleExport = () => {
-    let headers: string[] = [];
-    let rows: (string | number)[][] = [];
-    let filename = "";
-
-    switch (reportId) {
-      case "rental-history":
-        filename = "rental-history.csv";
-        headers = activeColumns.map((c) => c.label);
-        rows = rentalHistory.map((l) =>
-          (activeColumns as Column<Lease>[]).map((c) => c.csv(l)),
-        );
-        break;
-      case "payment-history":
-        filename = "payment-history.csv";
-        headers = activeColumns.map((c) => c.label);
-        rows = paymentHistory.map((p) =>
-          (activeColumns as Column<Payment>[]).map((c) => c.csv(p)),
-        );
-        break;
-      case "occupancy":
-        filename = "occupancy.csv";
-        headers = activeColumns.map((c) => c.label);
-        rows = occupancy.map((p) =>
-          (activeColumns as Column<Property>[]).map((c) => c.csv(p)),
-        );
-        break;
-      case "maintenance-activity":
-        filename = "maintenance-activity.csv";
-        headers = activeColumns.map((c) => c.label);
-        rows = maintenanceActivity.map((m) =>
-          (activeColumns as Column<MaintenanceRequest>[]).map((c) => c.csv(m)),
-        );
-        break;
-      case "revenue-performance":
-        filename = "revenue-performance.csv";
-        headers = activeColumns.map((c) => c.label);
-        rows = revenuePerformance.map((p) =>
-          (activeColumns as Column<Payment>[]).map((c) => c.csv(p)),
-        );
-        break;
+  const handleExport = async () => {
+    setError(null);
+    try {
+      await exportReport(reportId, range);
+      setNotice(`${reportId}.xlsx downloaded — check your browser's Downloads.`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to export report.");
     }
-
-    if (PAYMENT_REPORT_IDS.includes(reportId)) {
-      const pad = (label: string, value: string | number) => [
-        label,
-        value,
-        ...Array(Math.max(headers.length - 2, 0)).fill(""),
-      ];
-      rows = [
-        ...rows,
-        Array(headers.length).fill(""),
-        pad("Total Income (RWF)", incomeForActiveReport),
-        pad("Total Expenses (RWF)", expensesForActiveReport),
-        pad("Net Profit (RWF)", netProfitForActiveReport),
-      ];
-
-      if (expenseBreakdown.length > 0) {
-        rows = [
-          ...rows,
-          Array(headers.length).fill(""),
-          ["Expense Breakdown (completed maintenance)"],
-          ["Property", "Work Done", "Labor Cost (RWF)", "Item Cost (RWF)", "Total (RWF)", "Date"],
-          ...expenseBreakdown.map((e) => [
-            e.property,
-            e.workDone,
-            e.laborCost,
-            e.itemCost,
-            e.total,
-            e.date,
-          ]),
-        ];
-      }
-    }
-
-    downloadCSV(filename, headers, rows);
-    setNotice(`${filename} downloaded — check your browser's Downloads.`);
   };
 
   return (
@@ -473,10 +375,18 @@ export default function LandlordReportsPage() {
         </div>
       )}
 
+      {error && (
+        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <AlertCircle className="h-4 w-4" />
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
         <SummaryCard
           label="Total Collected"
           value={`${formatMoney(totalCollected)} RWF`}
+          subtitle="This year"
           accent="emerald"
         />
         <SummaryCard
@@ -494,16 +404,16 @@ export default function LandlordReportsPage() {
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={revenueByMonth}>
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
-              <XAxis dataKey="month" tick={axisTick} />
+              <XAxis dataKey="Month" tick={axisTick} />
               <YAxis tick={axisTick} />
               <Tooltip formatter={(value) => `${formatMoney(Number(value))} RWF`} />
-              <Bar dataKey="amount" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} />
+              <Bar dataKey="Revenue" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {myProperties.length > 0 && (
+      {properties.length > 0 && (
         <div className="grid gap-5 lg:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="font-semibold text-navy">Occupancy</p>
@@ -518,10 +428,7 @@ export default function LandlordReportsPage() {
                   paddingAngle={2}
                 >
                   {occupancyData.map((entry, i) => (
-                    <Cell
-                      key={entry.name}
-                      fill={CHART_COLORS[i % CHART_COLORS.length]}
-                    />
+                    <Cell key={entry.name} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -543,10 +450,7 @@ export default function LandlordReportsPage() {
                   paddingAngle={2}
                 >
                   {paymentStatusData.map((entry, i) => (
-                    <Cell
-                      key={entry.name}
-                      fill={CHART_COLORS[i % CHART_COLORS.length]}
-                    />
+                    <Cell key={entry.name} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -562,7 +466,10 @@ export default function LandlordReportsPage() {
           Report type
           <select
             value={reportId}
-            onChange={(e) => setReportId(e.target.value as ReportId)}
+            onChange={(e) => {
+              setReportId(e.target.value as ReportId);
+              setPropertyFilter("All Properties");
+            }}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
             {REPORT_TYPES.map((r) => (
@@ -645,69 +552,61 @@ export default function LandlordReportsPage() {
           className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           <Download className="h-4 w-4" />
-          Export CSV
+          Export Excel
         </button>
       </div>
 
-      {PAYMENT_REPORT_IDS.includes(reportId) && (
+      {INCOME_REPORT_IDS.includes(reportId) && (
         <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
-          <SummaryCard
-            label="Total Income"
-            value={`${formatMoney(incomeForActiveReport)} RWF`}
-            accent="emerald"
-          />
+          <SummaryCard label="Total Income" value={`${formatMoney(income)} RWF`} accent="emerald" />
           <SummaryCard
             label="Total Expenses"
-            value={`${formatMoney(expensesForActiveReport)} RWF`}
+            value={`${formatMoney(expenses)} RWF`}
             accent="red"
-            subtitle="Completed maintenance costs"
+            subtitle="Maintenance costs in this period"
           />
           <SummaryCard
             label="Net Profit"
-            value={`${formatMoney(netProfitForActiveReport)} RWF`}
-            accent={netProfitForActiveReport >= 0 ? "navy" : "red"}
+            value={`${formatMoney(netProfit)} RWF`}
+            accent={netProfit >= 0 ? "navy" : "red"}
           />
         </div>
       )}
 
-      {PAYMENT_REPORT_IDS.includes(reportId) && (
+      {INCOME_REPORT_IDS.includes(reportId) && (
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 px-6 py-4">
             <p className="font-semibold text-navy">Where your expenses come from</p>
             <p className="mt-1 text-sm text-slate-500">
-              Completed maintenance jobs on your properties in this period.
+              Maintenance costs on your properties in this period.
             </p>
           </div>
           <Table variant="bare">
             <THead>
               <Tr>
                 <Th className="px-6 py-3">Property</Th>
-                <Th className="px-6 py-3">Work Done</Th>
+                <Th className="px-6 py-3">Title</Th>
                 <Th className="px-6 py-3">Labor Cost (RWF)</Th>
-                <Th className="px-6 py-3">Item Cost (RWF)</Th>
+                <Th className="px-6 py-3">Items Cost (RWF)</Th>
                 <Th className="px-6 py-3">Total (RWF)</Th>
                 <Th className="px-6 py-3">Date</Th>
               </Tr>
             </THead>
             <TBody>
-              {pagedExpenseBreakdown.map((e) => (
-                <Tr key={e.id}>
-                  <Td className="px-6 py-3 font-medium text-navy">{e.property}</Td>
-                  <Td className="max-w-xs px-6 py-3 text-slate-500">{e.workDone}</Td>
-                  <Td className="px-6 py-3 text-slate-500">
-                    {formatMoney(e.laborCost)}
-                  </Td>
-                  <Td className="px-6 py-3 text-slate-500">
-                    {formatMoney(e.itemCost)}
-                  </Td>
+              {pagedExpenseRows.map((e, i) => (
+                <Tr key={i}>
+                  <Td className="px-6 py-3 font-medium text-navy">{e.Property}</Td>
+                  <Td className="max-w-xs px-6 py-3 text-slate-500">{e.Title}</Td>
+                  <Td className="px-6 py-3 text-slate-500">{formatMoney(Number(e.LaborCost))}</Td>
+                  <Td className="px-6 py-3 text-slate-500">{formatMoney(Number(e.ItemsCost))}</Td>
                   <Td className="px-6 py-3 font-medium text-red-600">
-                    {formatMoney(e.total)}
+                    {formatMoney(Number(e.ItemsCost) + Number(e.LaborCost))}
                   </Td>
-                  <Td className="px-6 py-3 text-slate-500">{e.date}</Td>
+                  <Td className="px-6 py-3 text-slate-500">{e.CreatedAt}</Td>
                 </Tr>
               ))}
-              {pagedExpenseBreakdown.length === 0 && (
-                <EmptyRow colSpan={6}>No completed maintenance costs in this period.</EmptyRow>
+              {pagedExpenseRows.length === 0 && (
+                <EmptyRow colSpan={6}>No maintenance costs in this period.</EmptyRow>
               )}
             </TBody>
           </Table>
@@ -715,7 +614,7 @@ export default function LandlordReportsPage() {
           <Pagination
             page={expensePage}
             totalPages={expenseTotalPages}
-            totalItems={expenseBreakdown.length}
+            totalItems={expenseRows.length}
             pageSize={DEFAULT_PAGE_SIZE}
             onPageChange={setExpensePage}
           />
@@ -723,63 +622,20 @@ export default function LandlordReportsPage() {
       )}
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        {reportId === "rental-history" && (
+        {isLoading ? (
+          <div className="px-6 py-10 text-center text-sm text-slate-500">Loading report...</div>
+        ) : (
           <ReportTable
-            columns={activeColumns as Column<Lease>[]}
-            rows={paginate(rentalHistory)}
-            getKey={(l) => l.id}
-            emptyMessage="No leases match these filters."
+            columns={activeColumns as Column<unknown>[]}
+            rows={pagedRows}
+            emptyMessage="No rows match these filters."
           />
-        )}
-
-        {reportId === "payment-history" && (
-          <ReportTable
-            columns={activeColumns as Column<Payment>[]}
-            rows={paginate(paymentHistory)}
-            getKey={(p) => p.id}
-            emptyMessage="No payments match these filters."
-          />
-        )}
-
-        {reportId === "occupancy" && (
-          <ReportTable
-            columns={activeColumns as Column<Property>[]}
-            rows={paginate(occupancy)}
-            getKey={(p) => p.id}
-            emptyMessage="No properties match these filters."
-          />
-        )}
-
-        {reportId === "maintenance-activity" && (
-          <ReportTable
-            columns={activeColumns as Column<MaintenanceRequest>[]}
-            rows={paginate(maintenanceActivity)}
-            getKey={(m) => m.id}
-            emptyMessage="No requests match these filters."
-          />
-        )}
-
-        {reportId === "revenue-performance" && (
-          <>
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-              <p className="text-sm font-medium text-slate-500">Total collected</p>
-              <p className="text-lg font-bold text-navy">
-                {formatMoney(revenueTotal)} RWF
-              </p>
-            </div>
-            <ReportTable
-              columns={activeColumns as Column<Payment>[]}
-              rows={paginate(revenuePerformance)}
-              getKey={(p) => p.id}
-              emptyMessage="No revenue matches these filters."
-            />
-          </>
         )}
 
         <Pagination
           page={page}
           totalPages={totalPages}
-          totalItems={activeReportRows.length}
+          totalItems={filteredRows.length}
           pageSize={DEFAULT_PAGE_SIZE}
           onPageChange={setPage}
         />
