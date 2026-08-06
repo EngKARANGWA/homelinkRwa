@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFetchBlob } from "./client";
 import type {
   CreateLeaseInput,
   CreateMoveRequestInput,
@@ -46,11 +46,20 @@ export async function signLease(id: string): Promise<Lease> {
   return res.data;
 }
 
+/**
+ * Signed leases have a stored PDF and the backend returns a JSON
+ * `{ url }` pointing at it. Anything else (no signatures yet) gets
+ * rendered live server-side and comes back as a raw `application/pdf`
+ * body instead — turn that into a local blob URL so callers always
+ * get a URL to open, regardless of which path the backend took.
+ */
 export async function getLeaseDocument(id: string): Promise<LeaseDocumentUrl> {
-  const res = await apiFetch<SuccessResponse<LeaseDocumentUrl>>(
-    `/leases/${id}/document`,
-  );
-  return res.data;
+  const blob = await apiFetchBlob(`/leases/${id}/document`);
+  if (blob.type.includes("json")) {
+    const body = JSON.parse(await blob.text()) as SuccessResponse<LeaseDocumentUrl>;
+    return body.data;
+  }
+  return { url: URL.createObjectURL(blob) };
 }
 
 export type RequestLeaseRenewalInput = {
@@ -151,13 +160,13 @@ export async function inspectMoveRequest(
   return res.data;
 }
 
-export async function uploadLeaseDocument(
+export async function uploadLeaseDocuments(
   leaseId: string,
-  file: File,
-): Promise<LeaseDocument> {
+  files: File[],
+): Promise<LeaseDocument[]> {
   const formData = new FormData();
-  formData.append("document", file);
-  const res = await apiFetch<SuccessResponse<LeaseDocument>>(
+  files.forEach((file) => formData.append("documents", file));
+  const res = await apiFetch<SuccessResponse<LeaseDocument[]>>(
     `/leases/${leaseId}/documents`,
     { method: "POST", body: formData },
   );

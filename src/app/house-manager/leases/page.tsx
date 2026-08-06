@@ -2,40 +2,36 @@
 
 import { useEffect, useState } from "react";
 import { AlertCircle, Check, CheckCircle2, Eye, FileStack, Plus, X } from "lucide-react";
-import { listUsers } from "@/lib/api/admin";
 import { listProperties, listUnits } from "@/lib/api/properties";
 import {
   approveLeaseChangeRequest,
-  createLease,
   getLease,
   listLeaseChangeRequests,
   listLeases,
   rejectLeaseChangeRequest,
 } from "@/lib/api/leases";
+import { inviteTenant } from "@/lib/api/iam";
 import { ApiError } from "@/lib/api/client";
-import type { CreateLeaseInput, Lease, Property, PropertyUnit, User } from "@/lib/api/types";
+import type { Lease, Property, PropertyUnit } from "@/lib/api/types";
 import { formatLeaseStatus, LEASE_STATUS_STYLES } from "@/lib/leaseStatus";
 import { Modal } from "@/components/admin/Modal";
-import { LeaseForm } from "@/components/admin/LeaseForm";
+import { InviteTenantForm, type InviteTenantValues } from "@/components/landlord/InviteTenantForm";
 import { LeaseDocumentsPanel } from "@/components/leases/LeaseDocumentsPanel";
 import { LeaseDetail } from "@/components/leases/LeaseDetail";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
 
-export default function LeasesPage() {
+export default function HouseManagerLeasesPage() {
   const [leases, setLeases] = useState<Lease[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [units, setUnits] = useState<PropertyUnit[]>([]);
-  const [owners, setOwners] = useState<User[]>([]);
-  const [tenants, setTenants] = useState<User[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [isModalOpen, setModalOpen] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [justCreated, setJustCreated] = useState(false);
+  const [isInviting, setInviting] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [documentsLease, setDocumentsLease] = useState<Lease | null>(null);
   const [viewingLease, setViewingLease] = useState<Lease | null>(null);
   const [isViewLoading, setViewLoading] = useState(false);
@@ -45,10 +41,8 @@ export default function LeasesPage() {
 
   const propertyFor = (id: string) => properties.find((p) => p.id === id);
   const unitFor = (id: string) => units.find((u) => u.id === id);
-  const userName = (list: User[], id: string) => {
-    const user = list.find((u) => u.id === id);
-    return user ? `${user.firstName} ${user.lastName}` : "—";
-  };
+  const tenantName = (id: string) => `Tenant ${id.slice(0, 8).toUpperCase()}`;
+  const ownerName = (id: string) => `Owner ${id.slice(0, 8).toUpperCase()}`;
 
   const load = () => {
     setLoading(true);
@@ -56,16 +50,12 @@ export default function LeasesPage() {
     Promise.all([
       listLeases({ page, limit: DEFAULT_PAGE_SIZE }),
       listProperties({ limit: 100 }),
-      listUsers({ role: "owner", limit: 100 }),
-      listUsers({ role: "tenant", limit: 100 }),
     ])
-      .then(async ([leasesRes, propertiesRes, ownersRes, tenantsRes]) => {
+      .then(async ([leasesRes, propertiesRes]) => {
         setLeases(leasesRes.data);
         setTotalPages(leasesRes.meta.totalPages);
         setTotalItems(leasesRes.meta.total);
         setProperties(propertiesRes.data);
-        setOwners(ownersRes.data);
-        setTenants(tenantsRes.data);
         const unitsByProperty = await Promise.all(
           propertiesRes.data.map((p) => listUnits(p.id)),
         );
@@ -79,15 +69,14 @@ export default function LeasesPage() {
 
   useEffect(load, [page]);
 
-  const addLease = async (values: CreateLeaseInput) => {
-    setFormError(null);
+  const handleInvite = async (values: InviteTenantValues) => {
+    setActionError(null);
     try {
-      await createLease(values);
-      setModalOpen(false);
-      setJustCreated(true);
-      load();
+      await inviteTenant(values.email, values.propertyId);
+      setInviting(false);
+      setNotice(`Invite sent to ${values.email}.`);
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Failed to create lease.");
+      setActionError(err instanceof ApiError ? err.message : "Failed to send invite.");
     }
   };
 
@@ -139,23 +128,23 @@ export default function LeasesPage() {
         <div>
           <h1 className="text-2xl font-bold text-navy">Leases</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Digital lease agreements across the platform.
+            Lease agreements on managed properties.
           </p>
         </div>
         <button
           type="button"
-          onClick={() => setModalOpen(true)}
+          onClick={() => setInviting(true)}
           className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           <Plus className="h-4 w-4" />
-          Create Lease
+          Invite Tenant
         </button>
       </div>
 
-      {justCreated && (
+      {notice && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
           <CheckCircle2 className="h-4 w-4" />
-          Lease created successfully.
+          {notice}
         </div>
       )}
 
@@ -178,7 +167,6 @@ export default function LeasesPage() {
           <Tr>
             <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Tenant</Th>
             <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
-            <Th className="hidden px-6 py-3 lg:table-cell">Owner</Th>
             <Th className="hidden px-6 py-3 md:table-cell">Rent (RWF)</Th>
             <Th className="hidden px-6 py-3 lg:table-cell">Term</Th>
             <Th className="px-4 py-3 sm:px-6">Status</Th>
@@ -187,19 +175,19 @@ export default function LeasesPage() {
         </THead>
         <TBody>
           {isLoading ? (
-            <EmptyRow colSpan={7}>Loading leases...</EmptyRow>
+            <EmptyRow colSpan={6}>Loading leases...</EmptyRow>
           ) : leases.length === 0 ? (
-            <EmptyRow colSpan={7}>No leases on the platform yet.</EmptyRow>
+            <EmptyRow colSpan={6}>No leases on managed properties yet.</EmptyRow>
           ) : (
             leases.map((lease) => {
               const property = propertyFor(lease.propertyId);
-              const tenantName = userName(tenants, lease.tenantId);
+              const name = tenantName(lease.tenantId);
               const isProcessing = processingId === lease.id;
               return (
                 <Tr key={lease.id}>
                   <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
                     <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                      {tenantName}
+                      {name}
                     </p>
                     <p className="truncate text-xs text-slate-400 md:hidden">
                       {property?.title ?? "—"} · {formatMoney(Number(lease.rentAmount))} RWF
@@ -207,9 +195,6 @@ export default function LeasesPage() {
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                     {property?.title ?? "—"}
-                  </Td>
-                  <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                    {userName(owners, lease.ownerId)}
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                     {formatMoney(Number(lease.rentAmount))}
@@ -238,7 +223,7 @@ export default function LeasesPage() {
                       <button
                         type="button"
                         onClick={() => setDocumentsLease(lease)}
-                        aria-label={`Documents for ${tenantName}`}
+                        aria-label={`Documents for ${name}`}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                       >
                         <FileStack className="h-3.5 w-3.5" />
@@ -252,7 +237,7 @@ export default function LeasesPage() {
                             type="button"
                             onClick={() => resolveRequest(lease, true)}
                             disabled={isProcessing}
-                            aria-label={`Approve request for ${tenantName}`}
+                            aria-label={`Approve request for ${name}`}
                             className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
                           >
                             <Check className="h-4 w-4" />
@@ -261,7 +246,7 @@ export default function LeasesPage() {
                             type="button"
                             onClick={() => resolveRequest(lease, false)}
                             disabled={isProcessing}
-                            aria-label={`Reject request for ${tenantName}`}
+                            aria-label={`Reject request for ${name}`}
                             className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
                           >
                             <X className="h-4 w-4" />
@@ -285,22 +270,16 @@ export default function LeasesPage() {
         onPageChange={setPage}
       />
 
-      {isModalOpen && (
+      {isInviting && (
         <Modal
-          title="Create Lease"
-          description="Create a new digital lease agreement."
-          onClose={() => setModalOpen(false)}
+          title="Invite Tenant"
+          description="Send a tenant an invite to join HomeLink."
+          onClose={() => setInviting(false)}
         >
-          {formError && (
-            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {formError}
-            </p>
-          )}
-          <LeaseForm
+          <InviteTenantForm
             properties={properties}
-            tenants={tenants}
-            onCancel={() => setModalOpen(false)}
-            onSuccess={addLease}
+            onCancel={() => setInviting(false)}
+            onSuccess={handleInvite}
           />
         </Modal>
       )}
@@ -308,7 +287,7 @@ export default function LeasesPage() {
       {documentsLease && (
         <Modal
           title="Lease Documents"
-          description={`${userName(tenants, documentsLease.tenantId)} · ${propertyFor(documentsLease.propertyId)?.title ?? "—"}`}
+          description={`${tenantName(documentsLease.tenantId)} · ${propertyFor(documentsLease.propertyId)?.title ?? "—"}`}
           onClose={() => setDocumentsLease(null)}
         >
           <LeaseDocumentsPanel
@@ -322,15 +301,15 @@ export default function LeasesPage() {
       {viewingLease && (
         <Modal
           title="Lease Details"
-          description={`${userName(tenants, viewingLease.tenantId)} · ${propertyFor(viewingLease.propertyId)?.title ?? "—"}`}
+          description={`${tenantName(viewingLease.tenantId)} · ${propertyFor(viewingLease.propertyId)?.title ?? "—"}`}
           onClose={() => setViewingLease(null)}
         >
           <LeaseDetail
             lease={viewingLease}
             propertyLabel={propertyFor(viewingLease.propertyId)?.title ?? "—"}
             unitLabel={unitFor(viewingLease.unitId)?.label ?? "—"}
-            tenantLabel={userName(tenants, viewingLease.tenantId)}
-            ownerLabel={userName(owners, viewingLease.ownerId)}
+            tenantLabel={tenantName(viewingLease.tenantId)}
+            ownerLabel={ownerName(viewingLease.ownerId)}
           />
         </Modal>
       )}

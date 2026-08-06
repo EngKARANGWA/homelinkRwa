@@ -1,34 +1,44 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Eye } from "lucide-react";
-import { listProperties } from "@/lib/api/properties";
+import { AlertCircle, CheckCircle2, Eye, FileStack } from "lucide-react";
+import { listProperties, listUnits } from "@/lib/api/properties";
 import {
-  getLeaseDocument,
+  getLease,
   listLeases,
   requestLeaseRenewal,
   requestLeaseTermination,
 } from "@/lib/api/leases";
 import { ApiError } from "@/lib/api/client";
-import type { Lease, Property } from "@/lib/api/types";
+import type { Lease, Property, PropertyUnit } from "@/lib/api/types";
 import { formatLeaseStatus, LEASE_STATUS_STYLES } from "@/lib/leaseStatus";
+import { useAuth } from "@/components/auth/AuthContext";
+import { Modal } from "@/components/admin/Modal";
+import { LeaseDocumentsPanel } from "@/components/leases/LeaseDocumentsPanel";
+import { LeaseDetail } from "@/components/leases/LeaseDetail";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
 
 export default function TenantLeasePage() {
+  const { user } = useAuth();
   const [leases, setLeases] = useState<Lease[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [units, setUnits] = useState<PropertyUnit[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [documentsLease, setDocumentsLease] = useState<Lease | null>(null);
+  const [viewingLease, setViewingLease] = useState<Lease | null>(null);
+  const [isViewLoading, setViewLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
   const propertyFor = (id: string) => properties.find((p) => p.id === id);
+  const unitFor = (id: string) => units.find((u) => u.id === id);
   const ownerName = (id: string) => `Owner ${id.slice(0, 8).toUpperCase()}`;
 
   const load = () => {
@@ -38,11 +48,15 @@ export default function TenantLeasePage() {
       listLeases({ page, limit: DEFAULT_PAGE_SIZE }),
       listProperties({ limit: 100 }),
     ])
-      .then(([leasesRes, propertiesRes]) => {
+      .then(async ([leasesRes, propertiesRes]) => {
         setLeases(leasesRes.data);
         setTotalPages(leasesRes.meta.totalPages);
         setTotalItems(leasesRes.meta.total);
         setProperties(propertiesRes.data);
+        const unitsByProperty = await Promise.all(
+          propertiesRes.data.map((p) => listUnits(p.id)),
+        );
+        setUnits(unitsByProperty.flat());
       })
       .catch((err) =>
         setError(err instanceof ApiError ? err.message : "Failed to load your leases."),
@@ -52,15 +66,15 @@ export default function TenantLeasePage() {
 
   useEffect(load, [page]);
 
-  const viewDocument = async (lease: Lease) => {
+  const viewLease = async (lease: Lease) => {
     setActionError(null);
+    setViewLoading(true);
     try {
-      const { url } = await getLeaseDocument(lease.id);
-      window.open(url, "_blank", "noopener,noreferrer");
+      setViewingLease(await getLease(lease.id));
     } catch (err) {
-      setActionError(
-        err instanceof ApiError ? err.message : "Failed to load lease document.",
-      );
+      setActionError(err instanceof ApiError ? err.message : "Failed to load lease details.");
+    } finally {
+      setViewLoading(false);
     }
   };
 
@@ -182,11 +196,21 @@ export default function TenantLeasePage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => viewDocument(lease)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                        onClick={() => viewLease(lease)}
+                        disabled={isViewLoading}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                       >
                         <Eye className="h-3.5 w-3.5" />
                         View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDocumentsLease(lease)}
+                        aria-label={`Documents for ${property?.title ?? "this lease"}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        <FileStack className="h-3.5 w-3.5" />
+                        Documents
                       </button>
                       {lease.status === "active" && (
                         <>
@@ -224,6 +248,36 @@ export default function TenantLeasePage() {
         pageSize={DEFAULT_PAGE_SIZE}
         onPageChange={setPage}
       />
+
+      {documentsLease && (
+        <Modal
+          title="Lease Documents"
+          description={propertyFor(documentsLease.propertyId)?.title ?? "Lease"}
+          onClose={() => setDocumentsLease(null)}
+        >
+          <LeaseDocumentsPanel
+            leaseId={documentsLease.id}
+            documentsConfirmed={documentsLease.documentsConfirmed}
+            onConfirmed={load}
+          />
+        </Modal>
+      )}
+
+      {viewingLease && (
+        <Modal
+          title="Lease Details"
+          description={propertyFor(viewingLease.propertyId)?.title ?? "Lease"}
+          onClose={() => setViewingLease(null)}
+        >
+          <LeaseDetail
+            lease={viewingLease}
+            propertyLabel={propertyFor(viewingLease.propertyId)?.title ?? "—"}
+            unitLabel={unitFor(viewingLease.unitId)?.label ?? "—"}
+            tenantLabel={user ? `${user.firstName} ${user.lastName}` : "—"}
+            ownerLabel={ownerName(viewingLease.ownerId)}
+          />
+        </Modal>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-export type Role = "tenant" | "owner" | "agent" | "admin";
+export type Role = "tenant" | "owner" | "agent" | "admin" | "superadmin" | "house_manager";
 
 export type User = {
   id: string;
@@ -189,9 +189,13 @@ export type Lease = {
   paymentDate: string | null;
   rentAmount: number;
   deposit: number | null;
+  momoNumber: string | null;
+  leasePeriodNote: string | null;
   status: LeaseStatus;
   documentUrl: string | null;
   documentsConfirmed: boolean;
+  documentsConfirmedBy: string | null;
+  documentsConfirmedAt: string | null;
   tenantSignedAt: string | null;
   ownerSignedAt: string | null;
   terminatedAt: string | null;
@@ -229,8 +233,8 @@ export type LeaseDocument = {
   id: string;
   leaseId: string;
   url: string;
-  documentType: string;
-  uploadedAt: string;
+  uploadedBy: string;
+  createdAt: string;
 };
 
 export type MoveRequest = {
