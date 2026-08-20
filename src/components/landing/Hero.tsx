@@ -18,9 +18,9 @@ export function Hero() {
       </div>
 
       <div className="relative mx-auto max-w-7xl px-6 py-24 lg:px-10 lg:py-32">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-gold">
+        {/* <p className="text-sm font-semibold uppercase tracking-[0.3em] text-gold">
           Manage. Track. Collect.
-        </p>
+        </p> */}
 
         <h1 className="mt-4 max-w-2xl text-4xl font-extrabold leading-[1.1] text-white sm:text-5xl lg:text-6xl">
           The Smarter Way to{" "}
