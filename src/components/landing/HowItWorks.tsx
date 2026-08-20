@@ -10,7 +10,7 @@ export function HowItWorks() {
   const { t } = useLanguage();
 
   return (
-    <section id="how-it-works" className="bg-white py-16">
+    <section id="how-it-works" className="bg-white pt-8 pb-16">
       <div className="mx-auto max-w-7xl px-6 text-center lg:px-10">
         <p className="text-sm font-semibold uppercase tracking-wide text-gold">
           {t.howItWorks.eyebrow}

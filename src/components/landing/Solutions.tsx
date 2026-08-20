@@ -16,7 +16,7 @@ export function Solutions() {
   const { t } = useLanguage();
 
   return (
-    <section className="bg-slate-50 py-16">
+    <section className="bg-slate-50 pt-16 pb-8">
       <div className="mx-auto max-w-7xl px-6 text-center lg:px-10">
         <p className="text-sm font-semibold uppercase tracking-wide text-gold">
           {t.solutions.eyebrow}

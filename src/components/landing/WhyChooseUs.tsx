@@ -9,7 +9,7 @@ export function WhyChooseUs() {
   const { t } = useLanguage();
 
   return (
-    <section id="features" className="bg-slate-50 py-16">
+    <section id="features" className="bg-slate-50 pt-8 pb-8">
       <div className="mx-auto max-w-7xl px-6 text-center lg:px-10">
         <p className="text-sm font-semibold uppercase tracking-wide text-gold">
           {t.whyChooseUs.eyebrow}

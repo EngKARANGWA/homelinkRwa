@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Calendar } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export function Hero() {
@@ -22,11 +22,7 @@ export function Hero() {
         <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/80 to-navy/50" />
       </div>
 
-      <div className="relative mx-auto max-w-7xl px-6 py-24 lg:px-10 lg:py-32">
-        {/* <p className="text-sm font-semibold uppercase tracking-[0.3em] text-gold">
-          Manage. Track. Collect.
-        </p> */}
-
+      <div className="relative mx-auto max-w-7xl px-6 pt-24 pb-12 lg:px-10 lg:pt-32 lg:pb-16">
         <h1 className="mt-4 max-w-2xl text-4xl font-extrabold leading-[1.1] text-white sm:text-5xl lg:text-6xl">
           {t.hero.titlePrefix}
           <span className="text-gold">{t.hero.titleHighlight}</span>
@@ -45,13 +41,6 @@ export function Hero() {
             {t.hero.getStarted}
             <ArrowRight className="h-4 w-4" />
           </Link>
-          {/* <Link
-            href="#demo"
-            className="inline-flex items-center gap-2 rounded-lg border border-white/25 px-6 py-3 font-semibold text-white transition-colors hover:bg-white/10"
-          >
-            Book a Demo
-            <Calendar className="h-4 w-4" />
-          </Link> */}
         </div>
       </div>
     </section>
