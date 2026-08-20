@@ -2,6 +2,7 @@
 
 import type { ApprovalStatus, Property, PropertyStatus } from "@/lib/api/types";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const APPROVAL_STYLES: Record<ApprovalStatus, string> = {
   approved: "bg-emerald-50 text-emerald-700",
@@ -45,6 +46,8 @@ export function PropertyDetail({
   property: Property;
   ownerName: string;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.propertyDetail;
   const addressParts = [
     property.addressLine,
     property.city,
@@ -56,29 +59,29 @@ export function PropertyDetail({
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-5">
-        <Field label="Title">{property.title}</Field>
-        <Field label="Owner">{ownerName}</Field>
+        <Field label={c.property}>{property.title}</Field>
+        <Field label={c.owner}>{ownerName}</Field>
 
-        <Field label="Category">{capitalize(property.category)}</Field>
-        <Field label="Type">{capitalize(property.type)}</Field>
+        <Field label="Category">{t.dashboard.status[property.category]}</Field>
+        <Field label={c.type}>{capitalize(property.type)}</Field>
 
-        <Field label="Availability">
+        <Field label={c.availability}>
           <span
             className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[property.status]}`}
           >
-            {capitalize(property.status)}
+            {t.dashboard.status[property.status]}
           </span>
         </Field>
-        <Field label="Approval">
+        <Field label={c.approval}>
           <span
             className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${APPROVAL_STYLES[property.approvalStatus]}`}
           >
-            {capitalize(property.approvalStatus)}
+            {t.dashboard.status[property.approvalStatus]}
           </span>
         </Field>
       </div>
 
-      <Field label="Address">{addressParts.join(", ")}</Field>
+      <Field label={c.address}>{addressParts.join(", ")}</Field>
 
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
         {property.sizeSqm != null && (
@@ -96,10 +99,10 @@ export function PropertyDetail({
       </div>
 
       <div className="grid grid-cols-2 gap-5">
-        <Field label="Monthly Rent">
+        <Field label={c.monthlyRent}>
           {formatMoney(Number(property.rentAmount))} RWF
         </Field>
-        <Field label="Rent Conditions">
+        <Field label={c.rentConditions}>
           {property.rentConditions ?? "—"}
         </Field>
       </div>

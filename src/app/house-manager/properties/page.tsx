@@ -29,6 +29,7 @@ import { PropertyForm } from "@/components/admin/PropertyForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const STATUS_STYLES: Record<PropertyStatus, string> = {
   available: "bg-emerald-50 text-emerald-700",
@@ -46,6 +47,8 @@ function capitalize(value: string) {
 }
 
 export default function HouseManagerPropertiesPage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.houseManager.properties;
   const [properties, setProperties] = useState<Property[]>([]);
   const [view, setView] = useState<"cards" | "table">("cards");
   const [isLoading, setLoading] = useState(true);
@@ -57,6 +60,15 @@ export default function HouseManagerPropertiesPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+
+  const statusLabel = (status: PropertyStatus) =>
+    status === "available" ? t.dashboard.status.available : t.dashboard.status.occupied;
+  const approvalLabel = (status: ApprovalStatus) =>
+    status === "approved"
+      ? t.dashboard.status.approved
+      : status === "rejected"
+        ? t.dashboard.status.rejected
+        : t.dashboard.status.pending;
 
   const load = () => {
     setLoading(true);
@@ -104,17 +116,15 @@ export default function HouseManagerPropertiesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Properties</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Properties you manage on the platform.
-          </p>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{c.subtitle}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center rounded-lg border border-slate-300 bg-white p-1">
             <button
               type="button"
               onClick={() => setView("cards")}
-              aria-label="Card view"
+              aria-label={c.cardsViewAria}
               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 view === "cards"
                   ? "bg-navy text-white"
@@ -122,12 +132,12 @@ export default function HouseManagerPropertiesPage() {
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
-              Cards
+              {c.cardsView}
             </button>
             <button
               type="button"
               onClick={() => setView("table")}
-              aria-label="Table view"
+              aria-label={c.tableViewAria}
               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 view === "table"
                   ? "bg-navy text-white"
@@ -135,7 +145,7 @@ export default function HouseManagerPropertiesPage() {
               }`}
             >
               <TableIcon className="h-3.5 w-3.5" />
-              Table
+              {c.tableView}
             </button>
           </div>
           <button
@@ -144,7 +154,7 @@ export default function HouseManagerPropertiesPage() {
             className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
           >
             <Plus className="h-4 w-4" />
-            Add Property
+            {c.addProperty}
           </button>
         </div>
       </div>
@@ -152,7 +162,7 @@ export default function HouseManagerPropertiesPage() {
       {justSaved && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
           <CheckCircle2 className="h-4 w-4" />
-          Property saved successfully.
+          {c.savedNotice}
         </div>
       )}
 
@@ -172,11 +182,11 @@ export default function HouseManagerPropertiesPage() {
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {isLoading ? (
             <div className="col-span-full rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-400">
-              Loading properties...
+              {c.loading}
             </div>
           ) : properties.length === 0 ? (
             <div className="col-span-full rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-400">
-              No properties registered yet.
+              {c.empty}
             </div>
           ) : (
             properties.map((property) => {
@@ -189,7 +199,7 @@ export default function HouseManagerPropertiesPage() {
                   <button
                     type="button"
                     onClick={() => setEditingProperty(property)}
-                    aria-label={`Edit ${property.title}`}
+                    aria-label={c.editAriaTemplate.replace("{title}", property.title)}
                     className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-sm hover:bg-slate-100"
                   >
                     <Pencil className="h-3.5 w-3.5" />
@@ -211,23 +221,23 @@ export default function HouseManagerPropertiesPage() {
 
                     <div className="mt-5 grid grid-cols-3 gap-3 border-t border-slate-100 pt-4">
                       <div>
-                        <p className="text-xs text-slate-400">Type</p>
+                        <p className="text-xs text-slate-400">{t.dashboard.table.type}</p>
                         <p className="mt-0.5 truncate font-semibold text-navy">
                           {capitalize(property.type)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-400">Rent</p>
+                        <p className="text-xs text-slate-400">{t.dashboard.table.rent}</p>
                         <p className="mt-0.5 truncate font-semibold text-navy">
                           {formatMoney(Number(property.rentAmount))} RWF
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-400">Status</p>
+                        <p className="text-xs text-slate-400">{t.dashboard.table.status}</p>
                         <span
                           className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[property.status]}`}
                         >
-                          {capitalize(property.status)}
+                          {statusLabel(property.status)}
                         </span>
                       </div>
                     </div>
@@ -241,19 +251,19 @@ export default function HouseManagerPropertiesPage() {
         <Table variant="standalone">
           <THead>
             <Tr>
-              <Th className="px-4 py-3 sm:px-6">Property</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Type</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Rent (RWF)</Th>
-              <Th className="hidden px-6 py-3 sm:table-cell">Availability</Th>
-              <Th className="px-4 py-3 sm:px-6">Approval</Th>
-              <Th className="px-4 py-3 sm:px-6">Actions</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.property}</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.type}</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.rentRwf}</Th>
+              <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.availability}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.approval}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
             </Tr>
           </THead>
           <TBody>
             {isLoading ? (
-              <EmptyRow colSpan={6}>Loading properties...</EmptyRow>
+              <EmptyRow colSpan={6}>{c.loading}</EmptyRow>
             ) : properties.length === 0 ? (
-              <EmptyRow colSpan={6}>No properties registered yet.</EmptyRow>
+              <EmptyRow colSpan={6}>{c.empty}</EmptyRow>
             ) : (
               properties.map((property) => (
                 <Tr key={property.id}>
@@ -278,14 +288,14 @@ export default function HouseManagerPropertiesPage() {
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[property.status]}`}
                     >
-                      {capitalize(property.status)}
+                      {statusLabel(property.status)}
                     </span>
                   </Td>
                   <Td className="px-4 py-3 sm:px-6">
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-medium ${APPROVAL_STYLES[property.approvalStatus]}`}
                     >
-                      {capitalize(property.approvalStatus)}
+                      {approvalLabel(property.approvalStatus)}
                     </span>
                   </Td>
                   <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
@@ -293,11 +303,11 @@ export default function HouseManagerPropertiesPage() {
                       <button
                         type="button"
                         onClick={() => setEditingProperty(property)}
-                        aria-label={`Edit ${property.title}`}
+                        aria-label={c.editAriaTemplate.replace("{title}", property.title)}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                       >
                         <Pencil className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Edit</span>
+                        <span className="hidden sm:inline">{t.dashboard.actions.edit}</span>
                       </button>
                     </div>
                   </Td>
@@ -318,8 +328,8 @@ export default function HouseManagerPropertiesPage() {
 
       {isAdding && (
         <Modal
-          title="Add Property"
-          description="Register a new property. It will be submitted for admin approval."
+          title={c.addPropertyTitle}
+          description={c.addPropertyDescription}
           onClose={() => setAdding(false)}
         >
           {formError && (
@@ -338,8 +348,8 @@ export default function HouseManagerPropertiesPage() {
 
       {editingProperty && (
         <Modal
-          title="Edit Property"
-          description="Update this property's details."
+          title={c.editPropertyTitle}
+          description={c.editPropertyDescription}
           onClose={() => setEditingProperty(null)}
         >
           {formError && (

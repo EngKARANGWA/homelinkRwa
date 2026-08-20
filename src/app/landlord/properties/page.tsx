@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
   Building2,
   CheckCircle2,
+  Eye,
   Home,
   LayoutGrid,
   Pencil,
@@ -30,6 +32,8 @@ import { PropertyForm } from "@/components/admin/PropertyForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
 const STATUS_STYLES: Record<PropertyStatus, string> = {
   available: "bg-emerald-50 text-emerald-700",
@@ -42,12 +46,30 @@ const APPROVAL_STYLES: Record<ApprovalStatus, string> = {
   rejected: "bg-red-50 text-red-700",
 };
 
+const STATUS_KEY: Record<PropertyStatus, keyof Translations["dashboard"]["status"]> = {
+  available: "available",
+  occupied: "occupied",
+};
+
+const APPROVAL_KEY: Record<ApprovalStatus, keyof Translations["dashboard"]["status"]> = {
+  approved: "approved",
+  pending: "pending",
+  rejected: "rejected",
+};
+
+const CATEGORY_KEY: Record<Property["category"], keyof Translations["dashboard"]["status"]> = {
+  residential: "residential",
+  commercial: "commercial",
+};
+
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 export default function LandlordPropertiesPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const c = t.dashboard.landlord.properties;
   const [properties, setProperties] = useState<Property[]>([]);
   const [view, setView] = useState<"cards" | "table">("cards");
   const [isLoading, setLoading] = useState(true);
@@ -107,17 +129,17 @@ export default function LandlordPropertiesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy">My Properties</h1>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Properties you own on the platform.
+            {c.subtitle}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center rounded-lg border border-slate-300 bg-white p-1">
             <button
               type="button"
               onClick={() => setView("cards")}
-              aria-label="Card view"
+              aria-label={c.cardView}
               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 view === "cards"
                   ? "bg-navy text-white"
@@ -125,12 +147,12 @@ export default function LandlordPropertiesPage() {
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
-              Cards
+              {c.cards}
             </button>
             <button
               type="button"
               onClick={() => setView("table")}
-              aria-label="Table view"
+              aria-label={c.tableView}
               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 view === "table"
                   ? "bg-navy text-white"
@@ -138,16 +160,16 @@ export default function LandlordPropertiesPage() {
               }`}
             >
               <TableIcon className="h-3.5 w-3.5" />
-              Table
+              {c.table}
             </button>
           </div>
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-gold/90 sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm"
           >
             <Plus className="h-4 w-4" />
-            Add Property
+            {c.addProperty}
           </button>
         </div>
       </div>
@@ -155,7 +177,7 @@ export default function LandlordPropertiesPage() {
       {justSaved && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
           <CheckCircle2 className="h-4 w-4" />
-          Property saved successfully.
+          {c.savedNotice}
         </div>
       )}
 
@@ -179,7 +201,7 @@ export default function LandlordPropertiesPage() {
             </div>
           ) : properties.length === 0 ? (
             <div className="col-span-full rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-400">
-              No properties registered yet.
+              {c.noProperties}
             </div>
           ) : (
             properties.map((property) => {
@@ -192,12 +214,12 @@ export default function LandlordPropertiesPage() {
                   <button
                     type="button"
                     onClick={() => setEditingProperty(property)}
-                    aria-label={`Edit ${property.title}`}
+                    aria-label={c.editAriaTemplate.replace("{name}", property.title)}
                     className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-sm hover:bg-slate-100"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
-                  <div className="p-5">
+                  <Link href={`/landlord/properties/${property.id}`} className="block p-5">
                     <div className="flex items-start gap-3 pr-8">
                       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold/10 text-gold">
                         <Icon className="h-5 w-5" />
@@ -214,27 +236,27 @@ export default function LandlordPropertiesPage() {
 
                     <div className="mt-5 grid grid-cols-3 gap-3 border-t border-slate-100 pt-4">
                       <div>
-                        <p className="text-xs text-slate-400">Type</p>
+                        <p className="text-xs text-slate-400">{t.dashboard.table.type}</p>
                         <p className="mt-0.5 truncate font-semibold text-navy">
                           {capitalize(property.type)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-400">Rent</p>
+                        <p className="text-xs text-slate-400">{t.dashboard.table.rentRwf}</p>
                         <p className="mt-0.5 truncate font-semibold text-navy">
                           {formatMoney(Number(property.rentAmount))} RWF
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-400">Status</p>
+                        <p className="text-xs text-slate-400">{t.dashboard.table.status}</p>
                         <span
                           className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[property.status]}`}
                         >
-                          {capitalize(property.status)}
+                          {t.dashboard.status[STATUS_KEY[property.status]]}
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 </div>
               );
             })
@@ -244,19 +266,19 @@ export default function LandlordPropertiesPage() {
         <Table variant="standalone">
           <THead>
             <Tr>
-              <Th className="px-4 py-3 sm:px-6">Property</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Type</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Rent (RWF)</Th>
-              <Th className="hidden px-6 py-3 sm:table-cell">Availability</Th>
-              <Th className="px-4 py-3 sm:px-6">Approval</Th>
-              <Th className="px-4 py-3 sm:px-6">Actions</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.property}</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.type}</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.rentRwf}</Th>
+              <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.availability}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.approval}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
             </Tr>
           </THead>
           <TBody>
             {isLoading ? (
               <EmptyRow colSpan={6}>Loading properties...</EmptyRow>
             ) : properties.length === 0 ? (
-              <EmptyRow colSpan={6}>No properties registered yet.</EmptyRow>
+              <EmptyRow colSpan={6}>{c.noProperties}</EmptyRow>
             ) : (
               properties.map((property) => (
                 <Tr key={property.id}>
@@ -272,7 +294,7 @@ export default function LandlordPropertiesPage() {
                     </p>
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                    {capitalize(property.category)} · {capitalize(property.type)}
+                    {t.dashboard.status[CATEGORY_KEY[property.category]]} · {capitalize(property.type)}
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                     {formatMoney(Number(property.rentAmount))}
@@ -281,26 +303,33 @@ export default function LandlordPropertiesPage() {
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[property.status]}`}
                     >
-                      {capitalize(property.status)}
+                      {t.dashboard.status[STATUS_KEY[property.status]]}
                     </span>
                   </Td>
                   <Td className="px-4 py-3 sm:px-6">
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-medium ${APPROVAL_STYLES[property.approvalStatus]}`}
                     >
-                      {capitalize(property.approvalStatus)}
+                      {t.dashboard.status[APPROVAL_KEY[property.approvalStatus]]}
                     </span>
                   </Td>
                   <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
                     <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/landlord/properties/${property.id}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        {t.dashboard.actions.view}
+                      </Link>
                       <button
                         type="button"
                         onClick={() => setEditingProperty(property)}
-                        aria-label={`Edit ${property.title}`}
+                        aria-label={c.editAriaTemplate.replace("{name}", property.title)}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                       >
                         <Pencil className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Edit</span>
+                        <span className="hidden sm:inline">{c.edit}</span>
                       </button>
                     </div>
                   </Td>
@@ -321,8 +350,8 @@ export default function LandlordPropertiesPage() {
 
       {isAdding && (
         <Modal
-          title="Add Property"
-          description="Register a new property. It will be submitted for admin approval."
+          title={c.addPropertyTitle}
+          description={c.addPropertyDescription}
           onClose={() => setAdding(false)}
         >
           {formError && (
@@ -341,8 +370,8 @@ export default function LandlordPropertiesPage() {
 
       {editingProperty && (
         <Modal
-          title="Edit Property"
-          description="Update this property's details."
+          title={c.editPropertyTitle}
+          description={c.editPropertyDescription}
           onClose={() => setEditingProperty(null)}
         >
           {formError && (

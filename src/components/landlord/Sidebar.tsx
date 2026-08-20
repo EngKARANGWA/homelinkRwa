@@ -13,27 +13,34 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
-const LANDLORD_NAV_ITEMS = [
-  { label: "Dashboard", href: "/landlord", icon: LayoutDashboard },
-  { label: "Properties", href: "/landlord/properties", icon: Building2 },
-  { label: "Payments", href: "/landlord/payments", icon: CreditCard },
-  { label: "Tenants", href: "/landlord/tenants", icon: Users },
-  { label: "Reports", href: "/landlord/reports", icon: BarChart3 },
-  { label: "Maintenance", href: "/landlord/maintenance", icon: Wrench },
-  { label: "Documents", href: "/landlord/documents", icon: FolderOpen },
-  { label: "Team", href: "/landlord/team", icon: Users },
+type NavItem =
+  | { key: keyof Translations["dashboard"]["nav"]; label?: undefined; href: string; icon: typeof LayoutDashboard }
+  | { key?: undefined; label: string; href: string; icon: typeof LayoutDashboard };
+
+const LANDLORD_NAV_ITEMS: NavItem[] = [
+  { key: "dashboard", href: "/landlord", icon: LayoutDashboard },
+  { key: "properties", href: "/landlord/properties", icon: Building2 },
+  { key: "payments", href: "/landlord/payments", icon: CreditCard },
+  { key: "tenants", href: "/landlord/tenants", icon: Users },
+  { key: "reports", href: "/landlord/reports", icon: BarChart3 },
+  { key: "maintenance", href: "/landlord/maintenance", icon: Wrench },
+  { key: "documents", href: "/landlord/documents", icon: FolderOpen },
+  { key: "team", href: "/landlord/team", icon: Users },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   return (
     <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
-      {LANDLORD_NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+      {LANDLORD_NAV_ITEMS.map(({ key, label, href, icon: Icon }) => {
         // Unit detail pages live under /landlord/properties/[id]/units/[unitId]
-        // but represent a tenant, so they should light up Tenants instead of
-        // Properties even though the URL is nested there.
+        // but represent a tenant, so they should light up "Tenants" instead of
+        // "Properties" even though the URL is nested there.
         const isUnitDetailPage = pathname.includes("/units/");
         const isActive =
           href === "/landlord"
@@ -56,7 +63,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             }`}
           >
             <Icon className="h-4 w-4" strokeWidth={2} />
-            {label}
+            {key ? t.dashboard.nav[key] : label}
           </Link>
         );
       })}
@@ -71,6 +78,8 @@ export function Sidebar({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
+
   return (
     <>
       <aside className="hidden w-64 flex-col bg-navy text-white lg:fixed lg:inset-y-0 lg:left-0 lg:flex">
@@ -81,7 +90,7 @@ export function Sidebar({
               HomeLink
             </span>
             <span className="block text-[11px] font-semibold tracking-[0.2em] text-gold">
-              LANDLORD
+              {t.dashboard.roleBadge.landlord}
             </span>
           </span>
         </Link>
@@ -115,7 +124,7 @@ export function Sidebar({
                     HomeLink
                   </span>
                   <span className="block text-[11px] font-semibold tracking-[0.2em] text-gold">
-                    LANDLORD
+                    {t.dashboard.roleBadge.landlord}
                   </span>
                 </span>
               </Link>

@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   AlertCircle,
   AlertTriangle,
@@ -43,6 +45,7 @@ import { Card } from "@/components/dashboard/Card";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 type RowStatus = InvoiceStatus | PaymentStatus;
 
@@ -60,11 +63,19 @@ const STATUS_PRIORITY: Record<RowStatus, number> = {
   failed: 4,
 };
 
-const TABS: { key: "All" | "pending" | "overdue"; label: string }[] = [
-  { key: "All", label: "All" },
-  { key: "pending", label: "Pending Approval" },
-  { key: "overdue", label: "Overdue" },
+const VALID_STATUS_FILTERS: ("All" | RowStatus)[] = [
+  "All",
+  "overdue",
+  "success",
+  "paid",
+  "unpaid",
+  "pending",
+  "failed",
 ];
+
+function isValidStatusFilter(value: string | null): value is "All" | RowStatus {
+  return VALID_STATUS_FILTERS.includes(value as "All" | RowStatus);
+}
 
 type PaymentRow = {
   id: string;
@@ -77,8 +88,12 @@ type PaymentRow = {
   actions: { type: "invoice" } | { type: "payment"; payment: Payment };
 };
 
-export default function LandlordPaymentsPage() {
+function LandlordPaymentsPageContent() {
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const c = t.dashboard.landlord.payments;
+  const searchParams = useSearchParams();
+  const statusParam = searchParams.get("status");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
@@ -88,16 +103,24 @@ export default function LandlordPaymentsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [propertyFilter, setPropertyFilter] = useState("All Properties");
-  const [statusFilter, setStatusFilter] = useState<"All" | RowStatus>("All");
+  const [propertyFilter, setPropertyFilter] = useState(c.allProperties);
+  const [statusFilter, setStatusFilter] = useState<"All" | RowStatus>(
+    isValidStatusFilter(statusParam) ? statusParam : "All",
+  );
   const [methodFilter, setMethodFilter] = useState<"All" | Payment["method"]>("All");
   const [page, setPage] = useState(1);
+
+  const TABS: { key: "All" | "pending" | "overdue"; label: string }[] = [
+    { key: "All", label: t.dashboard.actions.all },
+    { key: "pending", label: t.dashboard.status.pendingApproval },
+    { key: "overdue", label: t.dashboard.status.overdue },
+  ];
 
   const leaseById = new Map(leases.map((l) => [l.id, l]));
   const invoiceById = new Map(invoices.map((i) => [i.id, i]));
   const propertyById = new Map(properties.map((p) => [p.id, p]));
   const tenantName = (id: string) => `Tenant ${id.slice(0, 8).toUpperCase()}`;
-  const propertyOptions = ["All Properties", ...properties.map((p) => p.title)];
+  const propertyOptions = [c.allProperties, ...properties.map((p) => p.title)];
 
   const leaseForInvoice = (invoice: Invoice) => leaseById.get(invoice.leaseId);
   const leaseForPayment = (payment: Payment) => {
@@ -152,7 +175,7 @@ export default function LandlordPaymentsPage() {
 
   const propertyFilteredOverdueInvoices = overdueInvoices.filter(
     (inv) =>
-      propertyFilter === "All Properties" ||
+      propertyFilter === c.allProperties ||
       propertyForInvoice(inv)?.title === propertyFilter,
   );
   const filteredOverdueInvoices =
@@ -162,7 +185,7 @@ export default function LandlordPaymentsPage() {
 
   const propertyMethodFilteredPayments = payments.filter((p) => {
     const matchesProperty =
-      propertyFilter === "All Properties" ||
+      propertyFilter === c.allProperties ||
       propertyForPayment(p)?.title === propertyFilter;
     const matchesMethod = methodFilter === "All" || p.method === methodFilter;
     return matchesProperty && matchesMethod;
@@ -225,7 +248,7 @@ export default function LandlordPaymentsPage() {
       } else {
         await rejectPayment(paymentId, reason);
       }
-      setNotice(approve ? "Payment approved." : "Payment rejected.");
+      setNotice(approve ? c.approvedNotice : "Payment rejected.");
       load();
     } catch (err) {
       setActionError(
@@ -249,8 +272,10 @@ export default function LandlordPaymentsPage() {
   const handleSendArrearsReminder = () => {
     setNotice(
       overdueInvoices.length > 0
-        ? `Reminder sent to ${overdueInvoices.length} tenant${overdueInvoices.length === 1 ? "" : "s"} in arrears.`
-        : "No tenants are currently in arrears.",
+        ? c.reminderSentArrearsTemplate
+            .replace("{count}", String(overdueInvoices.length))
+            .replace("{plural}", overdueInvoices.length === 1 ? "" : "s")
+        : c.noArrearsTenants,
     );
   };
 
@@ -267,9 +292,9 @@ export default function LandlordPaymentsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Payments</h1>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Rent payments across your properties.
+            {c.subtitle}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -279,7 +304,7 @@ export default function LandlordPaymentsPage() {
             className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
           >
             <Download className="h-4 w-4" />
-            Export Excel
+            {c.downloadStatement}
           </button>
         </div>
       </div>
@@ -305,26 +330,23 @@ export default function LandlordPaymentsPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <IconStatCard
           icon={Wallet}
-          label="Collected"
+          label={c.statCollected}
           value={`${formatMoney(collected)} RWF`}
-          subtitle="All successful payments"
           accent="emerald"
         />
         <IconStatCard
           icon={AlertCircle}
-          label="Outstanding"
+          label={c.statOutstanding}
           value={`${formatMoney(outstanding)} RWF`}
-          subtitle="Pending & overdue invoices"
           accent="red"
         />
         <IconStatCard
           icon={AlertTriangle}
-          label="Total in Arrears"
+          label={c.alertTotalInArrears}
           value={`${formatMoney(totalInArrears)} RWF`}
-          subtitle="Overdue invoice total"
           accent="amber"
         />
       </div>
@@ -332,8 +354,8 @@ export default function LandlordPaymentsPage() {
       <AlertBanner
         isAlert={overdueInvoices.length > 0}
         stats={[
-          { label: "Total in Arrears", value: `${formatMoney(totalInArrears)} RWF` },
-          { label: "Invoices Overdue", value: overdueInvoices.length },
+          { label: c.alertTotalInArrears, value: `${formatMoney(totalInArrears)} RWF` },
+          { label: c.alertUnitsTenants, value: overdueInvoices.length },
         ]}
       >
         <button
@@ -342,13 +364,13 @@ export default function LandlordPaymentsPage() {
           className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           <Bell className="h-4 w-4" />
-          Send Reminder
+          {t.dashboard.landlord.overview.sendReminder}
         </button>
       </AlertBanner>
 
       <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Property
+          {c.filterProperty}
           <select
             value={propertyFilter}
             onChange={(e) => setPropertyFilter(e.target.value)}
@@ -362,39 +384,39 @@ export default function LandlordPaymentsPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Status
+            {c.filterStatus}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
             >
-              <option value="All">All</option>
-              <option value="overdue">Overdue</option>
-              <option value="success">Successful</option>
-              <option value="pending">Pending Approval</option>
-              <option value="failed">Failed</option>
+              <option value="All">{t.dashboard.actions.all}</option>
+              <option value="overdue">{t.dashboard.status.overdue}</option>
+              <option value="success">{formatStatusLabel("success")}</option>
+              <option value="pending">{t.dashboard.status.pendingApproval}</option>
+              <option value="failed">{formatStatusLabel("failed")}</option>
             </select>
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Method
+            {c.filterMethod}
             <select
               value={methodFilter}
               onChange={(e) => setMethodFilter(e.target.value as typeof methodFilter)}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
             >
-              <option value="All">All</option>
-              <option value="mobile_money">Mobile Money</option>
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="cash">Cash</option>
+              <option value="All">{t.dashboard.actions.all}</option>
+              <option value="mobile_money">{t.dashboard.landlord.paymentMethods.mtnMobileMoney}</option>
+              <option value="bank_transfer">{t.dashboard.landlord.paymentMethods.bankTransfer}</option>
+              <option value="cash">{t.dashboard.landlord.paymentMethods.cash}</option>
             </select>
           </label>
         </div>
       </div>
 
-      <Card title="Transactions">
+      <Card title={c.transactionsTitle}>
         <p className="mt-1 text-sm text-slate-500">
-          All rent payments and invoices currently in arrears, across your properties.
+          {c.transactionsSubtitle}
         </p>
 
         <div className="mt-4 flex items-center gap-6 overflow-x-auto border-b border-slate-200">
@@ -427,20 +449,20 @@ export default function LandlordPaymentsPage() {
         <Table variant="card">
           <THead>
             <Tr>
-              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Tenant</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
-              <Th className="hidden px-6 py-3 sm:table-cell">Amount (RWF)</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Method</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Date</Th>
-              <Th className="px-4 py-3 sm:px-6">Status</Th>
-              <Th className="px-4 py-3 sm:px-6">Actions</Th>
+              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">{t.dashboard.table.tenant}</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.property}</Th>
+              <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.amountRwf}</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.method}</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.dueDate}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
             </Tr>
           </THead>
           <TBody>
             {isLoading ? (
               <EmptyRow colSpan={7}>Loading payments...</EmptyRow>
             ) : pagedRows.length === 0 ? (
-              <EmptyRow colSpan={7}>No payments match these filters.</EmptyRow>
+              <EmptyRow colSpan={7}>{c.noPaymentsMatch}</EmptyRow>
             ) : (
               pagedRows.map((row) => {
                 const isProcessing =
@@ -503,7 +525,7 @@ export default function LandlordPaymentsPage() {
                                     type="button"
                                     onClick={() => resolvePayment(payment.id, true)}
                                     disabled={isProcessing}
-                                    aria-label={`Approve payment from ${row.tenant}`}
+                                    aria-label={c.approvePaymentAriaTemplate.replace("{name}", row.tenant)}
                                     className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
                                   >
                                     <Check className="h-4 w-4" />
@@ -512,7 +534,7 @@ export default function LandlordPaymentsPage() {
                                     type="button"
                                     onClick={() => resolvePayment(payment.id, false)}
                                     disabled={isProcessing}
-                                    aria-label={`Reject payment from ${row.tenant}`}
+                                    aria-label={c.rejectPaymentAriaTemplate.replace("{name}", row.tenant)}
                                     className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
                                   >
                                     <X className="h-4 w-4" />
@@ -538,5 +560,13 @@ export default function LandlordPaymentsPage() {
         />
       </Card>
     </div>
+  );
+}
+
+export default function LandlordPaymentsPage() {
+  return (
+    <Suspense fallback={null}>
+      <LandlordPaymentsPageContent />
+    </Suspense>
   );
 }

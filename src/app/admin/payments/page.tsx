@@ -19,8 +19,11 @@ import { formatStatusLabel, PAYMENT_STATUS_STYLES } from "@/lib/paymentStatus";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export default function PaymentsPage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.payments;
   const [payments, setPayments] = useState<Payment[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [leases, setLeases] = useState<Lease[]>([]);
@@ -121,10 +124,8 @@ export default function PaymentsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Payments</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Rent payments and platform revenue.
-          </p>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{c.subtitle}</p>
         </div>
         <button
           type="button"
@@ -158,13 +159,13 @@ export default function PaymentsPage() {
       <Table variant="standalone">
         <THead>
           <Tr>
-            <Th className="px-6 py-3">Tenant</Th>
-            <Th className="px-6 py-3">Property</Th>
-            <Th className="px-6 py-3">Amount (RWF)</Th>
-            <Th className="px-6 py-3">Method</Th>
-            <Th className="px-6 py-3">Paid Date</Th>
-            <Th className="px-6 py-3">Status</Th>
-            <Th className="px-6 py-3">Actions</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.tenant}</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.property}</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.amountRwf}</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.method}</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.paidDate}</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.status}</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.actions}</Th>
           </Tr>
         </THead>
         <TBody>

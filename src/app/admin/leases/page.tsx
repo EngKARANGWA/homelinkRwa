@@ -22,8 +22,11 @@ import { LeaseDetail } from "@/components/leases/LeaseDetail";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export default function LeasesPage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.leases;
   const [leases, setLeases] = useState<Lease[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [units, setUnits] = useState<PropertyUnit[]>([]);
@@ -137,9 +140,9 @@ export default function LeasesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Leases</h1>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Digital lease agreements across the platform.
+            {c.subtitle}
           </p>
         </div>
         <button
@@ -148,14 +151,14 @@ export default function LeasesPage() {
           className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           <Plus className="h-4 w-4" />
-          Create Lease
+          {c.createLease}
         </button>
       </div>
 
       {justCreated && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
           <CheckCircle2 className="h-4 w-4" />
-          Lease created successfully.
+          {c.successNotice}
         </div>
       )}
 
@@ -176,13 +179,13 @@ export default function LeasesPage() {
       <Table variant="standalone">
         <THead>
           <Tr>
-            <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Tenant</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
-            <Th className="hidden px-6 py-3 lg:table-cell">Owner</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">Rent (RWF)</Th>
-            <Th className="hidden px-6 py-3 lg:table-cell">Term</Th>
-            <Th className="px-4 py-3 sm:px-6">Status</Th>
-            <Th className="px-4 py-3 sm:px-6">Actions</Th>
+            <Th className="max-w-[10rem] px-4 py-3 sm:px-6">{t.dashboard.table.tenant}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.property}</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.owner}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.rentRwf}</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.term}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
           </Tr>
         </THead>
         <TBody>
@@ -215,7 +218,7 @@ export default function LeasesPage() {
                     {formatMoney(Number(lease.rentAmount))}
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                    {lease.startDate} → {lease.endDate ?? "Open-ended"}
+                    {lease.startDate} → {lease.endDate ?? c.openEnded}
                   </Td>
                   <Td className="px-4 py-3 sm:px-6">
                     <span
@@ -233,7 +236,7 @@ export default function LeasesPage() {
                         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                       >
                         <Eye className="h-3.5 w-3.5" />
-                        View
+                        {t.dashboard.actions.view}
                       </button>
                       <button
                         type="button"
@@ -252,7 +255,7 @@ export default function LeasesPage() {
                             type="button"
                             onClick={() => resolveRequest(lease, true)}
                             disabled={isProcessing}
-                            aria-label={`Approve request for ${tenantName}`}
+                            aria-label={c.approveRequestAriaTemplate.replace("{name}", tenantName)}
                             className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
                           >
                             <Check className="h-4 w-4" />
@@ -261,7 +264,7 @@ export default function LeasesPage() {
                             type="button"
                             onClick={() => resolveRequest(lease, false)}
                             disabled={isProcessing}
-                            aria-label={`Reject request for ${tenantName}`}
+                            aria-label={c.rejectRequestAriaTemplate.replace("{name}", tenantName)}
                             className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
                           >
                             <X className="h-4 w-4" />
@@ -287,8 +290,8 @@ export default function LeasesPage() {
 
       {isModalOpen && (
         <Modal
-          title="Create Lease"
-          description="Create a new digital lease agreement."
+          title={c.createTitle}
+          description={c.createDescription}
           onClose={() => setModalOpen(false)}
         >
           {formError && (
@@ -321,7 +324,7 @@ export default function LeasesPage() {
 
       {viewingLease && (
         <Modal
-          title="Lease Details"
+          title={c.agreementTitle}
           description={`${userName(tenants, viewingLease.tenantId)} · ${propertyFor(viewingLease.propertyId)?.title ?? "—"}`}
           onClose={() => setViewingLease(null)}
         >

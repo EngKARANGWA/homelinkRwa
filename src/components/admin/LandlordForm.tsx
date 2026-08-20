@@ -1,6 +1,7 @@
 "use client";
 
 import type { CreateHouseOwnerInput } from "@/lib/api/admin";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export function LandlordForm({
   onSuccess,
@@ -9,6 +10,9 @@ export function LandlordForm({
   onSuccess: (values: CreateHouseOwnerInput) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.landlordForm;
+
   return (
     <form
       onSubmit={(e) => {
@@ -46,23 +50,23 @@ export function LandlordForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-          Email address
+          {c.emailAddress}
           <input
             name="email"
             type="email"
             required
-            placeholder="landlord@example.com"
+            placeholder={c.emailPlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-          Phone number
+          {c.phoneNumber}
           <input
             name="phone"
             type="tel"
             required
-            placeholder="+250 7XX XXX XXX"
+            placeholder={c.phonePlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
@@ -74,13 +78,13 @@ export function LandlordForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Cancel
+          {t.dashboard.actions.cancel}
         </button>
         <button
           type="submit"
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
-          Register Landlord
+          {c.submit}
         </button>
       </div>
     </form>

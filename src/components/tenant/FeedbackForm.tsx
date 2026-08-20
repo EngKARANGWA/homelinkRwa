@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export function FeedbackForm({
   onSuccess,
@@ -11,6 +12,8 @@ export function FeedbackForm({
 }) {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+  const { t } = useLanguage();
+  const c = t.dashboard.tenant.feedbackForm;
 
   return (
     <form
@@ -37,12 +40,12 @@ export function FeedbackForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Comment (optional)
+          {c.question}
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={3}
-            placeholder="e.g. Fixed quickly, very professional."
+            placeholder={c.placeholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
@@ -54,13 +57,13 @@ export function FeedbackForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Cancel
+          {t.dashboard.actions.cancel}
         </button>
         <button
           type="submit"
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
-          Submit Feedback
+          {c.submit}
         </button>
       </div>
     </form>

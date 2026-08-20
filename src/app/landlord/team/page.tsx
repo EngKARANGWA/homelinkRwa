@@ -31,9 +31,12 @@ export default function LandlordTeamPage() {
     setIsLoading(true);
     try {
       const data = await listInvites(page, DEFAULT_PAGE_SIZE);
-      setInvites(data.rows);
-      setTotal(data.total);
-      setTotalPages(Math.ceil(data.total / DEFAULT_PAGE_SIZE));
+      setInvites(data);
+      // The API returns a flat page of invites with no total count, so we
+      // estimate: a full page means there's likely at least one more.
+      const isLastPage = data.length < DEFAULT_PAGE_SIZE;
+      setTotal(isLastPage ? (page - 1) * DEFAULT_PAGE_SIZE + data.length : page * DEFAULT_PAGE_SIZE + 1);
+      setTotalPages(isLastPage ? page : page + 1);
     } catch (err) {
       console.error("Failed to load invites:", err);
     } finally {
@@ -198,9 +201,9 @@ export default function LandlordTeamPage() {
               </THead>
               <TBody>
                 {isLoading ? (
-                  <EmptyRow colSpan={4} message="Loading users..." />
+                  <EmptyRow colSpan={4}>Loading users...</EmptyRow>
                 ) : (invites || []).length === 0 ? (
-                  <EmptyRow colSpan={4} message="No users or invites found." />
+                  <EmptyRow colSpan={4}>No users or invites found.</EmptyRow>
                 ) : (
                   invites.map((invite) => (
                     <Tr key={invite.id}>

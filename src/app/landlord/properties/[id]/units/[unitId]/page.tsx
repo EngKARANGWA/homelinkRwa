@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/shared/AppLink";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -22,6 +22,7 @@ import { EditTenantForm } from "@/components/landlord/EditTenantForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const PAYMENT_STATUS_STYLES: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -47,6 +48,8 @@ function monthLabel(month: string): string {
 }
 
 export default function UnitDetailPage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.landlord.unitDetail;
   const { id, unitId } = useParams<{ id: string; unitId: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -72,19 +75,19 @@ export default function UnitDetailPage() {
   if (!property || !unit) {
     return (
       <div className="flex flex-col items-center gap-3 py-24 text-center">
-        <p className="text-sm text-slate-500">Unit not found.</p>
+        <p className="text-sm text-slate-500">{c.unitNotFound}</p>
         <Link
           href="/landlord/properties"
           className="text-sm font-medium text-gold hover:underline"
         >
-          Back to Properties
+          {c.backToProperties}
         </Link>
       </div>
     );
   }
 
   const handleSendReminder = () => {
-    setReminderNotice(`Reminder sent to ${unit.tenant}.`);
+    setReminderNotice(c.reminderSentTemplate.replace("{name}", unit.tenant ?? ""));
   };
 
   const unitDocuments = documents
@@ -114,10 +117,10 @@ export default function UnitDetailPage() {
             className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-navy"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
+            {c.back}
           </button>
           <h1 className="mt-2 text-2xl font-bold text-navy">
-            Unit {unit.unitNumber}
+            {c.unitTitleTemplate.replace("{unit}", unit.unitNumber)}
             {unit.tenant ? ` · ${unit.tenant}` : ""}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -133,7 +136,7 @@ export default function UnitDetailPage() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
               <Pencil className="h-3.5 w-3.5" />
-              Edit
+              {c.edit}
             </button>
             <button
               type="button"
@@ -141,7 +144,7 @@ export default function UnitDetailPage() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3.5 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Remove Tenant
+              {c.removeTenant}
             </button>
           </div>
         )}
@@ -156,45 +159,45 @@ export default function UnitDetailPage() {
 
       {unit.occupancyStatus === "Vacant" ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white py-24 text-center">
-          <h2 className="text-lg font-bold text-navy">This unit is vacant</h2>
+          <h2 className="text-lg font-bold text-navy">{c.vacantTitle}</h2>
           <p className="max-w-sm text-sm text-slate-500">
-            There&apos;s no active lease on this unit yet. Add a tenant to fill it.
+            {c.vacantDescription}
           </p>
           <Link
             href="/landlord/tenants"
             className="mt-2 inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
           >
-            Add Tenant
+            {c.addTenant}
           </Link>
         </div>
       ) : (
         <>
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="font-semibold text-navy">Lease Details</p>
+              <p className="font-semibold text-navy">{c.leaseDetails}</p>
               <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <Field label="Monthly Rent">
+                <Field label={c.monthlyRent}>
                   {formatMoney(unit.monthlyRent)} RWF
                 </Field>
-                <Field label="Deposit">
+                <Field label={c.deposit}>
                   {unit.deposit ? `${formatMoney(unit.deposit)} RWF` : "—"}
                 </Field>
-                <Field label="Start Date">{unit.startDate ?? "—"}</Field>
-                <Field label="End Date">{unit.endDate ?? "Open-ended"}</Field>
-                <Field label="Rent Due Day">
-                  {unit.rentDueDay ? `${unit.rentDueDay}st of the month` : "—"}
+                <Field label={c.startDate}>{unit.startDate ?? "—"}</Field>
+                <Field label={c.endDate}>{unit.endDate ?? c.openEnded}</Field>
+                <Field label={c.rentDueDay}>
+                  {unit.rentDueDay ? c.rentDueDayTemplate.replace("{day}", String(unit.rentDueDay)) : "—"}
                 </Field>
               </div>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="font-semibold text-navy">Payment History</p>
+              <p className="font-semibold text-navy">{c.paymentHistory}</p>
               <Table variant="plain" className="mt-4">
                 <THead>
                   <Tr>
-                    <Th className="py-2">Month</Th>
-                    <Th className="py-2">Amount</Th>
-                    <Th className="py-2">Status</Th>
+                    <Th className="py-2">{c.month}</Th>
+                    <Th className="py-2">{c.amount}</Th>
+                    <Th className="py-2">{c.status}</Th>
                   </Tr>
                 </THead>
                 <TBody>
@@ -209,14 +212,14 @@ export default function UnitDetailPage() {
                           className={`rounded-full px-2.5 py-1 text-xs font-medium ${PAYMENT_STATUS_STYLES[p.status]}`}
                         >
                           {p.status === "Paid" && p.paidDate
-                            ? `Paid ${p.paidDate}`
-                            : p.status}
+                            ? c.paidOnTemplate.replace("{date}", p.paidDate)
+                            : t.dashboard.status[p.status === "Paid" ? "paid" : "overdue"]}
                         </span>
                       </Td>
                     </Tr>
                   ))}
                   {pagedHistory.length === 0 && (
-                    <EmptyRow colSpan={3}>No payment history yet.</EmptyRow>
+                    <EmptyRow colSpan={3}>{c.noPaymentHistory}</EmptyRow>
                   )}
                 </TBody>
               </Table>
@@ -233,25 +236,25 @@ export default function UnitDetailPage() {
 
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="font-semibold text-navy">Contact</p>
+              <p className="font-semibold text-navy">{c.contact}</p>
               <div className="mt-4 flex flex-col gap-4">
                 <div className="flex items-center gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                     <Phone className="h-4 w-4" />
                   </span>
-                  <Field label="Phone">{unit.phone ?? "—"}</Field>
+                  <Field label={c.phone}>{unit.phone ?? "—"}</Field>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
                     <Wallet className="h-4 w-4" />
                   </span>
-                  <Field label="Payment Method">{unit.paymentMethod ?? "—"}</Field>
+                  <Field label={c.paymentMethod}>{unit.paymentMethod ?? "—"}</Field>
                 </div>
               </div>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="font-semibold text-navy">Documents</p>
+              <p className="font-semibold text-navy">{c.documents}</p>
               {allDocuments.length > 0 ? (
                 <ul className="mt-4 flex flex-col gap-2">
                   {allDocuments.map((doc) => (
@@ -266,7 +269,7 @@ export default function UnitDetailPage() {
                 </ul>
               ) : (
                 <p className="mt-4 text-sm text-slate-400">
-                  No documents on file yet.
+                  {c.noDocuments}
                 </p>
               )}
             </div>
@@ -278,14 +281,14 @@ export default function UnitDetailPage() {
             className="inline-flex items-center gap-2 self-start rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
           >
             <Bell className="h-4 w-4" />
-            Send Reminder
+            {c.sendReminder}
           </button>
         </>
       )}
 
       {isEditing && (
         <Modal
-          title="Edit Tenant"
+          title={c.editTenantTitle}
           description={`${unit.tenant} · ${property.name} · ${unit.unitNumber}`}
           onClose={() => setEditing(false)}
         >
@@ -302,16 +305,17 @@ export default function UnitDetailPage() {
 
       {isRemoving && (
         <Modal
-          title="Remove Tenant"
-          description="This will end the tenancy and mark the unit as vacant."
+          title={c.removeTenantTitle}
+          description={c.removeTenantDescription}
           onClose={() => setRemoving(false)}
         >
           <div className="flex flex-col gap-5">
             <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <p>
-                Are you sure you want to remove <strong>{unit.tenant}</strong> from
-                unit {unit.unitNumber}? This cannot be undone.
+                {c.removeTenantConfirmTemplate
+                  .replace("{name}", unit.tenant ?? "")
+                  .replace("{unit}", unit.unitNumber)}
               </p>
             </div>
             <div className="flex justify-end gap-3">
@@ -320,14 +324,14 @@ export default function UnitDetailPage() {
                 onClick={() => setRemoving(false)}
                 className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
               >
-                Cancel
+                {t.dashboard.actions.cancel}
               </button>
               <button
                 type="button"
                 onClick={handleRemoveTenant}
                 className="rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
               >
-                Remove Tenant
+                {c.removeTenant}
               </button>
             </div>
           </div>

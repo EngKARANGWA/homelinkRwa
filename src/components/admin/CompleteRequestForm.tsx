@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+
 export function CompleteRequestForm({
   onSuccess,
   onCancel,
@@ -7,6 +9,9 @@ export function CompleteRequestForm({
   onSuccess: (workDone: string, itemCost: number) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.completeRequestForm;
+
   return (
     <form
       onSubmit={(e) => {
@@ -20,27 +25,27 @@ export function CompleteRequestForm({
     >
       <div className="flex flex-col gap-5">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Work done
+          {c.workDone}
           <textarea
             name="workDone"
             required
             rows={3}
-            placeholder="e.g. Replaced faulty valve and resealed pipe joint."
+            placeholder={c.workDonePlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Item / materials cost (RWF)
+          {c.itemCost}
           <input
             type="number"
             name="itemCost"
             min={0}
-            placeholder="e.g. 5000 (leave blank if none)"
+            placeholder={c.itemCostPlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
           <p className="text-xs font-normal text-slate-400">
-            Separate from labor cost, which was set when this request was assigned.
+            {c.itemCostHint}
           </p>
         </label>
       </div>
@@ -51,13 +56,13 @@ export function CompleteRequestForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Cancel
+          {t.dashboard.actions.cancel}
         </button>
         <button
           type="submit"
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
-          Mark Completed
+          {c.submit}
         </button>
       </div>
     </form>

@@ -1,15 +1,14 @@
-const STATS = [
-  { value: "99%", label: "Customer Satisfaction" },
-  { value: "50+", label: "Properties Managed" },
-  { value: "10+", label: "Districts Covered" },
-  { value: "100%", label: "Secure Payments" },
-];
+"use client";
+
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export function StatsBar() {
+  const { t } = useLanguage();
+
   return (
     <section className="bg-white py-16">
       <div className="mx-auto grid max-w-7xl gap-8 px-6 sm:grid-cols-2 lg:grid-cols-4 lg:px-10">
-        {STATS.map(({ value, label }) => (
+        {t.statsBar.stats.map(({ value, label }) => (
           <div
             key={label}
             className="flex flex-col items-center gap-3 text-center"

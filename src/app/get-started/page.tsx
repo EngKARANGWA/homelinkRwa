@@ -9,16 +9,13 @@ import { ApiError } from "@/lib/api/client";
 import type { RegisterInput } from "@/lib/api/types";
 import { ROLE_ROUTES } from "@/lib/api/roleRoute";
 import { useAuth } from "@/components/auth/AuthContext";
-
-const ROLE_OPTIONS: { label: string; value: RegisterInput["role"] }[] = [
-  { label: "Landlord / Property Owner", value: "owner" },
-  { label: "Property Manager / Agent", value: "agent" },
-  { label: "Tenant", value: "tenant" },
-];
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 
 export default function GetStartedPage() {
   const router = useRouter();
   const { refreshUser } = useAuth();
+  const { t } = useLanguage();
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
@@ -29,6 +26,12 @@ export default function GetStartedPage() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<RegisterInput["role"]>("owner");
+
+  const ROLE_OPTIONS: { label: string; value: RegisterInput["role"] }[] = [
+    { label: t.getStartedPage.form.optionLandlord, value: "owner" },
+    { label: t.getStartedPage.form.optionManager, value: "agent" },
+    { label: t.getStartedPage.form.optionTenant, value: "tenant" },
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +62,9 @@ export default function GetStartedPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-navy px-6 py-16">
       <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl">
+        <div className="flex justify-end">
+          <LanguageSwitcher />
+        </div>
         <Link href="/" className="flex items-center justify-center gap-2">
           <Home className="h-7 w-7 text-gold" strokeWidth={2.2} />
           <span className="leading-tight">
@@ -72,7 +78,7 @@ export default function GetStartedPage() {
         </Link>
 
         <h1 className="mt-6 text-center text-2xl font-bold text-navy">
-          Get started with HomeLink
+          {t.getStartedPage.title}
         </h1>
         <p className="mt-2 text-center text-sm text-slate-500">
           Create your account to manage properties, leases, and payments.
@@ -129,7 +135,7 @@ export default function GetStartedPage() {
             </div>
 
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Email address
+              {t.getStartedPage.form.emailAddress}
               <input
                 type="email"
                 required
@@ -141,7 +147,7 @@ export default function GetStartedPage() {
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Phone number
+              {t.getStartedPage.form.phoneNumber}
               <input
                 type="tel"
                 required
@@ -166,7 +172,7 @@ export default function GetStartedPage() {
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              I am a...
+              {t.getStartedPage.form.iAmA}
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as RegisterInput["role"])}
@@ -191,12 +197,12 @@ export default function GetStartedPage() {
         )}
 
         <p className="mt-6 text-center text-sm text-slate-500">
-          Already have an account?{" "}
+          {t.getStartedPage.alreadyHaveAccount}{" "}
           <Link
             href="/login"
             className="font-semibold text-gold hover:underline"
           >
-            Log in
+            {t.getStartedPage.logIn}
           </Link>
         </p>
       </div>

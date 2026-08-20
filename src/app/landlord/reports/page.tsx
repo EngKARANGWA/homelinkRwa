@@ -39,25 +39,27 @@ import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
 const REPORT_TYPES: {
   id: ReportId;
-  label: string;
+  labelKey: keyof Translations["dashboard"]["landlord"]["reports"]["reportTypes"];
   hasDateFilter: boolean;
   hasPropertyFilter: boolean;
 }[] = [
-  { id: "rental-history", label: "Rental History", hasDateFilter: true, hasPropertyFilter: true },
-  { id: "payment-history", label: "Payment History", hasDateFilter: true, hasPropertyFilter: false },
-  { id: "occupancy", label: "Occupancy", hasDateFilter: true, hasPropertyFilter: true },
+  { id: "rental-history", labelKey: "rentalHistory", hasDateFilter: true, hasPropertyFilter: true },
+  { id: "payment-history", labelKey: "paymentHistory", hasDateFilter: true, hasPropertyFilter: false },
+  { id: "occupancy", labelKey: "occupancy", hasDateFilter: true, hasPropertyFilter: true },
   {
     id: "maintenance-activity",
-    label: "Maintenance Activity",
+    labelKey: "maintenanceActivity",
     hasDateFilter: true,
     hasPropertyFilter: true,
   },
   {
     id: "revenue-performance",
-    label: "Revenue Performance",
+    labelKey: "revenuePerformance",
     hasDateFilter: true,
     hasPropertyFilter: false,
   },
@@ -71,58 +73,65 @@ type Column<T> = {
   cell: (row: T) => React.ReactNode;
 };
 
-const RENTAL_HISTORY_COLUMNS: Column<RentalHistoryRow>[] = [
-  { key: "Property", label: "Property", cell: (r) => r.Property },
-  { key: "Address", label: "Address", cell: (r) => r.Address },
-  { key: "RentAmount", label: "Rent (RWF)", cell: (r) => formatMoney(Number(r.RentAmount)) },
-  { key: "StartDate", label: "Start", cell: (r) => r.StartDate },
-  { key: "EndDate", label: "End", cell: (r) => r.EndDate ?? "Open-ended" },
-  { key: "Status", label: "Status", cell: (r) => r.Status },
-];
+function getRentalHistoryColumns(t: Translations): Column<RentalHistoryRow>[] {
+  const rc = t.dashboard.landlord.reports.reportColumns;
+  return [
+    { key: "Property", label: t.dashboard.table.property, cell: (r) => r.Property },
+    { key: "Address", label: rc.address, cell: (r) => r.Address },
+    { key: "RentAmount", label: t.dashboard.table.rentRwf, cell: (r) => formatMoney(Number(r.RentAmount)) },
+    { key: "StartDate", label: t.dashboard.table.start, cell: (r) => r.StartDate },
+    { key: "EndDate", label: t.dashboard.table.end, cell: (r) => r.EndDate ?? rc.openEnded },
+    { key: "Status", label: t.dashboard.table.status, cell: (r) => r.Status },
+  ];
+}
 
-const PAYMENT_HISTORY_COLUMNS: Column<PaymentHistoryRow>[] = [
-  { key: "Date", label: "Date", cell: (r) => r.Date },
-  { key: "Amount", label: "Amount (RWF)", cell: (r) => formatMoney(Number(r.Amount)) },
-  { key: "Method", label: "Method", cell: (r) => r.Method },
-  { key: "Status", label: "Status", cell: (r) => r.Status },
-  { key: "Reference", label: "Reference", cell: (r) => r.Reference },
-];
+function getPaymentHistoryColumns(t: Translations): Column<PaymentHistoryRow>[] {
+  const rc = t.dashboard.landlord.reports.reportColumns;
+  return [
+    { key: "Date", label: t.dashboard.table.date, cell: (r) => r.Date },
+    { key: "Amount", label: t.dashboard.table.amountRwf, cell: (r) => formatMoney(Number(r.Amount)) },
+    { key: "Method", label: t.dashboard.table.method, cell: (r) => r.Method },
+    { key: "Status", label: t.dashboard.table.status, cell: (r) => r.Status },
+    { key: "Reference", label: rc.reference, cell: (r) => r.Reference },
+  ];
+}
 
-const OCCUPANCY_COLUMNS: Column<OccupancyRow>[] = [
-  { key: "Property", label: "Property", cell: (r) => r.Property },
-  { key: "Status", label: "Status", cell: (r) => r.Status },
-  { key: "LeaseCount", label: "Leases", cell: (r) => r.LeaseCount },
-  { key: "OccupiedDays", label: "Occupied Days", cell: (r) => r.OccupiedDays },
-  { key: "PeriodDays", label: "Period Days", cell: (r) => r.PeriodDays },
-  {
-    key: "OccupancyRatePercent",
-    label: "Occupancy Rate",
-    cell: (r) => `${r.OccupancyRatePercent}%`,
-  },
-];
+function getOccupancyColumns(t: Translations): Column<OccupancyRow>[] {
+  const rc = t.dashboard.landlord.reports.reportColumns;
+  return [
+    { key: "Property", label: t.dashboard.table.property, cell: (r) => r.Property },
+    { key: "Status", label: t.dashboard.table.status, cell: (r) => r.Status },
+    { key: "LeaseCount", label: rc.leaseCount, cell: (r) => r.LeaseCount },
+    { key: "OccupiedDays", label: rc.occupiedDays, cell: (r) => r.OccupiedDays },
+    { key: "PeriodDays", label: rc.periodDays, cell: (r) => r.PeriodDays },
+    {
+      key: "OccupancyRatePercent",
+      label: t.dashboard.landlord.reports.occupancyRate,
+      cell: (r) => `${r.OccupancyRatePercent}%`,
+    },
+  ];
+}
 
-const MAINTENANCE_COLUMNS: Column<MaintenanceActivityRow>[] = [
-  { key: "Property", label: "Property", cell: (r) => r.Property },
-  { key: "Title", label: "Title", cell: (r) => r.Title },
-  { key: "Status", label: "Status", cell: (r) => r.Status },
-  { key: "ItemsCost", label: "Items Cost (RWF)", cell: (r) => formatMoney(Number(r.ItemsCost)) },
-  { key: "LaborCost", label: "Labor Cost (RWF)", cell: (r) => formatMoney(Number(r.LaborCost)) },
-  { key: "CreatedAt", label: "Created", cell: (r) => r.CreatedAt },
-  { key: "CompletedAt", label: "Completed", cell: (r) => r.CompletedAt || "—" },
-];
+function getMaintenanceColumns(t: Translations): Column<MaintenanceActivityRow>[] {
+  const c = t.dashboard.landlord.reports;
+  return [
+    { key: "Property", label: t.dashboard.table.property, cell: (r) => r.Property },
+    { key: "Title", label: c.reportColumns.title, cell: (r) => r.Title },
+    { key: "Status", label: t.dashboard.table.status, cell: (r) => r.Status },
+    { key: "ItemsCost", label: `${c.itemCostRwf}`, cell: (r) => formatMoney(Number(r.ItemsCost)) },
+    { key: "LaborCost", label: c.laborCostRwf, cell: (r) => formatMoney(Number(r.LaborCost)) },
+    { key: "CreatedAt", label: c.reportColumns.createdDate, cell: (r) => r.CreatedAt },
+    { key: "CompletedAt", label: c.reportColumns.completedDate, cell: (r) => r.CompletedAt || "—" },
+  ];
+}
 
-const REVENUE_COLUMNS: Column<RevenuePerformanceRow>[] = [
-  { key: "Month", label: "Month", cell: (r) => r.Month },
-  { key: "Revenue", label: "Revenue (RWF)", cell: (r) => formatMoney(Number(r.Revenue)) },
-];
-
-const COLUMNS_BY_REPORT: Record<ReportId, Column<never>[]> = {
-  "rental-history": RENTAL_HISTORY_COLUMNS as Column<never>[],
-  "payment-history": PAYMENT_HISTORY_COLUMNS as Column<never>[],
-  occupancy: OCCUPANCY_COLUMNS as Column<never>[],
-  "maintenance-activity": MAINTENANCE_COLUMNS as Column<never>[],
-  "revenue-performance": REVENUE_COLUMNS as Column<never>[],
-};
+function getRevenueColumns(t: Translations): Column<RevenuePerformanceRow>[] {
+  const rc = t.dashboard.landlord.reports.reportColumns;
+  return [
+    { key: "Month", label: rc.month, cell: (r) => r.Month },
+    { key: "Revenue", label: rc.revenueRwf, cell: (r) => formatMoney(Number(r.Revenue)) },
+  ];
+}
 
 function ReportTable<T>({
   columns,
@@ -167,10 +176,12 @@ const axisTick = { fontSize: 12, fill: CHART_TEXT_COLOR };
 
 export default function LandlordReportsPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const c = t.dashboard.landlord.reports;
   const [reportId, setReportId] = useState<ReportId>("rental-history");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [propertyFilter, setPropertyFilter] = useState("All Properties");
+  const [propertyFilter, setPropertyFilter] = useState(c.allProperties);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hiddenColumns, setHiddenColumns] = useState<Record<ReportId, Set<string>>>({
@@ -277,13 +288,13 @@ export default function LandlordReportsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, reportId, dateFrom, dateTo]);
 
-  const propertyOptions = ["All Properties", ...properties.map((p) => p.title)];
+  const propertyOptions = [c.allProperties, ...properties.map((p) => p.title)];
 
   const hasPropertyField = (row: unknown): row is { Property: string } =>
     typeof row === "object" && row !== null && "Property" in row;
 
   const filteredRows =
-    activeReport.hasPropertyFilter && propertyFilter !== "All Properties"
+    activeReport.hasPropertyFilter && propertyFilter !== c.allProperties
       ? rows.filter((row) => hasPropertyField(row) && row.Property === propertyFilter)
       : rows;
 
@@ -297,12 +308,12 @@ export default function LandlordReportsPage() {
     : 0;
 
   const occupancyData = [
-    { name: "Available", value: properties.filter((p) => p.status === "available").length },
-    { name: "Occupied", value: properties.filter((p) => p.status === "occupied").length },
+    { name: t.dashboard.status.available, value: properties.filter((p) => p.status === "available").length },
+    { name: t.dashboard.status.occupied, value: properties.filter((p) => p.status === "occupied").length },
   ];
 
   const paymentStatusData = (["pending", "success", "failed"] as const).map((status) => ({
-    name: status,
+    name: t.dashboard.status[status],
     value: paymentStatusRows.filter((p) => p.Status === status).length,
   }));
 
@@ -332,6 +343,14 @@ export default function LandlordReportsPage() {
     expensePage * DEFAULT_PAGE_SIZE,
   );
 
+  const COLUMNS_BY_REPORT: Record<ReportId, Column<never>[]> = {
+    "rental-history": getRentalHistoryColumns(t) as Column<never>[],
+    "payment-history": getPaymentHistoryColumns(t) as Column<never>[],
+    occupancy: getOccupancyColumns(t) as Column<never>[],
+    "maintenance-activity": getMaintenanceColumns(t) as Column<never>[],
+    "revenue-performance": getRevenueColumns(t) as Column<never>[],
+  };
+
   const toggleColumn = (key: string) => {
     setHiddenColumns((prev) => {
       const current = new Set(prev[reportId]);
@@ -353,7 +372,7 @@ export default function LandlordReportsPage() {
     setError(null);
     try {
       await exportReport(reportId, range);
-      setNotice(`${reportId}.xlsx downloaded — check your browser's Downloads.`);
+      setNotice(c.downloadedNotice.replace("{filename}", `${reportId}.xlsx`));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to export report.");
     }
@@ -362,9 +381,9 @@ export default function LandlordReportsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-navy">Reports</h1>
+        <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Rent collection, occupancy, and performance across your properties.
+          {c.subtitle}
         </p>
       </div>
 
@@ -384,23 +403,22 @@ export default function LandlordReportsPage() {
 
       <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
         <SummaryCard
-          label="Total Collected"
+          label={c.totalCollected}
           value={`${formatMoney(totalCollected)} RWF`}
-          subtitle="This year"
           accent="emerald"
         />
         <SummaryCard
-          label="Total Outstanding"
+          label={c.totalOutstanding}
           value={`${formatMoney(totalOutstanding)} RWF`}
           accent="red"
         />
-        <SummaryCard label="Occupancy Rate" value={`${occupancyRate}%`} />
-        <SummaryCard label="Average Rent" value={`${formatMoney(averageRent)} RWF`} />
+        <SummaryCard label={c.occupancyRate} value={`${occupancyRate}%`} />
+        <SummaryCard label={c.averageRent} value={`${formatMoney(averageRent)} RWF`} />
       </div>
 
       {revenueByMonth.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="font-semibold text-navy">Revenue Collected by Month</p>
+          <p className="font-semibold text-navy">{c.revenueByMonth}</p>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={revenueByMonth}>
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
@@ -416,7 +434,7 @@ export default function LandlordReportsPage() {
       {properties.length > 0 && (
         <div className="grid gap-5 lg:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="font-semibold text-navy">Occupancy</p>
+            <p className="font-semibold text-navy">{c.occupancy}</p>
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie
@@ -438,7 +456,7 @@ export default function LandlordReportsPage() {
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="font-semibold text-navy">Payment Status</p>
+            <p className="font-semibold text-navy">{c.paymentStatus}</p>
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie
@@ -463,25 +481,25 @@ export default function LandlordReportsPage() {
 
       <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Report type
+          {c.reportTypeLabel}
           <select
             value={reportId}
             onChange={(e) => {
               setReportId(e.target.value as ReportId);
-              setPropertyFilter("All Properties");
+              setPropertyFilter(c.allProperties);
             }}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
             {REPORT_TYPES.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.label}
+                {c.reportTypes[r.labelKey]}
               </option>
             ))}
           </select>
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          From
+          {c.fromLabel}
           <input
             type="date"
             value={dateFrom}
@@ -492,7 +510,7 @@ export default function LandlordReportsPage() {
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          To
+          {c.toLabel}
           <input
             type="date"
             value={dateTo}
@@ -503,7 +521,7 @@ export default function LandlordReportsPage() {
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Property
+          {c.propertyLabel}
           <select
             value={propertyFilter}
             onChange={(e) => setPropertyFilter(e.target.value)}
@@ -523,7 +541,7 @@ export default function LandlordReportsPage() {
             className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
           >
             <Columns3 className="h-4 w-4" />
-            Columns
+            {c.columns}
           </button>
 
           {columnsMenuOpen && (
@@ -552,21 +570,21 @@ export default function LandlordReportsPage() {
           className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           <Download className="h-4 w-4" />
-          Export Excel
+          {c.reportColumns.exportExcel}
         </button>
       </div>
 
       {INCOME_REPORT_IDS.includes(reportId) && (
         <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
-          <SummaryCard label="Total Income" value={`${formatMoney(income)} RWF`} accent="emerald" />
+          <SummaryCard label={c.totalIncome} value={`${formatMoney(income)} RWF`} accent="emerald" />
           <SummaryCard
-            label="Total Expenses"
+            label={c.totalExpenses}
             value={`${formatMoney(expenses)} RWF`}
             accent="red"
-            subtitle="Maintenance costs in this period"
+            subtitle={c.completedMaintenanceCosts}
           />
           <SummaryCard
-            label="Net Profit"
+            label={c.netProfit}
             value={`${formatMoney(netProfit)} RWF`}
             accent={netProfit >= 0 ? "navy" : "red"}
           />
@@ -576,20 +594,20 @@ export default function LandlordReportsPage() {
       {INCOME_REPORT_IDS.includes(reportId) && (
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 px-6 py-4">
-            <p className="font-semibold text-navy">Where your expenses come from</p>
+            <p className="font-semibold text-navy">{c.expensesSourceTitle}</p>
             <p className="mt-1 text-sm text-slate-500">
-              Maintenance costs on your properties in this period.
+              {c.expensesSourceSubtitle}
             </p>
           </div>
           <Table variant="bare">
             <THead>
               <Tr>
-                <Th className="px-6 py-3">Property</Th>
-                <Th className="px-6 py-3">Title</Th>
-                <Th className="px-6 py-3">Labor Cost (RWF)</Th>
-                <Th className="px-6 py-3">Items Cost (RWF)</Th>
-                <Th className="px-6 py-3">Total (RWF)</Th>
-                <Th className="px-6 py-3">Date</Th>
+                <Th className="px-6 py-3">{t.dashboard.table.property}</Th>
+                <Th className="px-6 py-3">{c.reportColumns.title}</Th>
+                <Th className="px-6 py-3">{c.laborCostRwf}</Th>
+                <Th className="px-6 py-3">{c.itemCostRwf}</Th>
+                <Th className="px-6 py-3">{c.totalRwf}</Th>
+                <Th className="px-6 py-3">{c.date}</Th>
               </Tr>
             </THead>
             <TBody>
@@ -606,7 +624,7 @@ export default function LandlordReportsPage() {
                 </Tr>
               ))}
               {pagedExpenseRows.length === 0 && (
-                <EmptyRow colSpan={6}>No maintenance costs in this period.</EmptyRow>
+                <EmptyRow colSpan={6}>{c.noExpenses}</EmptyRow>
               )}
             </TBody>
           </Table>
@@ -623,12 +641,12 @@ export default function LandlordReportsPage() {
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         {isLoading ? (
-          <div className="px-6 py-10 text-center text-sm text-slate-500">Loading report...</div>
+          <div className="px-6 py-10 text-center text-sm text-slate-500">{c.reportColumns.loadingReport}</div>
         ) : (
           <ReportTable
             columns={activeColumns as Column<unknown>[]}
             rows={pagedRows}
-            emptyMessage="No rows match these filters."
+            emptyMessage={c.reportColumns.noRowsMatch}
           />
         )}
 

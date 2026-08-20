@@ -11,21 +11,23 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const NAV_ITEMS = [
-  { label: "Dashboard", href: "/house-manager", icon: LayoutDashboard },
-  { label: "Properties", href: "/house-manager/properties", icon: Building2 },
-  { label: "Leases", href: "/house-manager/leases", icon: FileText },
-  { label: "Payments", href: "/house-manager/payments", icon: CreditCard },
-  { label: "Maintenance", href: "/house-manager/maintenance", icon: Wrench },
-];
+  { key: "dashboard", href: "/house-manager", icon: LayoutDashboard },
+  { key: "properties", href: "/house-manager/properties", icon: Building2 },
+  { key: "leases", href: "/house-manager/leases", icon: FileText },
+  { key: "payments", href: "/house-manager/payments", icon: CreditCard },
+  { key: "maintenance", href: "/house-manager/maintenance", icon: Wrench },
+] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   return (
     <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
-      {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+      {NAV_ITEMS.map(({ key, href, icon: Icon }) => {
         const isActive =
           href === "/house-manager" ? pathname === href : pathname.startsWith(href);
         return (
@@ -40,7 +42,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             }`}
           >
             <Icon className="h-4 w-4" strokeWidth={2} />
-            {label}
+            {t.dashboard.nav[key]}
           </Link>
         );
       })}
@@ -49,6 +51,8 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t } = useLanguage();
+
   return (
     <>
       <aside className="hidden w-64 flex-col bg-navy text-white lg:fixed lg:inset-y-0 lg:left-0 lg:flex">
@@ -57,7 +61,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
           <span className="leading-tight">
             <span className="block text-lg font-bold text-white">HomeLink</span>
             <span className="block text-[11px] font-semibold tracking-[0.2em] text-gold">
-              HOUSE MANAGER
+              {t.dashboard.roleBadge.houseManager}
             </span>
           </span>
         </Link>
@@ -73,7 +77,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            aria-label="Close menu"
+            aria-label={t.dashboard.topbar.closeMenu}
             onClick={onClose}
             className="absolute inset-0 bg-navy/70"
           />
@@ -85,14 +89,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                 <span className="leading-tight">
                   <span className="block text-lg font-bold text-white">HomeLink</span>
                   <span className="block text-[11px] font-semibold tracking-[0.2em] text-gold">
-                    HOUSE MANAGER
+                    {t.dashboard.roleBadge.houseManager}
                   </span>
                 </span>
               </Link>
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Close menu"
+                aria-label={t.dashboard.topbar.closeMenu}
                 className="rounded-lg p-2 text-white hover:bg-white/10"
               >
                 <X className="h-5 w-5" />

@@ -43,6 +43,8 @@ import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
 import { AlertBanner } from "@/components/dashboard/AlertBanner";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
 type TransactionRowStatus = "Overdue" | "Pending Approval";
 
@@ -67,39 +69,43 @@ type TransactionRow = {
   status: TransactionRowStatus;
 };
 
-const TRANSACTION_TABS: { key: "All" | TransactionRowStatus; label: string }[] = [
-  { key: "All", label: "All" },
-  { key: "Pending Approval", label: "Pending Approval" },
-  { key: "Overdue", label: "Overdue" },
-];
-
 const STAT_META: Record<
   string,
-  { href: string; icon: typeof Building2; accent: StatAccent; subtitle: string }
+  {
+    href: string;
+    icon: typeof Building2;
+    accent: StatAccent;
+    labelKey: keyof Translations["dashboard"]["houseManager"]["overview"]["statLabels"];
+    subtitleKey: keyof Translations["dashboard"]["houseManager"]["overview"]["statSubtitles"];
+  }
 > = {
   "Managed Properties": {
     href: "/house-manager/properties",
     icon: Building2,
     accent: "blue",
-    subtitle: "Owned by your assigned landlord",
+    labelKey: "managedProperties",
+    subtitleKey: "ownedByLandlord",
   },
   "Active Leases": {
     href: "/house-manager/leases",
     icon: FileText,
     accent: "emerald",
-    subtitle: "Currently active",
+    labelKey: "activeLeases",
+    subtitleKey: "currentlyActive",
   },
   "Pending Maintenance": {
     href: "/house-manager/maintenance",
     icon: Wrench,
     accent: "amber",
-    subtitle: "Awaiting action",
+    labelKey: "pendingMaintenance",
+    subtitleKey: "awaitingAction",
   },
   "Revenue Collected": {
     href: "/house-manager/payments",
     icon: Wallet,
     accent: "teal",
-    subtitle: "This month",
+    labelKey: "revenueCollected",
+    subtitleKey: "thisMonth",
   },
 };
 
@@ -116,6 +122,8 @@ function formatMonth(month: string): string {
 
 export default function HouseManagerOverviewPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const c = t.dashboard.houseManager.overview;
   const [dashboard, setDashboard] = useState<OwnerDashboard | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
   const [leases, setLeases] = useState<Lease[]>([]);
@@ -127,6 +135,15 @@ export default function HouseManagerOverviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"All" | TransactionRowStatus>("All");
+
+  const TRANSACTION_TABS: { key: "All" | TransactionRowStatus; label: string }[] = [
+    { key: "All", label: t.dashboard.actions.all },
+    { key: "Pending Approval", label: t.dashboard.status.pendingApproval },
+    { key: "Overdue", label: t.dashboard.status.overdue },
+  ];
+
+  const transactionStatusLabel = (status: TransactionRowStatus) =>
+    status === "Overdue" ? t.dashboard.status.overdue : t.dashboard.status.pendingApproval;
 
   useEffect(() => {
     if (!user) return;
@@ -163,7 +180,7 @@ export default function HouseManagerOverviewPage() {
   const leaseById = new Map(leases.map((l) => [l.id, l]));
   const propertyById = new Map(properties.map((p) => [p.id, p]));
   const unitById = new Map(units.map((u) => [u.id, u]));
-  const tenantLabel = (id: string) => `Tenant ${id.slice(0, 8).toUpperCase()}`;
+  const tenantLabel = (id: string) => `${c.tenantLabelPrefix} ${id.slice(0, 8).toUpperCase()}`;
 
   const overdueInvoices = invoices.filter((inv) => inv.status === "overdue");
   const pendingApprovalPayments = payments.filter((p) => p.approvalStatus === "pending");
@@ -183,8 +200,10 @@ export default function HouseManagerOverviewPage() {
   const handleSendReminder = () => {
     setReminderNotice(
       outstandingTenants > 0
-        ? `Reminder sent to ${outstandingTenants} tenant${outstandingTenants === 1 ? "" : "s"} with an outstanding balance.`
-        : "No tenants currently have an outstanding balance.",
+        ? c.reminderSentTemplate
+            .replace("{count}", String(outstandingTenants))
+            .replace("{plural}", outstandingTenants === 1 ? "" : "s")
+        : c.noOutstandingTenants,
     );
   };
 
@@ -260,10 +279,8 @@ export default function HouseManagerOverviewPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-bold text-navy">Overview</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          A quick look at the properties you manage.
-        </p>
+        <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{c.subtitle}</p>
       </div>
 
       {error && (
@@ -281,9 +298,9 @@ export default function HouseManagerOverviewPage() {
           return (
             <StatCard
               key={label}
-              label={label}
+              label={meta ? c.statLabels[meta.labelKey] : label}
               value={isLoading ? "…" : value}
-              subtitle={meta?.subtitle}
+              subtitle={meta ? c.statSubtitles[meta.subtitleKey] : undefined}
               href={meta?.href ?? "/house-manager"}
               icon={meta?.icon ?? Building2}
               accent={meta?.accent ?? "blue"}
@@ -297,14 +314,10 @@ export default function HouseManagerOverviewPage() {
           className="order-2 lg:order-1"
           isAlert={balanceDue > 0}
           stats={[
-            { label: "Balance Due", value: `${formatMoney(balanceDue)} RWF` },
-            { label: "Tenants Outstanding", value: outstandingTenants },
+            { label: c.balanceDue, value: `${formatMoney(balanceDue)} RWF` },
+            { label: c.tenantsOutstanding, value: outstandingTenants },
           ]}
-          message={
-            balanceDue > 0
-              ? "Some tenants haven't paid this month's rent yet. Send a reminder or check with the landlord."
-              : "All tenants are paid up this month."
-          }
+          message={balanceDue > 0 ? c.alertMessage : c.allPaidMessage}
         >
           <button
             type="button"
@@ -312,13 +325,13 @@ export default function HouseManagerOverviewPage() {
             className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
           >
             <Bell className="h-4 w-4" />
-            Send Reminder
+            {c.sendReminder}
           </button>
         </AlertBanner>
 
         {properties.length > 0 && (
           <div className="order-1 rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:order-2">
-            <p className="font-semibold text-navy">Revenue by Month</p>
+            <p className="font-semibold text-navy">{c.revenueByMonth}</p>
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={revenueByMonth}>
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
@@ -345,10 +358,8 @@ export default function HouseManagerOverviewPage() {
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div>
-            <h2 className="font-semibold text-navy">Transactions</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Overdue invoices and payments awaiting approval, across managed properties.
-            </p>
+            <h2 className="font-semibold text-navy">{c.transactionsTitle}</h2>
+            <p className="mt-1 text-sm text-slate-500">{c.transactionsSubtitle}</p>
           </div>
         </div>
 
@@ -382,20 +393,20 @@ export default function HouseManagerOverviewPage() {
         <Table variant="plain">
           <THead>
             <Tr>
-              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Tenant</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Unit</Th>
-              <Th className="hidden px-6 py-3 sm:table-cell">Amount (RWF)</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Method</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Date</Th>
-              <Th className="px-4 py-3 sm:px-6">Status</Th>
+              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">{t.dashboard.table.tenant}</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.property}</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.unit}</Th>
+              <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.amountRwf}</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.method}</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.date}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
             </Tr>
           </THead>
           <TBody>
             {isLoading ? (
-              <EmptyRow colSpan={7}>Loading transactions...</EmptyRow>
+              <EmptyRow colSpan={7}>{c.loadingTransactions}</EmptyRow>
             ) : visibleTransactions.length === 0 ? (
-              <EmptyRow colSpan={7}>No transactions match this filter.</EmptyRow>
+              <EmptyRow colSpan={7}>{c.noTransactions}</EmptyRow>
             ) : (
               visibleTransactions.map((row) => (
                 <Tr key={row.id}>
@@ -421,7 +432,7 @@ export default function HouseManagerOverviewPage() {
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-medium ${TRANSACTION_STATUS_STYLES[row.status]}`}
                     >
-                      {row.status}
+                      {transactionStatusLabel(row.status)}
                     </span>
                   </Td>
                 </Tr>

@@ -43,6 +43,7 @@ import { Card } from "@/components/dashboard/Card";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 type RowStatus = InvoiceStatus | PaymentStatus;
 
@@ -60,12 +61,6 @@ const STATUS_PRIORITY: Record<RowStatus, number> = {
   failed: 4,
 };
 
-const TABS: { key: "All" | "pending" | "overdue"; label: string }[] = [
-  { key: "All", label: "All" },
-  { key: "pending", label: "Pending Approval" },
-  { key: "overdue", label: "Overdue" },
-];
-
 type PaymentRow = {
   id: string;
   tenant: string;
@@ -79,6 +74,8 @@ type PaymentRow = {
 
 export default function HouseManagerPaymentsPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const c = t.dashboard.houseManager.payments;
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
@@ -88,16 +85,22 @@ export default function HouseManagerPaymentsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [propertyFilter, setPropertyFilter] = useState("All Properties");
+  const [propertyFilter, setPropertyFilter] = useState(c.allProperties);
   const [statusFilter, setStatusFilter] = useState<"All" | RowStatus>("All");
   const [methodFilter, setMethodFilter] = useState<"All" | Payment["method"]>("All");
   const [page, setPage] = useState(1);
+
+  const TABS: { key: "All" | "pending" | "overdue"; label: string }[] = [
+    { key: "All", label: t.dashboard.actions.all },
+    { key: "pending", label: t.dashboard.status.pendingApproval },
+    { key: "overdue", label: t.dashboard.status.overdue },
+  ];
 
   const leaseById = new Map(leases.map((l) => [l.id, l]));
   const invoiceById = new Map(invoices.map((i) => [i.id, i]));
   const propertyById = new Map(properties.map((p) => [p.id, p]));
   const tenantName = (id: string) => `Tenant ${id.slice(0, 8).toUpperCase()}`;
-  const propertyOptions = ["All Properties", ...properties.map((p) => p.title)];
+  const propertyOptions = [c.allProperties, ...properties.map((p) => p.title)];
 
   const leaseForInvoice = (invoice: Invoice) => leaseById.get(invoice.leaseId);
   const leaseForPayment = (payment: Payment) => {
@@ -152,7 +155,7 @@ export default function HouseManagerPaymentsPage() {
 
   const propertyFilteredOverdueInvoices = overdueInvoices.filter(
     (inv) =>
-      propertyFilter === "All Properties" ||
+      propertyFilter === c.allProperties ||
       propertyForInvoice(inv)?.title === propertyFilter,
   );
   const filteredOverdueInvoices =
@@ -162,7 +165,7 @@ export default function HouseManagerPaymentsPage() {
 
   const propertyMethodFilteredPayments = payments.filter((p) => {
     const matchesProperty =
-      propertyFilter === "All Properties" ||
+      propertyFilter === c.allProperties ||
       propertyForPayment(p)?.title === propertyFilter;
     const matchesMethod = methodFilter === "All" || p.method === methodFilter;
     return matchesProperty && matchesMethod;
@@ -214,7 +217,7 @@ export default function HouseManagerPaymentsPage() {
   const resolvePayment = async (paymentId: string, approve: boolean) => {
     let reason = "";
     if (!approve) {
-      reason = window.prompt("Reason for rejecting this payment:")?.trim() ?? "";
+      reason = window.prompt(c.rejectPrompt)?.trim() ?? "";
       if (!reason) return;
     }
     setActionError(null);
@@ -225,7 +228,7 @@ export default function HouseManagerPaymentsPage() {
       } else {
         await rejectPayment(paymentId, reason);
       }
-      setNotice(approve ? "Payment approved." : "Payment rejected.");
+      setNotice(approve ? c.approvedNotice : c.rejectedNotice);
       load();
     } catch (err) {
       setActionError(
@@ -249,8 +252,10 @@ export default function HouseManagerPaymentsPage() {
   const handleSendArrearsReminder = () => {
     setNotice(
       overdueInvoices.length > 0
-        ? `Reminder sent to ${overdueInvoices.length} tenant${overdueInvoices.length === 1 ? "" : "s"} in arrears.`
-        : "No tenants are currently in arrears.",
+        ? c.reminderSentTemplate
+            .replace("{count}", String(overdueInvoices.length))
+            .replace("{plural}", overdueInvoices.length === 1 ? "" : "s")
+        : c.noArrearsTenants,
     );
   };
 
@@ -267,10 +272,8 @@ export default function HouseManagerPaymentsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Payments</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Rent payments across managed properties.
-          </p>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{c.subtitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -279,7 +282,7 @@ export default function HouseManagerPaymentsPage() {
             className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
           >
             <Download className="h-4 w-4" />
-            Export Excel
+            {c.exportExcel}
           </button>
         </div>
       </div>
@@ -305,26 +308,26 @@ export default function HouseManagerPaymentsPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <IconStatCard
           icon={Wallet}
-          label="Collected"
+          label={c.statCollected}
           value={`${formatMoney(collected)} RWF`}
-          subtitle="All successful payments"
+          subtitle={c.statCollectedSubtitle}
           accent="emerald"
         />
         <IconStatCard
           icon={AlertCircle}
-          label="Outstanding"
+          label={c.statOutstanding}
           value={`${formatMoney(outstanding)} RWF`}
-          subtitle="Pending & overdue invoices"
+          subtitle={c.statOutstandingSubtitle}
           accent="red"
         />
         <IconStatCard
           icon={AlertTriangle}
-          label="Total in Arrears"
+          label={c.statArrears}
           value={`${formatMoney(totalInArrears)} RWF`}
-          subtitle="Overdue invoice total"
+          subtitle={c.statArrearsSubtitle}
           accent="amber"
         />
       </div>
@@ -332,8 +335,8 @@ export default function HouseManagerPaymentsPage() {
       <AlertBanner
         isAlert={overdueInvoices.length > 0}
         stats={[
-          { label: "Total in Arrears", value: `${formatMoney(totalInArrears)} RWF` },
-          { label: "Invoices Overdue", value: overdueInvoices.length },
+          { label: c.statArrears, value: `${formatMoney(totalInArrears)} RWF` },
+          { label: c.invoicesOverdue, value: overdueInvoices.length },
         ]}
       >
         <button
@@ -342,13 +345,13 @@ export default function HouseManagerPaymentsPage() {
           className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           <Bell className="h-4 w-4" />
-          Send Reminder
+          {c.sendReminder}
         </button>
       </AlertBanner>
 
       <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Property
+          {c.filterProperty}
           <select
             value={propertyFilter}
             onChange={(e) => setPropertyFilter(e.target.value)}
@@ -362,40 +365,38 @@ export default function HouseManagerPaymentsPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Status
+            {c.filterStatus}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
             >
-              <option value="All">All</option>
-              <option value="overdue">Overdue</option>
-              <option value="success">Successful</option>
-              <option value="pending">Pending Approval</option>
-              <option value="failed">Failed</option>
+              <option value="All">{t.dashboard.actions.all}</option>
+              <option value="overdue">{t.dashboard.status.overdue}</option>
+              <option value="success">{c.statusSuccessful}</option>
+              <option value="pending">{t.dashboard.status.pendingApproval}</option>
+              <option value="failed">{c.statusFailed}</option>
             </select>
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Method
+            {c.filterMethod}
             <select
               value={methodFilter}
               onChange={(e) => setMethodFilter(e.target.value as typeof methodFilter)}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
             >
-              <option value="All">All</option>
-              <option value="mobile_money">Mobile Money</option>
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="cash">Cash</option>
+              <option value="All">{t.dashboard.actions.all}</option>
+              <option value="mobile_money">{c.methodMobileMoney}</option>
+              <option value="bank_transfer">{c.methodBankTransfer}</option>
+              <option value="cash">{c.methodCash}</option>
             </select>
           </label>
         </div>
       </div>
 
-      <Card title="Transactions">
-        <p className="mt-1 text-sm text-slate-500">
-          All rent payments and invoices currently in arrears, across managed properties.
-        </p>
+      <Card title={c.transactionsTitle}>
+        <p className="mt-1 text-sm text-slate-500">{c.transactionsSubtitle}</p>
 
         <div className="mt-4 flex items-center gap-6 overflow-x-auto border-b border-slate-200">
           {TABS.map((tab) => {
@@ -427,20 +428,20 @@ export default function HouseManagerPaymentsPage() {
         <Table variant="card">
           <THead>
             <Tr>
-              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Tenant</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
-              <Th className="hidden px-6 py-3 sm:table-cell">Amount (RWF)</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Method</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Date</Th>
-              <Th className="px-4 py-3 sm:px-6">Status</Th>
-              <Th className="px-4 py-3 sm:px-6">Actions</Th>
+              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">{t.dashboard.table.tenant}</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.property}</Th>
+              <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.amountRwf}</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.method}</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.date}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
             </Tr>
           </THead>
           <TBody>
             {isLoading ? (
-              <EmptyRow colSpan={7}>Loading payments...</EmptyRow>
+              <EmptyRow colSpan={7}>{c.loading}</EmptyRow>
             ) : pagedRows.length === 0 ? (
-              <EmptyRow colSpan={7}>No payments match these filters.</EmptyRow>
+              <EmptyRow colSpan={7}>{c.empty}</EmptyRow>
             ) : (
               pagedRows.map((row) => {
                 const isProcessing =
@@ -494,7 +495,7 @@ export default function HouseManagerPaymentsPage() {
                                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                                 >
                                   <Eye className="h-3.5 w-3.5" />
-                                  Receipt
+                                  {c.receipt}
                                 </button>
                               )}
                               {payment.approvalStatus === "pending" && (
@@ -503,7 +504,7 @@ export default function HouseManagerPaymentsPage() {
                                     type="button"
                                     onClick={() => resolvePayment(payment.id, true)}
                                     disabled={isProcessing}
-                                    aria-label={`Approve payment from ${row.tenant}`}
+                                    aria-label={c.approveAriaTemplate.replace("{name}", row.tenant)}
                                     className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
                                   >
                                     <Check className="h-4 w-4" />
@@ -512,7 +513,7 @@ export default function HouseManagerPaymentsPage() {
                                     type="button"
                                     onClick={() => resolvePayment(payment.id, false)}
                                     disabled={isProcessing}
-                                    aria-label={`Reject payment from ${row.tenant}`}
+                                    aria-label={c.rejectAriaTemplate.replace("{name}", row.tenant)}
                                     className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
                                   >
                                     <X className="h-4 w-4" />

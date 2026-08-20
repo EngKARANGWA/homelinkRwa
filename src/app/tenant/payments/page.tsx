@@ -13,17 +13,15 @@ import { listLeases } from "@/lib/api/leases";
 import { ApiError } from "@/lib/api/client";
 import type {
   Invoice,
+  InvoiceStatus,
   Lease,
   PayInvoiceInput,
   Payment,
   PaymentMethod,
+  PaymentStatus,
   Property,
 } from "@/lib/api/types";
-import {
-  formatStatusLabel,
-  INVOICE_STATUS_STYLES,
-  PAYMENT_STATUS_STYLES,
-} from "@/lib/paymentStatus";
+import { formatStatusLabel, INVOICE_STATUS_STYLES, PAYMENT_STATUS_STYLES } from "@/lib/paymentStatus";
 import { Modal } from "@/components/admin/Modal";
 import { PayNowForm } from "@/components/tenant/PayNowForm";
 import { AlertBanner } from "@/components/dashboard/AlertBanner";
@@ -31,11 +29,16 @@ import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboar
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { downloadCSV } from "@/lib/csv";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
 const TABS = [
-  { id: "invoices", label: "Invoices" },
-  { id: "payments", label: "Payments" },
-] as const;
+  { id: "invoices", labelKey: "tabInvoices" },
+  { id: "payments", labelKey: "tabPayments" },
+] as const satisfies readonly {
+  id: string;
+  labelKey: keyof Translations["dashboard"]["tenant"]["payments"];
+}[];
 
 type TabId = (typeof TABS)[number]["id"];
 
@@ -43,6 +46,15 @@ const METHOD_CODES: Record<PaymentMethod, string> = {
   mobile_money: "MOMO",
   bank_transfer: "BNK",
   cash: "CSH",
+};
+
+const INVOICE_STATUS_KEY: Partial<Record<InvoiceStatus, keyof Translations["dashboard"]["status"]>> = {
+  paid: "paid",
+  overdue: "overdue",
+};
+
+const PAYMENT_STATUS_KEY: Partial<Record<PaymentStatus, keyof Translations["dashboard"]["status"]>> = {
+  pending: "pending",
 };
 
 function formatDate(dateStr: string) {
@@ -74,6 +86,8 @@ function paymentReference(payment: Payment) {
 }
 
 export default function TenantPaymentsPage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.tenant.payments;
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
@@ -95,6 +109,14 @@ export default function TenantPaymentsPage() {
     if (!invoice) return undefined;
     const lease = leaseById.get(invoice.leaseId);
     return lease ? propertyById.get(lease.propertyId) : undefined;
+  };
+  const invoiceStatusLabel = (status: InvoiceStatus) => {
+    const key = INVOICE_STATUS_KEY[status];
+    return key ? t.dashboard.status[key] : formatStatusLabel(status);
+  };
+  const paymentStatusLabel = (status: PaymentStatus) => {
+    const key = PAYMENT_STATUS_KEY[status];
+    return key ? t.dashboard.status[key] : formatStatusLabel(status);
   };
 
   const load = () => {
@@ -145,9 +167,7 @@ export default function TenantPaymentsPage() {
       await payInvoice(invoice.id, values);
       setPayingInvoice(null);
       setNotice(
-        values.method === "mobile_money"
-          ? "Payment successful. Your receipt is ready to view."
-          : "Payment submitted. Awaiting your landlord's approval.",
+        values.method === "mobile_money" ? c.paymentSuccessfulNotice : c.paymentSubmittedNotice,
       );
       load();
     } catch (err) {
@@ -178,7 +198,7 @@ export default function TenantPaymentsPage() {
         formatStatusLabel(inv.status),
       ]),
     );
-    setNotice("my-invoices.csv downloaded — check your browser's Downloads.");
+    setNotice(c.invoicesDownloadedNotice);
   };
 
   const handleDownloadPayments = () => {
@@ -195,18 +215,18 @@ export default function TenantPaymentsPage() {
         formatStatusLabel(p.status),
       ]),
     );
-    setNotice("my-payments.csv downloaded — check your browser's Downloads.");
+    setNotice(c.paymentsDownloadedNotice);
   };
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Payments</h1>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {primaryProperty
               ? `${primaryProperty.title} · ${primaryProperty.addressLine}, ${primaryProperty.city}`
-              : "Your rent payments and invoices."}
+              : c.subtitleFallback}
           </p>
         </div>
         <button
@@ -215,7 +235,7 @@ export default function TenantPaymentsPage() {
           className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
           <Download className="h-4 w-4" />
-          {tab === "invoices" ? "Download Invoices" : "Download Statement"}
+          {tab === "invoices" ? c.downloadInvoices : c.downloadStatement}
         </button>
       </div>
 
@@ -241,20 +261,20 @@ export default function TenantPaymentsPage() {
       )}
 
       <div className="flex items-center gap-6 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => {
-          const isActive = tab === t.id;
+        {TABS.map((tabItem) => {
+          const isActive = tab === tabItem.id;
           return (
             <button
-              key={t.id}
+              key={tabItem.id}
               type="button"
-              onClick={() => setTab(t.id)}
+              onClick={() => setTab(tabItem.id)}
               className={`flex shrink-0 items-center gap-2 border-b-2 pb-3 text-sm font-medium transition-colors ${
                 isActive
                   ? "border-gold text-navy"
                   : "border-transparent text-slate-500 hover:text-navy"
               }`}
             >
-              {t.label}
+              {c[tabItem.labelKey]}
             </button>
           );
         })}
@@ -265,20 +285,20 @@ export default function TenantPaymentsPage() {
           <Table variant="standalone">
             <THead>
               <Tr>
-                <Th className="px-4 py-3 text-center sm:px-6">Sn.#</Th>
-                <Th className="max-w-[8rem] px-4 py-3 sm:px-6">Invoice #</Th>
-                <Th className="hidden px-6 py-3 sm:table-cell">Month</Th>
-                <Th className="hidden px-6 py-3 md:table-cell">Date Due</Th>
-                <Th className="hidden px-6 py-3 sm:table-cell">Total Amount (RWF)</Th>
-                <Th className="px-4 py-3 sm:px-6">Status</Th>
-                <Th className="px-4 py-3 sm:px-6">Actions</Th>
+                <Th className="px-4 py-3 text-center sm:px-6">{c.snNumber}</Th>
+                <Th className="max-w-[8rem] px-4 py-3 sm:px-6">{c.invoiceNumber}</Th>
+                <Th className="hidden px-6 py-3 sm:table-cell">{c.month}</Th>
+                <Th className="hidden px-6 py-3 md:table-cell">{c.dateDue}</Th>
+                <Th className="hidden px-6 py-3 sm:table-cell">{c.totalAmountRwf}</Th>
+                <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+                <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
               </Tr>
             </THead>
             <TBody>
               {isLoading ? (
                 <EmptyRow colSpan={7}>Loading invoices...</EmptyRow>
               ) : pagedInvoices.length === 0 ? (
-                <EmptyRow colSpan={7}>No invoices on file yet.</EmptyRow>
+                <EmptyRow colSpan={7}>{c.noInvoices}</EmptyRow>
               ) : (
                 pagedInvoices.map((invoice, i) => (
                   <Tr key={invoice.id}>
@@ -306,7 +326,7 @@ export default function TenantPaymentsPage() {
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-medium ${INVOICE_STATUS_STYLES[invoice.status]}`}
                       >
-                        {formatStatusLabel(invoice.status)}
+                        {invoiceStatusLabel(invoice.status)}
                       </span>
                     </Td>
                     <Td className="px-4 py-3 sm:px-6">
@@ -318,7 +338,7 @@ export default function TenantPaymentsPage() {
                           className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1 text-xs font-semibold text-white hover:bg-gold/90"
                         >
                           <Wallet className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">Pay Now</span>
+                          <span className="hidden sm:inline">{c.payNow}</span>
                         </button>
                       )}
                     </Td>
@@ -344,14 +364,16 @@ export default function TenantPaymentsPage() {
             <AlertBanner
               isAlert
               stats={[
-                { label: "Amount Due", value: `${formatMoney(Number(pendingInvoice.amountDue))} RWF` },
-                { label: "Due Date", value: formatDate(pendingInvoice.dueDate) },
-                { label: "Status", value: formatStatusLabel(pendingInvoice.status) },
+                { label: c.amountDue, value: `${formatMoney(Number(pendingInvoice.amountDue))} RWF` },
+                { label: c.dueDate, value: formatDate(pendingInvoice.dueDate) },
+                { label: t.dashboard.table.status, value: invoiceStatusLabel(pendingInvoice.status) },
               ]}
               message={
                 pendingInvoice.status === "overdue"
-                  ? "This payment is overdue. Please settle it as soon as possible."
-                  : `Rent is due on ${formatDate(pendingInvoice.dueDate)}.`
+                  ? c.overdueMessage
+                  : c.rentDueTemplate
+                      .replace("{property}", propertyForInvoice(pendingInvoice)?.title ?? "")
+                      .replace("{date}", formatDate(pendingInvoice.dueDate))
               }
             >
               <button
@@ -360,41 +382,38 @@ export default function TenantPaymentsPage() {
                 className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
               >
                 <Wallet className="h-4 w-4" />
-                Pay Now
+                {c.payNow}
               </button>
               {otherPendingCount > 0 && (
                 <span className="text-sm text-slate-500">
-                  +{otherPendingCount} more invoice{otherPendingCount === 1 ? "" : "s"} due — see
-                  the Invoices tab.
+                  {c.moreInvoicesDueTemplate
+                    .replaceAll("{count}", String(otherPendingCount))
+                    .replaceAll("{plural}", otherPendingCount === 1 ? "" : "s")}
                 </span>
               )}
             </AlertBanner>
           ) : (
-            <AlertBanner
-              isAlert={false}
-              stats={[]}
-              message="You're all caught up — no pending payments right now."
-            />
+            <AlertBanner isAlert={false} stats={[]} message={c.allCaughtUp} />
           )}
 
           <Table variant="standalone">
             <THead>
               <Tr>
-                <Th className="px-4 py-3 text-center sm:px-6">No.#</Th>
-                <Th className="max-w-[8rem] px-4 py-3 sm:px-6">Payment ID</Th>
-                <Th className="hidden px-6 py-3 sm:table-cell">Amount Paid (RWF)</Th>
-                <Th className="hidden px-6 py-3 lg:table-cell">Reference</Th>
-                <Th className="hidden px-6 py-3 md:table-cell">Payment Date</Th>
-                <Th className="hidden px-6 py-3 lg:table-cell">Payment Method</Th>
-                <Th className="px-4 py-3 sm:px-6">Status</Th>
-                <Th className="px-4 py-3 sm:px-6">Actions</Th>
+                <Th className="px-4 py-3 text-center sm:px-6">{c.noNumber}</Th>
+                <Th className="max-w-[8rem] px-4 py-3 sm:px-6">{c.paymentId}</Th>
+                <Th className="hidden px-6 py-3 sm:table-cell">{c.amountPaidRwf}</Th>
+                <Th className="hidden px-6 py-3 lg:table-cell">{c.reference}</Th>
+                <Th className="hidden px-6 py-3 md:table-cell">{c.paymentDate}</Th>
+                <Th className="hidden px-6 py-3 lg:table-cell">{c.paymentMethod}</Th>
+                <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+                <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
               </Tr>
             </THead>
             <TBody>
               {isLoading ? (
                 <EmptyRow colSpan={8}>Loading payments...</EmptyRow>
               ) : payments.length === 0 ? (
-                <EmptyRow colSpan={8}>No confirmed payments yet.</EmptyRow>
+                <EmptyRow colSpan={8}>{c.noConfirmedPayments}</EmptyRow>
               ) : (
                 payments.map((payment, i) => (
                   <Tr key={payment.id}>
@@ -425,7 +444,7 @@ export default function TenantPaymentsPage() {
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-medium ${PAYMENT_STATUS_STYLES[payment.status]}`}
                       >
-                        {formatStatusLabel(payment.status)}
+                        {paymentStatusLabel(payment.status)}
                       </span>
                     </Td>
                     <Td className="px-4 py-3 sm:px-6">
@@ -456,7 +475,7 @@ export default function TenantPaymentsPage() {
 
       {payingInvoice && (
         <Modal
-          title="Pay Rent"
+          title={c.payRentTitle}
           description={propertyForInvoice(payingInvoice)?.title ?? "Invoice"}
           onClose={() => setPayingInvoice(null)}
         >

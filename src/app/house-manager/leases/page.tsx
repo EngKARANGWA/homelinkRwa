@@ -21,8 +21,11 @@ import { LeaseDetail } from "@/components/leases/LeaseDetail";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export default function HouseManagerLeasesPage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.houseManager.leases;
   const [leases, setLeases] = useState<Lease[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [units, setUnits] = useState<PropertyUnit[]>([]);
@@ -41,8 +44,8 @@ export default function HouseManagerLeasesPage() {
 
   const propertyFor = (id: string) => properties.find((p) => p.id === id);
   const unitFor = (id: string) => units.find((u) => u.id === id);
-  const tenantName = (id: string) => `Tenant ${id.slice(0, 8).toUpperCase()}`;
-  const ownerName = (id: string) => `Owner ${id.slice(0, 8).toUpperCase()}`;
+  const tenantName = (id: string) => `${c.tenantLabelPrefix} ${id.slice(0, 8).toUpperCase()}`;
+  const ownerName = (id: string) => `${c.ownerLabelPrefix} ${id.slice(0, 8).toUpperCase()}`;
 
   const load = () => {
     setLoading(true);
@@ -74,7 +77,7 @@ export default function HouseManagerLeasesPage() {
     try {
       await inviteTenant(values.email, values.propertyId);
       setInviting(false);
-      setNotice(`Invite sent to ${values.email}.`);
+      setNotice(c.inviteSentTemplate.replace("{email}", values.email));
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Failed to send invite.");
     }
@@ -95,7 +98,7 @@ export default function HouseManagerLeasesPage() {
   const resolveRequest = async (lease: Lease, approve: boolean) => {
     let decisionNotes = "";
     if (!approve) {
-      decisionNotes = window.prompt("Reason for rejecting this request:")?.trim() ?? "";
+      decisionNotes = window.prompt(c.rejectPrompt)?.trim() ?? "";
       if (!decisionNotes) return;
     }
     setActionError(null);
@@ -104,7 +107,7 @@ export default function HouseManagerLeasesPage() {
       const changeRequests = await listLeaseChangeRequests(lease.id);
       const pending = changeRequests.find((cr) => cr.status === "pending");
       if (!pending) {
-        setActionError("No pending change request found for this lease.");
+        setActionError(c.noPendingRequest);
         return;
       }
       if (approve) {
@@ -126,10 +129,8 @@ export default function HouseManagerLeasesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Leases</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Lease agreements on managed properties.
-          </p>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{c.subtitle}</p>
         </div>
         <button
           type="button"
@@ -137,7 +138,7 @@ export default function HouseManagerLeasesPage() {
           className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           <Plus className="h-4 w-4" />
-          Invite Tenant
+          {c.inviteTenant}
         </button>
       </div>
 
@@ -165,19 +166,19 @@ export default function HouseManagerLeasesPage() {
       <Table variant="standalone">
         <THead>
           <Tr>
-            <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Tenant</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">Rent (RWF)</Th>
-            <Th className="hidden px-6 py-3 lg:table-cell">Term</Th>
-            <Th className="px-4 py-3 sm:px-6">Status</Th>
-            <Th className="px-4 py-3 sm:px-6">Actions</Th>
+            <Th className="max-w-[10rem] px-4 py-3 sm:px-6">{t.dashboard.table.tenant}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.property}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.rentRwf}</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.term}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
           </Tr>
         </THead>
         <TBody>
           {isLoading ? (
-            <EmptyRow colSpan={6}>Loading leases...</EmptyRow>
+            <EmptyRow colSpan={6}>{c.loading}</EmptyRow>
           ) : leases.length === 0 ? (
-            <EmptyRow colSpan={6}>No leases on managed properties yet.</EmptyRow>
+            <EmptyRow colSpan={6}>{c.empty}</EmptyRow>
           ) : (
             leases.map((lease) => {
               const property = propertyFor(lease.propertyId);
@@ -200,7 +201,7 @@ export default function HouseManagerLeasesPage() {
                     {formatMoney(Number(lease.rentAmount))}
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                    {lease.startDate} → {lease.endDate ?? "Open-ended"}
+                    {lease.startDate} → {lease.endDate ?? c.openEnded}
                   </Td>
                   <Td className="px-4 py-3 sm:px-6">
                     <span
@@ -218,16 +219,16 @@ export default function HouseManagerLeasesPage() {
                         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                       >
                         <Eye className="h-3.5 w-3.5" />
-                        View
+                        {t.dashboard.actions.view}
                       </button>
                       <button
                         type="button"
                         onClick={() => setDocumentsLease(lease)}
-                        aria-label={`Documents for ${name}`}
+                        aria-label={c.documentsAriaTemplate.replace("{name}", name)}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                       >
                         <FileStack className="h-3.5 w-3.5" />
-                        Documents
+                        {c.documents}
                       </button>
 
                       {(lease.status === "pending_renewal" ||
@@ -237,7 +238,7 @@ export default function HouseManagerLeasesPage() {
                             type="button"
                             onClick={() => resolveRequest(lease, true)}
                             disabled={isProcessing}
-                            aria-label={`Approve request for ${name}`}
+                            aria-label={c.approveAriaTemplate.replace("{name}", name)}
                             className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
                           >
                             <Check className="h-4 w-4" />
@@ -246,7 +247,7 @@ export default function HouseManagerLeasesPage() {
                             type="button"
                             onClick={() => resolveRequest(lease, false)}
                             disabled={isProcessing}
-                            aria-label={`Reject request for ${name}`}
+                            aria-label={c.rejectAriaTemplate.replace("{name}", name)}
                             className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
                           >
                             <X className="h-4 w-4" />
@@ -272,8 +273,8 @@ export default function HouseManagerLeasesPage() {
 
       {isInviting && (
         <Modal
-          title="Invite Tenant"
-          description="Send a tenant an invite to join HomeLink."
+          title={c.inviteTenantTitle}
+          description={c.inviteTenantDescription}
           onClose={() => setInviting(false)}
         >
           <InviteTenantForm
@@ -286,7 +287,7 @@ export default function HouseManagerLeasesPage() {
 
       {documentsLease && (
         <Modal
-          title="Lease Documents"
+          title={c.leaseDocumentsTitle}
           description={`${tenantName(documentsLease.tenantId)} · ${propertyFor(documentsLease.propertyId)?.title ?? "—"}`}
           onClose={() => setDocumentsLease(null)}
         >
@@ -300,7 +301,7 @@ export default function HouseManagerLeasesPage() {
 
       {viewingLease && (
         <Modal
-          title="Lease Details"
+          title={c.leaseDetailsTitle}
           description={`${tenantName(viewingLease.tenantId)} · ${propertyFor(viewingLease.propertyId)?.title ?? "—"}`}
           onClose={() => setViewingLease(null)}
         >

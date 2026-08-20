@@ -16,7 +16,6 @@ import {
 } from "@/lib/api/maintenance";
 import { ApiError } from "@/lib/api/client";
 import type { Lease, Property } from "@/lib/api/types";
-import { formatStatusLabel } from "@/lib/paymentStatus";
 import { Modal } from "@/components/admin/Modal";
 import {
   MaintenanceRequestForm,
@@ -25,6 +24,8 @@ import {
 import { FeedbackForm } from "@/components/tenant/FeedbackForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
 const STATUS_STYLES: Record<MaintenanceStatus, string> = {
   submitted: "bg-amber-50 text-amber-700",
@@ -39,7 +40,22 @@ const PRIORITY_STYLES: Record<MaintenancePriority, string> = {
   high: "bg-red-50 text-red-700",
 };
 
+const STATUS_KEY: Record<MaintenanceStatus, keyof Translations["dashboard"]["status"]> = {
+  submitted: "submitted",
+  assigned: "assigned",
+  in_progress: "inProgress",
+  completed: "completed",
+};
+
+const PRIORITY_KEY: Record<MaintenancePriority, keyof Translations["dashboard"]["status"]> = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+};
+
 export default function TenantMaintenancePage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.tenant.maintenance;
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [currentLease, setCurrentLease] = useState<Lease | null>(null);
@@ -94,7 +110,7 @@ export default function TenantMaintenancePage() {
     try {
       await createMaintenanceRequest({ propertyId: currentLease.propertyId, ...values });
       setNewRequestOpen(false);
-      setNotice("Maintenance request submitted.");
+      setNotice(c.submittedNotice);
       load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to submit request.");
@@ -107,7 +123,7 @@ export default function TenantMaintenancePage() {
     try {
       await submitMaintenanceFeedback(feedbackId, rating, comment);
       setFeedbackId(null);
-      setNotice("Thanks for your feedback.");
+      setNotice(c.feedbackThanksNotice);
       load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to submit feedback.");
@@ -118,9 +134,9 @@ export default function TenantMaintenancePage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Maintenance</h1>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Your maintenance and repair requests.
+            {c.subtitle}
           </p>
         </div>
         <button
@@ -130,7 +146,7 @@ export default function TenantMaintenancePage() {
           className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus className="h-4 w-4" />
-          New Request
+          {c.newRequest}
         </button>
       </div>
 
@@ -156,33 +172,37 @@ export default function TenantMaintenancePage() {
       <Table variant="standalone">
         <THead>
           <Tr>
-            <Th className="max-w-[9rem] px-4 py-3 sm:px-6">Property</Th>
-            <Th className="hidden max-w-xs px-6 py-3 lg:table-cell">Issue</Th>
-            <Th className="hidden px-6 py-3 sm:table-cell">Priority</Th>
-            <Th className="hidden px-6 py-3 lg:table-cell">Assigned To</Th>
-            <Th className="px-4 py-3 sm:px-6">Status</Th>
-            <Th className="px-4 py-3 sm:px-6">Actions</Th>
+            <Th className="max-w-[9rem] px-4 py-3 sm:px-6">{t.dashboard.table.property}</Th>
+            <Th className="hidden max-w-xs px-6 py-3 lg:table-cell">{t.dashboard.table.issue}</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.priority}</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.assignedTo}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
           </Tr>
         </THead>
         <TBody>
           {isLoading ? (
             <EmptyRow colSpan={6}>Loading maintenance requests...</EmptyRow>
           ) : pagedRequests.length === 0 ? (
-            <EmptyRow colSpan={6}>No maintenance requests yet.</EmptyRow>
+            <EmptyRow colSpan={6}>{c.noRequests}</EmptyRow>
           ) : (
             pagedRequests.map((request) => {
               const feedback = feedbackByRequestId[request.id];
+              const propertyTitle = propertyById.get(request.propertyId)?.title ?? "—";
               return (
                 <Tr key={request.id}>
                   <Td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
                     <p className="truncate text-slate-500 sm:overflow-visible sm:whitespace-normal">
-                      {propertyById.get(request.propertyId)?.title ?? "—"}
+                      {propertyTitle}
                     </p>
                     <p className="truncate text-xs text-slate-400 lg:hidden">
                       {request.title}
                     </p>
                     <p className="text-xs text-slate-400 sm:hidden">
-                      {formatStatusLabel(request.priority)} priority
+                      {t.dashboard.admin.maintenance.priorityLabelTemplate.replace(
+                        "{priority}",
+                        t.dashboard.status[PRIORITY_KEY[request.priority]],
+                      )}
                     </p>
                   </Td>
                   <Td className="hidden max-w-xs px-6 py-3 text-slate-500 lg:table-cell">
@@ -192,17 +212,17 @@ export default function TenantMaintenancePage() {
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[request.priority]}`}
                     >
-                      {formatStatusLabel(request.priority)}
+                      {t.dashboard.status[PRIORITY_KEY[request.priority]]}
                     </span>
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                    {request.assignedTo ? "Assigned" : "—"}
+                    {request.assignedTo ? t.dashboard.status.assigned : "—"}
                   </Td>
                   <Td className="px-4 py-3 sm:px-6">
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[request.status]}`}
                     >
-                      {formatStatusLabel(request.status)}
+                      {t.dashboard.status[STATUS_KEY[request.status]]}
                     </span>
                   </Td>
                   <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
@@ -210,11 +230,11 @@ export default function TenantMaintenancePage() {
                       <button
                         type="button"
                         onClick={() => setFeedbackId(request.id)}
-                        aria-label={`Leave feedback for ${request.title}`}
+                        aria-label={c.leaveFeedbackAriaTemplate.replace("{property}", propertyTitle)}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                       >
                         <MessageSquarePlus className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Leave Feedback</span>
+                        <span className="hidden sm:inline">{c.leaveFeedback}</span>
                       </button>
                     ) : feedback ? (
                       <span className="text-xs italic text-slate-400">
@@ -241,8 +261,8 @@ export default function TenantMaintenancePage() {
 
       {isNewRequestOpen && currentLease && (
         <Modal
-          title="New Maintenance Request"
-          description="Let your landlord know what needs fixing."
+          title={c.newRequestTitle}
+          description={c.newRequestDescription}
           onClose={() => setNewRequestOpen(false)}
         >
           <MaintenanceRequestForm
@@ -255,8 +275,8 @@ export default function TenantMaintenancePage() {
 
       {feedbackId && (
         <Modal
-          title="Leave Feedback"
-          description="Let us know how the repair went."
+          title={c.leaveFeedbackTitle}
+          description={c.leaveFeedbackDescription}
           onClose={() => setFeedbackId(null)}
         >
           <FeedbackForm onCancel={() => setFeedbackId(null)} onSuccess={submitFeedback} />

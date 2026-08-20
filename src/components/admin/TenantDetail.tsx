@@ -1,6 +1,7 @@
 "use client";
 
 import type { User } from "@/lib/api/types";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const STATUS_STYLES: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -14,6 +15,12 @@ function statusFor(user: User): "Active" | "Pending" | "Inactive" {
   return "Active";
 }
 
+const STATUS_KEY: Record<"Active" | "Pending" | "Inactive", "active" | "pending" | "inactive"> = {
+  Active: "active",
+  Pending: "pending",
+  Inactive: "inactive",
+};
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -26,22 +33,26 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export function TenantDetail({ tenant }: { tenant: User }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.tenantDetail;
   const status = statusFor(tenant);
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-      <Field label="Name">
+      <Field label={c.name}>
         {tenant.firstName} {tenant.lastName}
       </Field>
-      <Field label="Status">
+      <Field label={c.status}>
         <span
           className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[status]}`}
         >
-          {status}
+          {t.dashboard.status[STATUS_KEY[status]]}
         </span>
       </Field>
-      <Field label="Email">{tenant.email}</Field>
-      <Field label="Phone">{tenant.phone || "—"}</Field>
-      <Field label="Registered">{new Date(tenant.createdAt).toLocaleDateString()}</Field>
+      <Field label={c.email}>{tenant.email}</Field>
+      <Field label={c.phone}>{tenant.phone || "—"}</Field>
+      <Field label={c.registered}>
+        {tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : "—"}
+      </Field>
     </div>
   );
 }

@@ -9,6 +9,7 @@ import type {
   PropertyType,
   User,
 } from "@/lib/api/types";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const TYPE_OPTIONS: Record<PropertyCategory, PropertyType[]> = {
   residential: ["apartment", "house", "studio", "condo", "other"],
@@ -24,8 +25,6 @@ const TYPE_LABELS: Record<PropertyType, string> = {
   other: "Other",
 };
 
-const STEPS = ["Basic Info", "Type & Details", "Rent & Owner"];
-
 export function PropertyForm({
   owners,
   initialProperty,
@@ -39,6 +38,9 @@ export function PropertyForm({
   onSuccess: (values: CreatePropertyInput) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.propertyForm;
+  const STEPS = [c.steps.basicInfo, "Type & Details", "Rent & Owner"];
   const isEditing = !!initialProperty;
   const [step, setStep] = useState(1);
   const [stepError, setStepError] = useState<string | null>(null);
@@ -174,12 +176,12 @@ export function PropertyForm({
       {step === 1 && (
         <div className="flex flex-col gap-5">
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Title
+            {c.propertyName}
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Kigali Heights Apartment 4B"
+              placeholder={c.propertyNamePlaceholder}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
             />
           </label>
@@ -196,7 +198,7 @@ export function PropertyForm({
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Address
+            {c.address}
             <input
               type="text"
               value={addressLine}
@@ -258,13 +260,13 @@ export function PropertyForm({
               onChange={(e) => handleCategoryChange(e.target.value as PropertyCategory)}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
             >
-              <option value="residential">Residential</option>
-              <option value="commercial">Commercial</option>
+              <option value="residential">{t.dashboard.status.residential}</option>
+              <option value="commercial">{t.dashboard.status.commercial}</option>
             </select>
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Type
+            {c.propertyType}
             <select
               value={type}
               onChange={(e) => setType(e.target.value as PropertyType)}
@@ -280,7 +282,7 @@ export function PropertyForm({
 
           {category === "commercial" && (
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Size (sqm)
+              {c.size}
               <input
                 type="number"
                 min={0}
@@ -334,20 +336,20 @@ export function PropertyForm({
         <div className="flex flex-col gap-5">
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Monthly rent (RWF)
+              {c.monthlyRent}
               <input
                 type="number"
                 min={0}
                 value={rentAmount}
                 onChange={(e) => setRentAmount(e.target.value)}
-                placeholder="e.g. 450000"
+                placeholder={c.monthlyRentPlaceholder}
                 className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
               />
             </label>
 
             {showOwnerField && (
               <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-                Owner
+                {c.owner}
                 <select
                   value={ownerId}
                   onChange={(e) => setOwnerId(e.target.value)}
@@ -365,7 +367,7 @@ export function PropertyForm({
           </div>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Rent conditions (optional)
+            {c.rentConditionsLabel} (optional)
             <input
               type="text"
               value={rentConditions}
@@ -386,7 +388,7 @@ export function PropertyForm({
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back
+              {c.back}
             </button>
           )}
         </div>
@@ -397,7 +399,7 @@ export function PropertyForm({
               onClick={onCancel}
               className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
             >
-              Cancel
+              {t.dashboard.actions.cancel}
             </button>
           )}
           <button
@@ -407,11 +409,13 @@ export function PropertyForm({
           >
             {step < STEPS.length ? (
               <>
-                Next
+                {c.next}
                 <ArrowRight className="h-4 w-4" />
               </>
+            ) : isEditing ? (
+              c.saveChanges
             ) : (
-              isEditing ? "Save Changes" : "Add Property"
+              c.submit
             )}
           </button>
         </div>

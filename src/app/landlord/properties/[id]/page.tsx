@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/shared/AppLink";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Eye, Plus, Search } from "lucide-react";
 import { PROPERTIES, type Lease } from "@/lib/mock-admin-data";
@@ -13,6 +13,8 @@ import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
 type StatusFilter = "All" | Unit["currentPaymentStatus"];
 
@@ -23,7 +25,16 @@ const STATUS_STYLES: Record<string, string> = {
   Vacant: "bg-slate-100 text-slate-600",
 };
 
+const STATUS_KEY: Record<string, keyof Translations["dashboard"]["status"]> = {
+  Paid: "paid",
+  Overdue: "overdue",
+  Arrears: "arrears",
+  Vacant: "vacant",
+};
+
 export default function PropertyDetailPage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.landlord.propertyDetail;
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { landlordName, unitOverrides, addTenant } = useLandlord();
@@ -58,12 +69,12 @@ export default function PropertyDetailPage() {
   if (!property) {
     return (
       <div className="flex flex-col items-center gap-3 py-24 text-center">
-        <p className="text-sm text-slate-500">Property not found.</p>
+        <p className="text-sm text-slate-500">{c.propertyNotFound}</p>
         <Link
           href="/landlord/properties"
           className="text-sm font-medium text-gold hover:underline"
         >
-          Back to Properties
+          {c.backToProperties}
         </Link>
       </div>
     );
@@ -84,7 +95,12 @@ export default function PropertyDetailPage() {
   const handleAddTenant = (lease: Lease) => {
     addTenant(lease);
     setAddingTenant(false);
-    setJustAddedTenant(`${lease.tenant} added to ${lease.property} · ${lease.unitNumber}.`);
+    setJustAddedTenant(
+      t.dashboard.landlord.properties.addedTenantTemplate
+        .replace("{tenant}", lease.tenant)
+        .replace("{property}", lease.property)
+        .replace("{unit}", lease.unitNumber ?? ""),
+    );
   };
 
   return (
@@ -97,7 +113,7 @@ export default function PropertyDetailPage() {
             className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-navy"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
+            {c.back}
           </button>
           <h1 className="mt-2 text-2xl font-bold text-navy">{property.name}</h1>
           <p className="mt-1 text-sm text-slate-500">{property.address}</p>
@@ -108,7 +124,7 @@ export default function PropertyDetailPage() {
           className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           <Plus className="h-4 w-4" />
-          Add Tenant
+          {c.addTenant}
         </button>
       </div>
 
@@ -120,15 +136,15 @@ export default function PropertyDetailPage() {
       )}
 
       <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
-        <SummaryCard label="Units" value={totalUnits} />
-        <SummaryCard label="Occupied" value={`${occupancyPercent}%`} />
+        <SummaryCard label={c.summaryUnits} value={totalUnits} />
+        <SummaryCard label={c.summaryOccupied} value={`${occupancyPercent}%`} />
         <SummaryCard
-          label="Collected"
+          label={c.summaryCollected}
           value={`${formatMoney(collected)} RWF`}
           accent="emerald"
         />
         <SummaryCard
-          label="Outstanding"
+          label={c.summaryOutstanding}
           value={`${formatMoney(outstanding)} RWF`}
           accent="red"
         />
@@ -136,31 +152,31 @@ export default function PropertyDetailPage() {
 
       <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <label className="flex min-w-[200px] flex-1 flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Search
+          {c.search}
           <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 focus-within:border-gold">
             <Search className="h-4 w-4 text-slate-400" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by unit or tenant name"
+              placeholder={c.searchPlaceholder}
               className="w-full bg-transparent text-sm text-navy placeholder:text-slate-400 focus:outline-none"
             />
           </div>
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Status
+          {c.status}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            <option value="All">All</option>
-            <option value="Paid">Paid</option>
-            <option value="Overdue">Overdue</option>
-            <option value="Arrears">Arrears</option>
-            <option value="Vacant">Vacant</option>
+            <option value="All">{c.statusAll}</option>
+            <option value="Paid">{t.dashboard.status.paid}</option>
+            <option value="Overdue">{t.dashboard.status.overdue}</option>
+            <option value="Arrears">{t.dashboard.status.arrears}</option>
+            <option value="Vacant">{t.dashboard.status.vacant}</option>
           </select>
         </label>
       </div>
@@ -168,11 +184,11 @@ export default function PropertyDetailPage() {
       <Table variant="standalone">
         <THead>
           <Tr>
-            <Th className="max-w-[9rem] px-4 py-3 sm:px-6">Unit</Th>
-            <Th className="hidden px-6 py-3 sm:table-cell">Tenant</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">Monthly Amount</Th>
-            <Th className="px-4 py-3 sm:px-6">Status</Th>
-            <Th className="px-4 py-3 text-right sm:px-6">Actions</Th>
+            <Th className="max-w-[9rem] px-4 py-3 sm:px-6">{t.dashboard.table.unit}</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.tenant}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{c.monthlyAmount}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+            <Th className="px-4 py-3 text-right sm:px-6">{t.dashboard.table.actions}</Th>
           </Tr>
         </THead>
         <TBody>
@@ -183,14 +199,14 @@ export default function PropertyDetailPage() {
                   {unit.unitNumber}
                 </p>
                 <p className="truncate text-xs text-slate-400 sm:hidden">
-                  {unit.tenant ?? "Vacant"}
+                  {unit.tenant ?? c.vacant}
                 </p>
                 <p className="truncate text-xs text-slate-400 md:hidden">
                   {formatMoney(unit.monthlyRent)} RWF
                 </p>
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                {unit.tenant ?? "Vacant"}
+                {unit.tenant ?? c.vacant}
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                 {formatMoney(unit.monthlyRent)}
@@ -199,7 +215,7 @@ export default function PropertyDetailPage() {
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[unit.currentPaymentStatus]}`}
                 >
-                  {unit.currentPaymentStatus}
+                  {t.dashboard.status[STATUS_KEY[unit.currentPaymentStatus]]}
                 </span>
               </Td>
               <Td className="px-4 py-3 text-right sm:px-6">
@@ -208,13 +224,13 @@ export default function PropertyDetailPage() {
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                 >
                   <Eye className="h-3.5 w-3.5" />
-                  View
+                  {t.dashboard.actions.view}
                 </Link>
               </Td>
             </Tr>
           ))}
           {pagedUnits.length === 0 && (
-            <EmptyRow colSpan={5}>No units match these filters.</EmptyRow>
+            <EmptyRow colSpan={5}>{c.noUnitsMatch}</EmptyRow>
           )}
         </TBody>
       </Table>
@@ -231,14 +247,14 @@ export default function PropertyDetailPage() {
         href="/landlord/leases"
         className="inline-flex items-center gap-1 self-start text-sm font-medium text-gold hover:underline"
       >
-        View leases for this property
+        {c.viewLeasesLink}
         <ArrowRight className="h-3.5 w-3.5" />
       </Link>
 
       {isAddingTenant && (
         <Modal
-          title="Add Tenant"
-          description={`Assign a new tenant to a vacant unit in ${property.name}.`}
+          title={c.addTenant}
+          description={c.addTenantDescriptionTemplate.replace("{property}", property.name)}
           onClose={() => setAddingTenant(false)}
         >
           <AddTenantForm

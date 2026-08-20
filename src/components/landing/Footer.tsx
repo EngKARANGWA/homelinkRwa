@@ -1,20 +1,25 @@
+"use client";
+
 import Link from "next/link";
 import { Home } from "lucide-react";
-
-const QUICK_LINKS = [
-  { label: "Home", href: "/#home" },
-  { label: "Features", href: "/features" },
-  { label: "How it works", href: "/how-it-works" },
-  { label: "About us", href: "/about" },
-  { label: "Contact", href: "/contact" },
-];
-
-const LEGAL_LINKS = [
-  { label: "Privacy Policy", href: "#" },
-  { label: "Terms of Service", href: "#" },
-];
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export function Footer() {
+  const { t } = useLanguage();
+
+  const QUICK_LINKS = [
+    { label: t.nav.home, href: "/#home" },
+    { label: t.nav.features, href: "/features" },
+    { label: t.nav.howItWorks, href: "/how-it-works" },
+    { label: t.nav.aboutUs, href: "/about" },
+    { label: t.nav.contact, href: "/contact" },
+  ];
+
+  const LEGAL_LINKS = [
+    { label: t.footer.privacyPolicy, href: "#" },
+    { label: t.footer.termsOfService, href: "#" },
+  ];
+
   return (
     <footer className="bg-navy-light">
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-10">
@@ -31,14 +36,13 @@ export function Footer() {
                 </span>
               </span>
             </div>
-            <p className="mt-4 text-sm text-white/60">
-              The all-in-one property management platform for landlords,
-              agents and tenants across Rwanda.
-            </p>
+            <p className="mt-4 text-sm text-white/60">{t.footer.tagline}</p>
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-white">Quick Links</p>
+            <p className="text-sm font-semibold text-white">
+              {t.footer.quickLinks}
+            </p>
             <ul className="mt-4 flex flex-col gap-2">
               {QUICK_LINKS.map((link) => (
                 <li key={link.href}>
@@ -54,7 +58,7 @@ export function Footer() {
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-white">Legal</p>
+            <p className="text-sm font-semibold text-white">{t.footer.legal}</p>
             <ul className="mt-4 flex flex-col gap-2">
               {LEGAL_LINKS.map((link) => (
                 <li key={link.label}>
@@ -70,7 +74,9 @@ export function Footer() {
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-white">Contact</p>
+            <p className="text-sm font-semibold text-white">
+              {t.footer.contact}
+            </p>
             <ul className="mt-4 flex flex-col gap-2 text-sm text-white/60">
               <li>info@homelinkrwanda.com</li>
               <li>+250 7XX XXX XXX</li>
@@ -80,8 +86,7 @@ export function Footer() {
         </div>
 
         <div className="mt-10 border-t border-white/10 pt-6 text-center text-xs text-white/40">
-          &copy; {new Date().getFullYear()} HomeLink Rwanda. All rights
-          reserved.
+          &copy; {new Date().getFullYear()} HomeLink Rwanda. {t.footer.rights}
         </div>
       </div>
     </footer>

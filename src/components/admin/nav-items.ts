@@ -5,22 +5,19 @@ import {
   FileText,
   LayoutDashboard,
   Settings,
-  ShieldCheck,
   UserCircle,
   Users,
   Wrench,
 } from "lucide-react";
 
 export const ADMIN_NAV_ITEMS = [
-  { label: "Overview", href: "/admin", icon: LayoutDashboard },
-  { label: "Landlords", href: "/admin/landlords", icon: UserCircle },
-  { label: "Properties", href: "/admin/properties", icon: Building2 },
-  { label: "Leases", href: "/admin/leases", icon: FileText },
-  { label: "Tenants", href: "/admin/tenants", icon: Users },
-  { label: "Maintenance", href: "/admin/maintenance", icon: Wrench },
-  { label: "Payments", href: "/admin/payments", icon: CreditCard },
-  { label: "Reports", href: "/admin/reports", icon: BarChart3 },
-  { label: "Role Management", href: "/admin/roles", icon: ShieldCheck },
-  { label: "Settings", href: "/admin/settings", icon: Settings },
-];
-
+  { key: "overview", href: "/admin", icon: LayoutDashboard },
+  { key: "landlords", href: "/admin/landlords", icon: UserCircle },
+  { key: "properties", href: "/admin/properties", icon: Building2 },
+  { key: "leases", href: "/admin/leases", icon: FileText },
+  { key: "tenants", href: "/admin/tenants", icon: Users },
+  { key: "maintenance", href: "/admin/maintenance", icon: Wrench },
+  { key: "payments", href: "/admin/payments", icon: CreditCard },
+  { key: "reports", href: "/admin/reports", icon: BarChart3 },
+  { key: "settings", href: "/admin/settings", icon: Settings },
+] as const;

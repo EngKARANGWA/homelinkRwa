@@ -1,19 +1,33 @@
 "use client";
 
-import { type MaintenanceRequest } from "@/lib/mock-admin-data";
+import type { MaintenanceRequest } from "@/lib/api/maintenance";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const STATUS_STYLES: Record<MaintenanceRequest["status"], string> = {
-  Submitted: "bg-amber-50 text-amber-700",
-  Assigned: "bg-sky-50 text-sky-700",
-  "In Progress": "bg-sky-50 text-sky-700",
-  Completed: "bg-emerald-50 text-emerald-700",
+  submitted: "bg-amber-50 text-amber-700",
+  assigned: "bg-sky-50 text-sky-700",
+  in_progress: "bg-sky-50 text-sky-700",
+  completed: "bg-emerald-50 text-emerald-700",
 };
 
 const PRIORITY_STYLES: Record<MaintenanceRequest["priority"], string> = {
-  Low: "bg-slate-100 text-slate-600",
-  Medium: "bg-amber-50 text-amber-700",
-  High: "bg-red-50 text-red-700",
+  low: "bg-slate-100 text-slate-600",
+  medium: "bg-amber-50 text-amber-700",
+  high: "bg-red-50 text-red-700",
+};
+
+const STATUS_KEY: Record<MaintenanceRequest["status"], "submitted" | "assigned" | "inProgress" | "completed"> = {
+  submitted: "submitted",
+  assigned: "assigned",
+  in_progress: "inProgress",
+  completed: "completed",
+};
+
+const PRIORITY_KEY: Record<MaintenanceRequest["priority"], "low" | "medium" | "high"> = {
+  low: "low",
+  medium: "medium",
+  high: "high",
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -27,117 +41,68 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-export function MaintenanceDetail({ request }: { request: MaintenanceRequest }) {
-  const totalLaborCost = request.laborers.reduce((sum, l) => sum + l.amount, 0);
+export function MaintenanceDetail({
+  request,
+  tenantLabel,
+  propertyLabel,
+  assigneeLabel,
+}: {
+  request: MaintenanceRequest;
+  tenantLabel: string;
+  propertyLabel: string;
+  assigneeLabel: string;
+}) {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.maintenanceDetail;
+  const laborCost = Number(request.laborCost ?? 0);
+  const itemsCost = Number(request.itemsCost ?? 0);
 
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-5">
-        <Field label="Tenant">{request.tenant}</Field>
-        <Field label="Property">{request.property}</Field>
+        <Field label={c.tenant}>{tenantLabel}</Field>
+        <Field label={c.property}>{propertyLabel}</Field>
 
-        <Field label="Priority">
+        <Field label={c.priority}>
           <span
             className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[request.priority]}`}
           >
-            {request.priority}
+            {t.dashboard.status[PRIORITY_KEY[request.priority]]}
           </span>
         </Field>
 
-        <Field label="Status">
+        <Field label={c.status}>
           <span
             className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[request.status]}`}
           >
-            {request.status}
+            {t.dashboard.status[STATUS_KEY[request.status]]}
           </span>
         </Field>
 
-        <Field label="Submitted">{request.submittedAt}</Field>
+        <Field label={c.submitted}>{request.createdAt.slice(0, 10)}</Field>
+        <Field label={t.dashboard.table.assignedTo}>{assigneeLabel}</Field>
       </div>
 
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Reported Issues
-        </p>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
-          {request.issue.map((item, index) => (
-            <li key={index}>{item}</li>
-          ))}
-        </ul>
-      </div>
+      <Field label={c.title}>{request.title}</Field>
+      <Field label={c.description}>{request.description}</Field>
 
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Assigned Laborers
-        </p>
-        {request.laborers.length > 0 ? (
-          <div className="mt-2 flex flex-col gap-2">
-            {request.laborers.map((laborer, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              >
-                <div>
-                  <p className="font-medium text-navy">
-                    {laborer.name}
-                    {laborer.role && (
-                      <span className="font-normal text-slate-400"> · {laborer.role}</span>
-                    )}
-                  </p>
-                  {laborer.contact && (
-                    <p className="text-xs text-slate-400">{laborer.contact}</p>
-                  )}
-                </div>
-                <p className="font-medium text-navy">
-                  {formatMoney(laborer.amount)} RWF
-                </p>
-              </div>
-            ))}
-            <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-              <span className="text-sm font-medium text-slate-600">Labor cost total</span>
-              <span className="font-bold text-navy">
-                {formatMoney(totalLaborCost)} RWF
-              </span>
-            </div>
-          </div>
-        ) : (
-          <p className="mt-1 text-sm text-slate-400">Not yet assigned.</p>
-        )}
-      </div>
-
-      {request.status === "Completed" && (
+      {request.status === "completed" && (
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-          <Field label="Work Done">{request.workDone ?? "—"}</Field>
+          <Field label={c.completionNotes}>{request.completionNotes ?? "—"}</Field>
           <div className="mt-3 flex flex-col gap-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">Labor cost</span>
-              <span className="font-medium text-navy">
-                {formatMoney(totalLaborCost)} RWF
-              </span>
+              <span className="text-slate-500">{c.laborCost}</span>
+              <span className="font-medium text-navy">{formatMoney(laborCost)} RWF</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">Item / materials cost</span>
-              <span className="font-medium text-navy">
-                {formatMoney(request.itemCost ?? 0)} RWF
-              </span>
+              <span className="text-slate-500">{c.itemMaterialsCost}</span>
+              <span className="font-medium text-navy">{formatMoney(itemsCost)} RWF</span>
             </div>
             <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-sm">
-              <span className="font-medium text-slate-600">Total expense</span>
-              <span className="font-bold text-navy">
-                {formatMoney(totalLaborCost + (request.itemCost ?? 0))} RWF
-              </span>
+              <span className="font-medium text-slate-600">{c.totalExpense}</span>
+              <span className="font-bold text-navy">{formatMoney(laborCost + itemsCost)} RWF</span>
             </div>
           </div>
-          {request.feedback && (
-            <div className="mt-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Tenant Feedback
-              </p>
-              <p className="mt-1 text-sm italic text-slate-600">
-                &ldquo;{request.feedback}&rdquo;
-              </p>
-            </div>
-          )}
         </div>
       )}
     </div>

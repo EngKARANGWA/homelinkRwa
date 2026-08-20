@@ -74,13 +74,13 @@ export function StatCard({
           <Icon className="h-5 w-5" />
         </div>
 
-        <p className="mt-3 truncate text-sm text-slate-500">{label}</p>
+        <p className="mt-3 line-clamp-2 text-sm leading-tight text-slate-500">{label}</p>
         <p
           className={`mt-1 line-clamp-2 leading-tight font-bold text-navy ${valueSizeClass(value)}`}
         >
           {value}
         </p>
-        {subtitle && <p className="mt-1 truncate text-xs text-slate-400">{subtitle}</p>}
+        {subtitle && <p className="mt-1 line-clamp-1 text-xs text-slate-400">{subtitle}</p>}
       </div>
 
       <span

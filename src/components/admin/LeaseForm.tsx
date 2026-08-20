@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { listUnits } from "@/lib/api/properties";
 import type { CreateLeaseInput, Property, PropertyUnit, User } from "@/lib/api/types";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export function LeaseForm({
   properties,
@@ -15,6 +16,8 @@ export function LeaseForm({
   onSuccess: (values: CreateLeaseInput) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.leaseForm;
   const [propertyId, setPropertyId] = useState(properties[0]?.id ?? "");
   const [units, setUnits] = useState<PropertyUnit[]>([]);
   const [unitId, setUnitId] = useState("");
@@ -66,7 +69,7 @@ export function LeaseForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-          Property
+          {c.property}
           <select
             value={propertyId}
             onChange={(e) => setPropertyId(e.target.value)}
@@ -81,7 +84,7 @@ export function LeaseForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-          Unit
+          {t.dashboard.table.unit}
           <select
             value={unitId}
             onChange={(e) => setUnitId(e.target.value)}
@@ -100,7 +103,7 @@ export function LeaseForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-          Tenant
+          {t.dashboard.table.tenant}
           <select
             value={tenantId}
             onChange={(e) => setTenantId(e.target.value)}
@@ -115,7 +118,7 @@ export function LeaseForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Start date
+          {c.startDate}
           <input
             type="date"
             value={startDate}
@@ -125,7 +128,7 @@ export function LeaseForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          End date (optional)
+          {c.endDate}
           <input
             type="date"
             value={endDate}
@@ -135,7 +138,7 @@ export function LeaseForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Payment date (optional)
+          {c.paymentDate}
           <input
             type="date"
             value={paymentDate}
@@ -145,13 +148,13 @@ export function LeaseForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Monthly rent (RWF)
+          {c.monthlyRent}
           <input
             type="number"
             min={0}
             value={rentAmount}
             onChange={(e) => setRentAmount(e.target.value)}
-            placeholder="e.g. 450000"
+            placeholder={c.monthlyRentPlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
@@ -163,13 +166,13 @@ export function LeaseForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Cancel
+          {t.dashboard.actions.cancel}
         </button>
         <button
           type="submit"
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
-          Create Lease
+          {c.submit}
         </button>
       </div>
     </form>

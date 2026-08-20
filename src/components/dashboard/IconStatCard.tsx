@@ -47,8 +47,10 @@ export function IconStatCard({
         <Icon className="h-6 w-6" />
       </span>
       <div className="min-w-0">
-        <p className="truncate text-sm text-slate-500">{label}</p>
-        <p className={`mt-1 text-2xl font-bold ${VALUE_COLOR[accent]}`}>{value}</p>
+        <p className="line-clamp-2 text-sm leading-tight text-slate-500">{label}</p>
+        <p className={`mt-1 text-2xl font-bold leading-tight break-words ${VALUE_COLOR[accent]}`}>
+          {value}
+        </p>
         {subtitle && <p className="mt-1 truncate text-xs text-slate-400">{subtitle}</p>}
       </div>
       <span

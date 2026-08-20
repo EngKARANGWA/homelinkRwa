@@ -25,6 +25,7 @@ import { Card } from "@/components/dashboard/Card";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const STATUS_STYLES: Record<MaintenanceStatus, string> = {
   submitted: "bg-amber-50 text-amber-700",
@@ -41,6 +42,8 @@ const PRIORITY_STYLES: Record<MaintenancePriority, string> = {
 
 export default function HouseManagerMaintenancePage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const c = t.dashboard.houseManager.maintenance;
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setLoading] = useState(true);
@@ -52,7 +55,7 @@ export default function HouseManagerMaintenancePage() {
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [viewingRequest, setViewingRequest] = useState<MaintenanceRequest | null>(null);
 
-  const [propertyFilter, setPropertyFilter] = useState("All Properties");
+  const [propertyFilter, setPropertyFilter] = useState(c.allProperties);
   const [statusFilter, setStatusFilter] = useState<"All" | MaintenanceStatus>("All");
   const [priorityFilter, setPriorityFilter] = useState<"All" | MaintenancePriority>("All");
   const [dateFrom, setDateFrom] = useState("");
@@ -60,7 +63,7 @@ export default function HouseManagerMaintenancePage() {
   const [page, setPage] = useState(1);
 
   const propertyById = new Map(properties.map((p) => [p.id, p]));
-  const propertyOptions = ["All Properties", ...properties.map((p) => p.title)];
+  const propertyOptions = [c.allProperties, ...properties.map((p) => p.title)];
   const propertyIdFor = (name: string) => properties.find((p) => p.title === name)?.id;
 
   const load = () => {
@@ -72,7 +75,7 @@ export default function HouseManagerMaintenancePage() {
         limit: 100,
         status: statusFilter === "All" ? undefined : statusFilter,
         propertyId:
-          propertyFilter === "All Properties" ? undefined : propertyIdFor(propertyFilter),
+          propertyFilter === c.allProperties ? undefined : propertyIdFor(propertyFilter),
       }),
       listProperties({ limit: 100 }),
     ])
@@ -105,8 +108,8 @@ export default function HouseManagerMaintenancePage() {
 
   const assigneeLabel = (assignedTo: string | null) => {
     if (!assignedTo) return "—";
-    if (assignedTo === user?.id) return "You";
-    return `Assignee ${assignedTo.slice(0, 8).toUpperCase()}`;
+    if (assignedTo === user?.id) return c.you;
+    return `${c.assigneeLabelPrefix} ${assignedTo.slice(0, 8).toUpperCase()}`;
   };
 
   const handleAssignToMe = async (id: string) => {
@@ -115,7 +118,7 @@ export default function HouseManagerMaintenancePage() {
     setProcessingId(id);
     try {
       await assignMaintenanceRequest(id, user.id);
-      setNotice("Request assigned to you.");
+      setNotice(c.assignedNotice);
       load();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Failed to assign request.");
@@ -129,7 +132,7 @@ export default function HouseManagerMaintenancePage() {
     setProcessingId(id);
     try {
       await startMaintenanceProgress(id);
-      setNotice("Request moved to In Progress.");
+      setNotice(c.inProgressNotice);
       load();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Failed to update request.");
@@ -144,7 +147,7 @@ export default function HouseManagerMaintenancePage() {
     setProcessingId(completingId);
     try {
       await completeMaintenanceRequest(completingId, values);
-      setNotice("Request marked completed.");
+      setNotice(c.completedNotice);
       setCompletingId(null);
       load();
     } catch (err) {
@@ -157,10 +160,8 @@ export default function HouseManagerMaintenancePage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-navy">Maintenance</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Maintenance and repair requests on managed properties.
-        </p>
+        <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{c.subtitle}</p>
       </div>
 
       {notice && (
@@ -186,7 +187,7 @@ export default function HouseManagerMaintenancePage() {
 
       <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Property
+          {t.dashboard.table.property}
           <select
             value={propertyFilter}
             onChange={(e) => setPropertyFilter(e.target.value)}
@@ -199,36 +200,36 @@ export default function HouseManagerMaintenancePage() {
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Status
+          {t.dashboard.table.status}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            <option value="All">All</option>
-            <option value="submitted">Submitted</option>
-            <option value="assigned">Assigned</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
+            <option value="All">{t.dashboard.actions.all}</option>
+            <option value="submitted">{t.dashboard.status.submitted}</option>
+            <option value="assigned">{t.dashboard.status.assigned}</option>
+            <option value="in_progress">{t.dashboard.status.inProgress}</option>
+            <option value="completed">{t.dashboard.status.completed}</option>
           </select>
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Priority
+          {t.dashboard.table.priority}
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value as typeof priorityFilter)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            <option value="All">All</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
+            <option value="All">{t.dashboard.actions.all}</option>
+            <option value="low">{t.dashboard.status.low}</option>
+            <option value="medium">{t.dashboard.status.medium}</option>
+            <option value="high">{t.dashboard.status.high}</option>
           </select>
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          From
+          {c.filterFrom}
           <input
             type="date"
             value={dateFrom}
@@ -239,7 +240,7 @@ export default function HouseManagerMaintenancePage() {
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          To
+          {c.filterTo}
           <input
             type="date"
             value={dateTo}
@@ -249,7 +250,7 @@ export default function HouseManagerMaintenancePage() {
           />
         </label>
 
-        {(propertyFilter !== "All Properties" ||
+        {(propertyFilter !== c.allProperties ||
           statusFilter !== "All" ||
           priorityFilter !== "All" ||
           dateFrom ||
@@ -257,7 +258,7 @@ export default function HouseManagerMaintenancePage() {
           <button
             type="button"
             onClick={() => {
-              setPropertyFilter("All Properties");
+              setPropertyFilter(c.allProperties);
               setStatusFilter("All");
               setPriorityFilter("All");
               setDateFrom("");
@@ -265,32 +266,30 @@ export default function HouseManagerMaintenancePage() {
             }}
             className="text-sm font-medium text-slate-500 hover:text-navy"
           >
-            Clear filters
+            {c.clearFilters}
           </button>
         )}
       </div>
 
-      <Card title="Requests">
-        <p className="mt-1 text-sm text-slate-500">
-          Maintenance requests raised by tenants across managed properties.
-        </p>
+      <Card title={c.requestsCardTitle}>
+        <p className="mt-1 text-sm text-slate-500">{c.requestsCardSubtitle}</p>
         <Table variant="card">
           <THead>
             <Tr>
-              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Property</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Issue</Th>
-              <Th className="hidden px-6 py-3 sm:table-cell">Priority</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Assigned To</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Submitted</Th>
-              <Th className="px-4 py-3 sm:px-6">Status</Th>
-              <Th className="px-4 py-3 sm:px-6">Actions</Th>
+              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">{t.dashboard.table.property}</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.issue}</Th>
+              <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.priority}</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.assignedTo}</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.submitted}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
             </Tr>
           </THead>
           <TBody>
             {isLoading ? (
-              <EmptyRow colSpan={7}>Loading maintenance requests...</EmptyRow>
+              <EmptyRow colSpan={7}>{c.loading}</EmptyRow>
             ) : pagedRequests.length === 0 ? (
-              <EmptyRow colSpan={7}>No maintenance requests match these filters.</EmptyRow>
+              <EmptyRow colSpan={7}>{c.empty}</EmptyRow>
             ) : (
               pagedRequests.map((request) => {
                 const isProcessing = processingId === request.id;
@@ -335,19 +334,19 @@ export default function HouseManagerMaintenancePage() {
                           className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                         >
                           <Eye className="h-3.5 w-3.5" />
-                          View
+                          {t.dashboard.actions.view}
                         </button>
                         {request.status === "submitted" && (
                           <button
                             type="button"
                             onClick={() => handleAssignToMe(request.id)}
                             disabled={isProcessing}
-                            aria-label={`Assign ${request.title} to me`}
+                            aria-label={c.assignAriaTemplate.replace("{title}", request.title)}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                           >
                             <UserPlus className="h-3.5 w-3.5" />
                             <span className="hidden sm:inline">
-                              {isProcessing ? "Assigning..." : "Assign to Me"}
+                              {isProcessing ? c.assigning : c.assignToMe}
                             </span>
                           </button>
                         )}
@@ -356,11 +355,11 @@ export default function HouseManagerMaintenancePage() {
                             type="button"
                             onClick={() => handleStartProgress(request.id)}
                             disabled={isProcessing}
-                            aria-label={`Start progress on ${request.title}`}
+                            aria-label={c.startAriaTemplate.replace("{title}", request.title)}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                           >
                             <PlayCircle className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">Start</span>
+                            <span className="hidden sm:inline">{c.start}</span>
                           </button>
                         )}
                         {(request.status === "assigned" || request.status === "in_progress") && (
@@ -368,11 +367,11 @@ export default function HouseManagerMaintenancePage() {
                             type="button"
                             onClick={() => setCompletingId(request.id)}
                             disabled={isProcessing}
-                            aria-label={`Mark completed for ${request.title}`}
+                            aria-label={c.completeAriaTemplate.replace("{title}", request.title)}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
                           >
                             <Wrench className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">Mark Completed</span>
+                            <span className="hidden sm:inline">{c.markCompleted}</span>
                           </button>
                         )}
                       </div>
@@ -395,27 +394,27 @@ export default function HouseManagerMaintenancePage() {
 
       {viewingRequest && (
         <Modal
-          title="Maintenance Request"
-          description={propertyById.get(viewingRequest.propertyId)?.title ?? "Request"}
+          title={c.detailTitle}
+          description={propertyById.get(viewingRequest.propertyId)?.title ?? c.detailFallback}
           onClose={() => setViewingRequest(null)}
         >
           <div className="flex flex-col gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Title
+                {c.fieldTitle}
               </p>
               <p className="mt-1 text-sm font-medium text-navy">{viewingRequest.title}</p>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Description
+                {c.fieldDescription}
               </p>
               <p className="mt-1 text-sm text-slate-600">{viewingRequest.description}</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Priority
+                  {t.dashboard.table.priority}
                 </p>
                 <span
                   className={`mt-1 inline-block rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[viewingRequest.priority]}`}
@@ -425,7 +424,7 @@ export default function HouseManagerMaintenancePage() {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Status
+                  {t.dashboard.table.status}
                 </p>
                 <span
                   className={`mt-1 inline-block rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[viewingRequest.status]}`}
@@ -435,7 +434,7 @@ export default function HouseManagerMaintenancePage() {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Assigned To
+                  {t.dashboard.table.assignedTo}
                 </p>
                 <p className="mt-1 text-sm font-medium text-navy">
                   {assigneeLabel(viewingRequest.assignedTo)}
@@ -443,7 +442,7 @@ export default function HouseManagerMaintenancePage() {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Submitted
+                  {t.dashboard.table.submitted}
                 </p>
                 <p className="mt-1 text-sm font-medium text-navy">
                   {viewingRequest.createdAt.slice(0, 10)}
@@ -453,26 +452,26 @@ export default function HouseManagerMaintenancePage() {
             {viewingRequest.status === "completed" && (
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Completion Notes
+                  {c.completionNotes}
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
                   {viewingRequest.completionNotes ?? "—"}
                 </p>
                 <div className="mt-3 flex flex-col gap-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">Labor cost</span>
+                    <span className="text-slate-500">{c.laborCost}</span>
                     <span className="font-medium text-navy">
                       {formatMoney(Number(viewingRequest.laborCost ?? 0))} RWF
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">Items / materials cost</span>
+                    <span className="text-slate-500">{c.itemsCost}</span>
                     <span className="font-medium text-navy">
                       {formatMoney(Number(viewingRequest.itemsCost ?? 0))} RWF
                     </span>
                   </div>
                   <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-sm">
-                    <span className="font-medium text-slate-600">Total expense</span>
+                    <span className="font-medium text-slate-600">{c.totalExpense}</span>
                     <span className="font-bold text-navy">
                       {formatMoney(
                         Number(viewingRequest.laborCost ?? 0) +
@@ -490,8 +489,8 @@ export default function HouseManagerMaintenancePage() {
 
       {completingId && (
         <Modal
-          title="Complete Request"
-          description="Confirm the work that was done."
+          title={c.completeRequestTitle}
+          description={c.completeRequestDescription}
           onClose={() => setCompletingId(null)}
         >
           <CompleteMaintenanceForm

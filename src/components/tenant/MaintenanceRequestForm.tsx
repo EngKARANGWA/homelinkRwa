@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { MaintenancePriority } from "@/lib/api/maintenance";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export type NewMaintenanceRequestValues = {
   title: string;
@@ -18,6 +19,8 @@ export function MaintenanceRequestForm({
   onSuccess: (values: NewMaintenanceRequestValues) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.tenant.maintenanceRequestForm;
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<MaintenancePriority>("medium");
@@ -38,7 +41,7 @@ export function MaintenanceRequestForm({
       <div className="flex flex-col gap-5">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Property
+            {c.property}
           </p>
           <p className="mt-1 text-sm font-medium text-navy">{property}</p>
         </div>
@@ -66,21 +69,21 @@ export function MaintenanceRequestForm({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            placeholder="e.g. Kitchen sink is leaking under the cabinet."
+            placeholder={c.issuePlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Priority
+          {c.priority}
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value as MaintenancePriority)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
+            <option value="low">{t.dashboard.status.low}</option>
+            <option value="medium">{t.dashboard.status.medium}</option>
+            <option value="high">{t.dashboard.status.high}</option>
           </select>
         </label>
       </div>
@@ -91,13 +94,13 @@ export function MaintenanceRequestForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Cancel
+          {t.dashboard.actions.cancel}
         </button>
         <button
           type="submit"
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
-          Submit Request
+          {c.submit}
         </button>
       </div>
     </form>

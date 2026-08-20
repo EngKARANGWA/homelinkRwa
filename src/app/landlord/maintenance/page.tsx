@@ -15,7 +15,6 @@ import {
 } from "@/lib/api/maintenance";
 import { ApiError } from "@/lib/api/client";
 import type { Property } from "@/lib/api/types";
-import { formatStatusLabel } from "@/lib/paymentStatus";
 import { Modal } from "@/components/admin/Modal";
 import {
   CompleteMaintenanceForm,
@@ -25,6 +24,8 @@ import { Card } from "@/components/dashboard/Card";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
 const STATUS_STYLES: Record<MaintenanceStatus, string> = {
   submitted: "bg-amber-50 text-amber-700",
@@ -39,8 +40,23 @@ const PRIORITY_STYLES: Record<MaintenancePriority, string> = {
   high: "bg-red-50 text-red-700",
 };
 
+const STATUS_KEY: Record<MaintenanceStatus, keyof Translations["dashboard"]["status"]> = {
+  submitted: "submitted",
+  assigned: "assigned",
+  in_progress: "inProgress",
+  completed: "completed",
+};
+
+const PRIORITY_KEY: Record<MaintenancePriority, keyof Translations["dashboard"]["status"]> = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+};
+
 export default function LandlordMaintenancePage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const c = t.dashboard.landlord.maintenance;
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setLoading] = useState(true);
@@ -52,7 +68,7 @@ export default function LandlordMaintenancePage() {
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [viewingRequest, setViewingRequest] = useState<MaintenanceRequest | null>(null);
 
-  const [propertyFilter, setPropertyFilter] = useState("All Properties");
+  const [propertyFilter, setPropertyFilter] = useState(t.dashboard.landlord.payments.allProperties);
   const [statusFilter, setStatusFilter] = useState<"All" | MaintenanceStatus>("All");
   const [priorityFilter, setPriorityFilter] = useState<"All" | MaintenancePriority>("All");
   const [dateFrom, setDateFrom] = useState("");
@@ -60,7 +76,7 @@ export default function LandlordMaintenancePage() {
   const [page, setPage] = useState(1);
 
   const propertyById = new Map(properties.map((p) => [p.id, p]));
-  const propertyOptions = ["All Properties", ...properties.map((p) => p.title)];
+  const propertyOptions = [t.dashboard.landlord.payments.allProperties, ...properties.map((p) => p.title)];
   const propertyIdFor = (name: string) => properties.find((p) => p.title === name)?.id;
 
   const load = () => {
@@ -72,7 +88,9 @@ export default function LandlordMaintenancePage() {
         limit: 100,
         status: statusFilter === "All" ? undefined : statusFilter,
         propertyId:
-          propertyFilter === "All Properties" ? undefined : propertyIdFor(propertyFilter),
+          propertyFilter === t.dashboard.landlord.payments.allProperties
+            ? undefined
+            : propertyIdFor(propertyFilter),
       }),
       listProperties({ ownerId: user.id, limit: 100 }),
     ])
@@ -157,9 +175,9 @@ export default function LandlordMaintenancePage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-navy">Maintenance</h1>
+        <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Maintenance and repair requests on your properties.
+          {c.subtitle}
         </p>
       </div>
 
@@ -186,7 +204,7 @@ export default function LandlordMaintenancePage() {
 
       <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Property
+          {t.dashboard.table.property}
           <select
             value={propertyFilter}
             onChange={(e) => setPropertyFilter(e.target.value)}
@@ -199,36 +217,36 @@ export default function LandlordMaintenancePage() {
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Status
+          {t.dashboard.table.status}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            <option value="All">All</option>
-            <option value="submitted">Submitted</option>
-            <option value="assigned">Assigned</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
+            <option value="All">{t.dashboard.actions.all}</option>
+            <option value="submitted">{t.dashboard.status.submitted}</option>
+            <option value="assigned">{t.dashboard.status.assigned}</option>
+            <option value="in_progress">{t.dashboard.status.inProgress}</option>
+            <option value="completed">{t.dashboard.status.completed}</option>
           </select>
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Priority
+          {t.dashboard.table.priority}
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value as typeof priorityFilter)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            <option value="All">All</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
+            <option value="All">{t.dashboard.actions.all}</option>
+            <option value="low">{t.dashboard.status.low}</option>
+            <option value="medium">{t.dashboard.status.medium}</option>
+            <option value="high">{t.dashboard.status.high}</option>
           </select>
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          From
+          {t.dashboard.table.start}
           <input
             type="date"
             value={dateFrom}
@@ -239,7 +257,7 @@ export default function LandlordMaintenancePage() {
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          To
+          {t.dashboard.table.end}
           <input
             type="date"
             value={dateTo}
@@ -249,7 +267,7 @@ export default function LandlordMaintenancePage() {
           />
         </label>
 
-        {(propertyFilter !== "All Properties" ||
+        {(propertyFilter !== t.dashboard.landlord.payments.allProperties ||
           statusFilter !== "All" ||
           priorityFilter !== "All" ||
           dateFrom ||
@@ -257,7 +275,7 @@ export default function LandlordMaintenancePage() {
           <button
             type="button"
             onClick={() => {
-              setPropertyFilter("All Properties");
+              setPropertyFilter(t.dashboard.landlord.payments.allProperties);
               setStatusFilter("All");
               setPriorityFilter("All");
               setDateFrom("");
@@ -265,32 +283,32 @@ export default function LandlordMaintenancePage() {
             }}
             className="text-sm font-medium text-slate-500 hover:text-navy"
           >
-            Clear filters
+            {c.clearFilters}
           </button>
         )}
       </div>
 
-      <Card title="Requests">
+      <Card title={c.requestsTitle}>
         <p className="mt-1 text-sm text-slate-500">
-          Maintenance requests raised by tenants across your properties.
+          {c.requestsSubtitle}
         </p>
         <Table variant="card">
           <THead>
             <Tr>
-              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Property</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Issue</Th>
-              <Th className="hidden px-6 py-3 sm:table-cell">Priority</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Assigned To</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Submitted</Th>
-              <Th className="px-4 py-3 sm:px-6">Status</Th>
-              <Th className="px-4 py-3 sm:px-6">Actions</Th>
+              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">{t.dashboard.table.property}</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.issue}</Th>
+              <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.priority}</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.assignedTo}</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.submitted}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
             </Tr>
           </THead>
           <TBody>
             {isLoading ? (
               <EmptyRow colSpan={7}>Loading maintenance requests...</EmptyRow>
             ) : pagedRequests.length === 0 ? (
-              <EmptyRow colSpan={7}>No maintenance requests match these filters.</EmptyRow>
+              <EmptyRow colSpan={7}>{c.noRequestsMatch}</EmptyRow>
             ) : (
               pagedRequests.map((request) => {
                 const isProcessing = processingId === request.id;
@@ -311,7 +329,7 @@ export default function LandlordMaintenancePage() {
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[request.priority]}`}
                       >
-                        {formatStatusLabel(request.priority)}
+                        {t.dashboard.status[PRIORITY_KEY[request.priority]]}
                       </span>
                     </Td>
                     <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
@@ -324,7 +342,7 @@ export default function LandlordMaintenancePage() {
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[request.status]}`}
                       >
-                        {formatStatusLabel(request.status)}
+                        {t.dashboard.status[STATUS_KEY[request.status]]}
                       </span>
                     </Td>
                     <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
@@ -335,7 +353,7 @@ export default function LandlordMaintenancePage() {
                           className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                         >
                           <Eye className="h-3.5 w-3.5" />
-                          View
+                          {t.dashboard.actions.view}
                         </button>
                         {request.status === "submitted" && (
                           <button
@@ -415,27 +433,27 @@ export default function LandlordMaintenancePage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Priority
+                  {t.dashboard.table.priority}
                 </p>
                 <span
                   className={`mt-1 inline-block rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[viewingRequest.priority]}`}
                 >
-                  {formatStatusLabel(viewingRequest.priority)}
+                  {t.dashboard.status[PRIORITY_KEY[viewingRequest.priority]]}
                 </span>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Status
+                  {t.dashboard.table.status}
                 </p>
                 <span
                   className={`mt-1 inline-block rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[viewingRequest.status]}`}
                 >
-                  {formatStatusLabel(viewingRequest.status)}
+                  {t.dashboard.status[STATUS_KEY[viewingRequest.status]]}
                 </span>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Assigned To
+                  {t.dashboard.table.assignedTo}
                 </p>
                 <p className="mt-1 text-sm font-medium text-navy">
                   {assigneeLabel(viewingRequest.assignedTo)}
@@ -443,7 +461,7 @@ export default function LandlordMaintenancePage() {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Submitted
+                  {t.dashboard.table.submitted}
                 </p>
                 <p className="mt-1 text-sm font-medium text-navy">
                   {viewingRequest.createdAt.slice(0, 10)}

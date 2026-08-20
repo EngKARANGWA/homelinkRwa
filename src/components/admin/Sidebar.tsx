@@ -4,13 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, X } from "lucide-react";
 import { ADMIN_NAV_ITEMS } from "./nav-items";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   return (
     <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
-      {ADMIN_NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+      {ADMIN_NAV_ITEMS.map(({ key, href, icon: Icon }) => {
         const isActive =
           href === "/admin" ? pathname === href : pathname.startsWith(href);
 
@@ -26,7 +28,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             }`}
           >
             <Icon className="h-4 w-4" strokeWidth={2} />
-            {label}
+            {t.dashboard.nav[key]}
           </Link>
         );
       })}
@@ -41,6 +43,8 @@ export function Sidebar({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
+
   return (
     <>
       <aside className="hidden w-64 flex-col bg-navy text-white lg:fixed lg:inset-y-0 lg:left-0 lg:flex">
@@ -51,7 +55,7 @@ export function Sidebar({
               HomeLink
             </span>
             <span className="block text-[11px] font-semibold tracking-[0.2em] text-gold">
-              SUPER ADMIN
+              {t.dashboard.roleBadge.admin}
             </span>
           </span>
         </Link>
@@ -85,7 +89,7 @@ export function Sidebar({
                     HomeLink
                   </span>
                   <span className="block text-[11px] font-semibold tracking-[0.2em] text-gold">
-                    SUPER ADMIN
+                    {t.dashboard.roleBadge.admin}
                   </span>
                 </span>
               </Link>
