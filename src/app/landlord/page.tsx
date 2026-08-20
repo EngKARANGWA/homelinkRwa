@@ -3,12 +3,15 @@
 import { useState } from "react";
 import { AppLink as Link } from "@/components/shared/AppLink";
 import {
+  AlertCircle,
+  AlertTriangle,
   ArrowRight,
   Bell,
   Building2,
   CheckCircle2,
-  Eye,
+  Clock,
   FileText,
+  ListChecks,
   Wallet,
   Wrench,
 } from "lucide-react";
@@ -21,16 +24,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  LEASES,
-  MAINTENANCE_REQUESTS,
-  PAYMENTS,
-  PROPERTIES,
-  TODAY,
-  type Payment,
-} from "@/lib/mock-admin-data";
+import { LEASES, MAINTENANCE_REQUESTS, PAYMENTS, PROPERTIES, TODAY } from "@/lib/mock-admin-data";
 import { useLandlord } from "@/components/landlord/LandlordContext";
-import { getUnitsForProperty, type Unit } from "@/lib/units";
+import { getUnitsForProperty } from "@/lib/units";
 import {
   CHART_COLORS,
   CHART_GRID_COLOR,
@@ -38,76 +34,19 @@ import {
 } from "@/lib/chart-colors";
 import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
 import { AlertBanner } from "@/components/dashboard/AlertBanner";
-import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { Translations } from "@/lib/i18n/translations";
 
-type TransactionRowStatus = Payment["status"] | "Overdue" | "Arrears";
-
-const TRANSACTION_STATUS_STYLES: Record<TransactionRowStatus, string> = {
-  Paid: "bg-emerald-50 text-emerald-700",
-  Late: "bg-red-50 text-red-700",
-  Pending: "bg-amber-50 text-amber-700",
-  "Pending Approval": "bg-sky-50 text-sky-700",
-  Overdue: "bg-amber-50 text-amber-700",
-  Arrears: "bg-red-50 text-red-700",
-};
-
-const TRANSACTION_STATUS_KEY: Record<TransactionRowStatus, keyof Translations["dashboard"]["status"]> = {
-  Paid: "paid",
-  Late: "late",
-  Pending: "pending",
-  "Pending Approval": "pendingApproval",
-  Overdue: "overdue",
-  Arrears: "arrears",
-};
-
-const TRANSACTION_STATUS_PRIORITY: Record<TransactionRowStatus, number> = {
-  Arrears: 0,
-  Overdue: 1,
-  Late: 2,
-  "Pending Approval": 3,
-  Pending: 4,
-  Paid: 5,
-};
-
-type TransactionRow = {
-  id: string;
-  tenant: string;
-  property: string;
-  unit: string;
-  amount: number;
-  method: string;
-  dueDate: string;
-  status: TransactionRowStatus;
-  actions: { type: "unit"; propertyId: string; unitId: string } | { type: "payment" };
-};
-
-function daysBetween(from: string, to: string): number {
-  const ms = new Date(to).getTime() - new Date(from).getTime();
-  return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
-}
-
-function arrearsPeriodLabel(unit: Unit, t: Translations): string {
-  const c = t.dashboard.landlord.overview;
-  const paidEntries = unit.paymentHistory.filter((p) => p.status === "Paid" && p.paidDate);
-  if (paidEntries.length === 0) return c.noPaymentsOnFile;
-  const last = paidEntries[paidEntries.length - 1];
-  const days = daysBetween(last.paidDate as string, TODAY);
-  return days < 60
-    ? c.overdueDaysTemplate.replace("{value}", String(days))
-    : c.overdueMonthsTemplate.replace("{value}", String(Math.round(days / 30)));
-}
-
-const TRANSACTION_TABS: {
+const TRANSACTION_QUICK_ACTIONS: {
   key: "All" | "Pending Approval" | "Overdue" | "Arrears";
   labelKey: keyof Translations["dashboard"]["landlord"]["overview"]["tabs"];
+  icon: typeof Building2;
 }[] = [
-  { key: "All", labelKey: "all" },
-  { key: "Pending Approval", labelKey: "pendingApproval" },
-  { key: "Overdue", labelKey: "overdue" },
-  { key: "Arrears", labelKey: "arrears" },
+  { key: "All", labelKey: "all", icon: ListChecks },
+  { key: "Pending Approval", labelKey: "pendingApproval", icon: Clock },
+  { key: "Overdue", labelKey: "overdue", icon: AlertTriangle },
+  { key: "Arrears", labelKey: "arrears", icon: AlertCircle },
 ];
 
 const STAT_META: Record<
@@ -166,7 +105,6 @@ export default function LandlordOverviewPage() {
   const { t } = useLanguage();
   const c = t.dashboard.landlord.overview;
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"All" | TransactionRowStatus>("All");
 
   const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
   const myPropertyNames = myProperties.map((p) => p.name);
@@ -197,24 +135,11 @@ export default function LandlordOverviewPage() {
     0,
   );
 
-  let balanceDue: number;
-  let outstandingTenants: number;
-  if (statusFilter === "Arrears") {
-    balanceDue = arrearsOnlyBalance;
-    outstandingTenants = arrearsOnlyUnits.length;
-  } else if (statusFilter === "Overdue") {
-    balanceDue = overdueOnlyBalance;
-    outstandingTenants = overdueOnlyUnits.length;
-  } else if (statusFilter === "Pending Approval") {
-    balanceDue = pendingApprovalBalance;
-    outstandingTenants = new Set(pendingApprovalPayments.map((p) => p.tenant)).size;
-  } else {
-    balanceDue = arrearsBalance + pendingApprovalBalance;
-    outstandingTenants = new Set([
-      ...overdueTenantUnits.map((u) => u.tenant),
-      ...pendingApprovalPayments.map((p) => p.tenant),
-    ]).size;
-  }
+  const balanceDue = arrearsBalance + pendingApprovalBalance;
+  const outstandingTenants = new Set([
+    ...overdueTenantUnits.map((u) => u.tenant),
+    ...pendingApprovalPayments.map((p) => p.tenant),
+  ]).size;
 
   const handleSendReminder = () => {
     setReminderNotice(
@@ -261,55 +186,19 @@ export default function LandlordOverviewPage() {
     });
   })();
 
-  const filteredPayments = myPayments.filter(
-    (p) => statusFilter === "All" || p.status === statusFilter,
-  );
-
-  const filteredArrearsUnits =
-    statusFilter === "All" || statusFilter === "Overdue" || statusFilter === "Arrears"
-      ? overdueTenantUnits.filter(
-          (u) => statusFilter === "All" || u.currentPaymentStatus === statusFilter,
-        )
-      : [];
-
-  const transactionTabCounts: Record<(typeof TRANSACTION_TABS)[number]["key"], number> = {
+  const transactionTabCounts: Record<(typeof TRANSACTION_QUICK_ACTIONS)[number]["key"], number> = {
     All: myPayments.length + overdueTenantUnits.length,
-    "Pending Approval": myPayments.filter((p) => p.status === "Pending Approval").length,
+    "Pending Approval": pendingApprovalPayments.length,
     Overdue: overdueOnlyUnits.length,
     Arrears: arrearsOnlyUnits.length,
   };
 
-  const transactionRows: TransactionRow[] = [
-    ...filteredArrearsUnits.map(
-      (unit): TransactionRow => ({
-        id: `unit-${unit.id}`,
-        tenant: unit.tenant ?? c.unknownTenant,
-        property: unit.propertyName,
-        unit: unit.unitNumber,
-        amount: unit.monthlyRent,
-        method: "—",
-        dueDate: arrearsPeriodLabel(unit, t),
-        status: unit.currentPaymentStatus === "Arrears" ? "Arrears" : "Overdue",
-        actions: { type: "unit", propertyId: unit.propertyId, unitId: unit.id },
-      }),
-    ),
-    ...filteredPayments.map(
-      (payment): TransactionRow => ({
-        id: `payment-${payment.id}`,
-        tenant: payment.tenant,
-        property: payment.property,
-        unit: "—",
-        amount: payment.amount,
-        method: payment.method,
-        dueDate: payment.dueDate,
-        status: payment.status,
-        actions: { type: "payment" },
-      }),
-    ),
-  ].sort(
-    (a, b) => TRANSACTION_STATUS_PRIORITY[a.status] - TRANSACTION_STATUS_PRIORITY[b.status],
-  );
-  const visibleTransactions = transactionRows.slice(0, 3);
+  const transactionTabAmounts: Record<(typeof TRANSACTION_QUICK_ACTIONS)[number]["key"], number> = {
+    All: balanceDue,
+    "Pending Approval": pendingApprovalBalance,
+    Overdue: overdueOnlyBalance,
+    Arrears: arrearsOnlyBalance,
+  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -389,8 +278,8 @@ export default function LandlordOverviewPage() {
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-navy">{c.transactionsTitle}</h2>
             <p className="mt-1 text-sm text-slate-500">
@@ -406,98 +295,26 @@ export default function LandlordOverviewPage() {
           </Link>
         </div>
 
-        <div className="flex items-center gap-6 overflow-x-auto border-b border-slate-100 px-6">
-          {TRANSACTION_TABS.map((tab) => {
-            const isActive = statusFilter === tab.key;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setStatusFilter(tab.key)}
-                className={`flex shrink-0 items-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "border-gold text-navy"
-                    : "border-transparent text-slate-500 hover:text-navy"
-                }`}
-              >
-                {c.tabs[tab.labelKey]}
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                    isActive ? "bg-gold/10 text-gold" : "bg-slate-100 text-slate-500"
-                  }`}
-                >
-                  {transactionTabCounts[tab.key]}
+        <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {TRANSACTION_QUICK_ACTIONS.map((action) => (
+            <Link
+              key={action.key}
+              href={`/landlord/payments?status=${encodeURIComponent(action.key)}`}
+              className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-slate-200 px-4 py-3 text-center transition-colors hover:border-gold/40 hover:bg-slate-50"
+            >
+              <span className="flex items-center gap-2 text-sm font-medium text-navy">
+                <action.icon className="h-4 w-4 shrink-0 text-slate-500" />
+                {c.tabs[action.labelKey]}
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                  {transactionTabCounts[action.key]}
                 </span>
-              </button>
-            );
-          })}
+              </span>
+              <span className="text-sm font-semibold text-slate-500">
+                {formatMoney(transactionTabAmounts[action.key])} RWF
+              </span>
+            </Link>
+          ))}
         </div>
-
-        <Table variant="plain">
-          <THead>
-            <Tr>
-              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">{t.dashboard.table.tenant}</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.property}</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.unit}</Th>
-              <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.amountRwf}</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.method}</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.dueDate}</Th>
-              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
-              <Th className="px-4 py-3 text-right sm:px-6">{t.dashboard.table.actions}</Th>
-            </Tr>
-          </THead>
-          <TBody>
-            {visibleTransactions.map((row) => (
-              <Tr key={row.id}>
-                <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
-                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                    {row.tenant}
-                  </p>
-                  <p className="truncate text-xs text-slate-400 md:hidden">{row.property}</p>
-                  <p className="text-xs text-slate-400 sm:hidden">
-                    {formatMoney(row.amount)} RWF
-                  </p>
-                </Td>
-                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {row.property}
-                </Td>
-                <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{row.unit}</Td>
-                <Td
-                  className={`hidden px-6 py-3 sm:table-cell ${
-                    row.status === "Overdue" || row.status === "Arrears" || row.status === "Late"
-                      ? "font-medium text-red-600"
-                      : "text-slate-500"
-                  }`}
-                >
-                  {formatMoney(row.amount)}
-                </Td>
-                <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">{row.method}</Td>
-                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">{row.dueDate}</Td>
-                <Td className="px-4 py-3 sm:px-6">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${TRANSACTION_STATUS_STYLES[row.status]}`}
-                  >
-                    {t.dashboard.status[TRANSACTION_STATUS_KEY[row.status]]}
-                  </span>
-                </Td>
-                <Td className="px-4 py-3 text-right sm:px-6">
-                  {row.actions.type === "unit" && (
-                    <Link
-                      href={`/landlord/properties/${row.actions.propertyId}/units/${row.actions.unitId}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      {t.dashboard.actions.view}
-                    </Link>
-                  )}
-                </Td>
-              </Tr>
-            ))}
-            {visibleTransactions.length === 0 && (
-              <EmptyRow colSpan={8}>{c.noTransactions}</EmptyRow>
-            )}
-          </TBody>
-        </Table>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLink as Link } from "@/components/shared/AppLink";
 import {
   AlertCircle,
@@ -30,6 +31,20 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { Translations } from "@/lib/i18n/translations";
 
 type RowStatus = Payment["status"] | "Overdue" | "Arrears";
+
+const VALID_STATUS_FILTERS: ("All" | RowStatus)[] = [
+  "All",
+  "Overdue",
+  "Arrears",
+  "Paid",
+  "Late",
+  "Pending",
+  "Pending Approval",
+];
+
+function isValidStatusFilter(value: string | null): value is "All" | RowStatus {
+  return VALID_STATUS_FILTERS.includes(value as "All" | RowStatus);
+}
 
 const STATUS_STYLES: Record<RowStatus, string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -96,16 +111,20 @@ function arrearsPeriodLabel(
   return { lastPaymentDate: last.paidDate, period };
 }
 
-export default function LandlordPaymentsPage() {
+function LandlordPaymentsPageContent() {
   const { t } = useLanguage();
   const c = t.dashboard.landlord.payments;
   const { landlordName, unitOverrides, recordPayment } = useLandlord();
+  const searchParams = useSearchParams();
+  const statusParam = searchParams.get("status");
   const [payments, setPayments] = useState(PAYMENTS);
   const [viewingPayment, setViewingPayment] = useState<Payment | null>(null);
   const [isRecording, setRecording] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [propertyFilter, setPropertyFilter] = useState(c.allProperties);
-  const [statusFilter, setStatusFilter] = useState<"All" | RowStatus>("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | RowStatus>(
+    isValidStatusFilter(statusParam) ? statusParam : "All",
+  );
   const [methodFilter, setMethodFilter] = useState<"All" | Payment["method"]>("All");
   const [page, setPage] = useState(1);
 
@@ -570,5 +589,13 @@ export default function LandlordPaymentsPage() {
         </Modal>
       )}
     </div>
+  );
+}
+
+export default function LandlordPaymentsPage() {
+  return (
+    <Suspense fallback={null}>
+      <LandlordPaymentsPageContent />
+    </Suspense>
   );
 }
