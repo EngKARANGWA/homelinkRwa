@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import { TODAY, type Property } from "@/lib/mock-admin-data";
 import { getUnitsForProperty, type Unit, type UnitOverrides } from "@/lib/units";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
-const METHODS = ["Cash", "MTN Mobile Money", "Airtel Money", "Bank Transfer"];
+const METHODS = ["Cash", "MTN Mobile Money", "Airtel Money", "Bank Transfer"] as const;
 
 export function RecordPaymentForm({
   properties,
@@ -18,6 +19,14 @@ export function RecordPaymentForm({
   onSuccess: (unit: Unit, values: { amount: number; method: string; paidDate: string }) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.landlord.recordPaymentForm;
+  const methodLabel: Record<(typeof METHODS)[number], string> = {
+    Cash: t.dashboard.landlord.paymentMethods.cash,
+    "MTN Mobile Money": t.dashboard.landlord.paymentMethods.mtnMobileMoney,
+    "Airtel Money": t.dashboard.landlord.paymentMethods.airtelMoney,
+    "Bank Transfer": t.dashboard.landlord.paymentMethods.bankTransfer,
+  };
   const [propertyId, setPropertyId] = useState(properties[0]?.id ?? "");
   const [unitId, setUnitId] = useState("");
   const [amount, setAmount] = useState(String(properties[0]?.rent ?? ""));
@@ -53,12 +62,12 @@ export function RecordPaymentForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUnit) {
-      setError("This property has no tenants to record a payment for.");
+      setError(c.errorNoTenants);
       return;
     }
     const amountValue = Number(amount);
     if (!amountValue || amountValue <= 0) {
-      setError("Please enter a valid amount.");
+      setError(c.errorAmount);
       return;
     }
     setError(null);
@@ -75,7 +84,7 @@ export function RecordPaymentForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Property
+          {c.property}
           <SearchableSelect
             value={propertyId}
             onChange={handlePropertyChange}
@@ -83,17 +92,17 @@ export function RecordPaymentForm({
               value: property.id,
               label: property.name,
             }))}
-            placeholder="Select a property"
+            placeholder={c.selectProperty}
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Tenant / Unit
+          {c.tenantUnit}
           <SearchableSelect
             value={selectedUnit?.id ?? ""}
             onChange={handleUnitChange}
             disabled={occupiedUnits.length === 0}
-            placeholder={occupiedUnits.length === 0 ? "No tenants" : "Select a tenant"}
+            placeholder={occupiedUnits.length === 0 ? c.noTenants : c.selectTenant}
             options={occupiedUnits.map((unit) => ({
               value: unit.id,
               label: `${unit.unitNumber} · ${unit.tenant}`,
@@ -102,7 +111,7 @@ export function RecordPaymentForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Amount (RWF)
+          {c.amountRwf}
           <input
             type="number"
             min={0}
@@ -113,20 +122,20 @@ export function RecordPaymentForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Payment method
+          {c.paymentMethod}
           <select
             value={method}
             onChange={(e) => setMethod(e.target.value)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
             {METHODS.map((m) => (
-              <option key={m}>{m}</option>
+              <option key={m} value={m}>{methodLabel[m]}</option>
             ))}
           </select>
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-          Date received
+          {c.dateReceived}
           <input
             type="date"
             value={paidDate}
@@ -142,14 +151,14 @@ export function RecordPaymentForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Cancel
+          {t.dashboard.actions.cancel}
         </button>
         <button
           type="submit"
           disabled={occupiedUnits.length === 0}
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Record Payment
+          {c.submit}
         </button>
       </div>
     </form>

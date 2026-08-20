@@ -8,6 +8,8 @@ import { LandlordForm } from "@/components/admin/LandlordForm";
 import { LandlordDetail } from "@/components/admin/LandlordDetail";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
 const STATUS_STYLES: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -15,7 +17,15 @@ const STATUS_STYLES: Record<string, string> = {
   Suspended: "bg-red-50 text-red-700",
 };
 
+const STATUS_KEY: Record<string, keyof Translations["dashboard"]["status"]> = {
+  Active: "active",
+  Pending: "pending",
+  Suspended: "suspended",
+};
+
 export default function LandlordsPage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.landlords;
   const [isModalOpen, setModalOpen] = useState(false);
   const [justRegistered, setJustRegistered] = useState(false);
   const [viewingLandlord, setViewingLandlord] = useState<Landlord | null>(null);
@@ -34,9 +44,9 @@ export default function LandlordsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Landlords</h1>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Property owners registered on the platform.
+            {c.subtitle}
           </p>
         </div>
         <button
@@ -45,27 +55,27 @@ export default function LandlordsPage() {
           className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           <Plus className="h-4 w-4" />
-          Register Landlord
+          {c.registerTitle}
         </button>
       </div>
 
       {justRegistered && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
           <CheckCircle2 className="h-4 w-4" />
-          Landlord registered successfully.
+          {c.successNotice}
         </div>
       )}
 
       <Table variant="standalone">
         <THead>
           <Tr>
-            <Th className="px-4 py-3 sm:px-6">Name</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">Email</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">Phone</Th>
-            <Th className="hidden px-6 py-3 sm:table-cell">Properties</Th>
-            <Th className="px-4 py-3 sm:px-6">Status</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">Registered</Th>
-            <Th className="px-4 py-3 text-right sm:px-6">Actions</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.name}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.email}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.phone}</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.properties}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.registered}</Th>
+            <Th className="px-4 py-3 text-right sm:px-6">{t.dashboard.table.actions}</Th>
           </Tr>
         </THead>
         <TBody>
@@ -79,7 +89,7 @@ export default function LandlordsPage() {
                   {landlord.email}
                 </p>
                 <p className="text-xs font-normal text-slate-400 sm:hidden">
-                  {landlord.properties} properties
+                  {c.propertiesCountTemplate.replace("{count}", String(landlord.properties))}
                 </p>
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
@@ -95,7 +105,7 @@ export default function LandlordsPage() {
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[landlord.status]}`}
                 >
-                  {landlord.status}
+                  {t.dashboard.status[STATUS_KEY[landlord.status]]}
                 </span>
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
@@ -108,7 +118,7 @@ export default function LandlordsPage() {
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                 >
                   <Eye className="h-3.5 w-3.5" />
-                  View
+                  {t.dashboard.actions.view}
                 </button>
               </Td>
             </Tr>
@@ -126,8 +136,8 @@ export default function LandlordsPage() {
 
       {isModalOpen && (
         <Modal
-          title="Register Landlord"
-          description="Add a new property owner to the platform."
+          title={c.registerTitle}
+          description={c.registerDescription}
           onClose={() => setModalOpen(false)}
         >
           <LandlordForm
@@ -142,7 +152,7 @@ export default function LandlordsPage() {
 
       {viewingLandlord && (
         <Modal
-          title="Landlord Details"
+          title={c.detailsTitle}
           description={viewingLandlord.name}
           onClose={() => setViewingLandlord(null)}
         >

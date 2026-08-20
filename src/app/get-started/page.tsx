@@ -3,13 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Home } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 
 export default function GetStartedPage() {
   const [submitted, setSubmitted] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-navy px-6 py-16">
       <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl">
+        <div className="flex justify-end">
+          <LanguageSwitcher />
+        </div>
         <Link href="/" className="flex items-center justify-center gap-2">
           <Home className="h-7 w-7 text-gold" strokeWidth={2.2} />
           <span className="leading-tight">
@@ -23,20 +29,20 @@ export default function GetStartedPage() {
         </Link>
 
         <h1 className="mt-6 text-center text-2xl font-bold text-navy">
-          Get started with HomeLink
+          {t.getStartedPage.title}
         </h1>
         <p className="mt-2 text-center text-sm text-slate-500">
-          Tell us a bit about you and we&apos;ll set up your account.
+          {t.getStartedPage.description}
         </p>
 
         {submitted ? (
           <div className="mt-8 flex flex-col items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-6 py-8 text-center">
             <CheckCircle2 className="h-8 w-8 text-emerald-600" />
             <p className="font-semibold text-emerald-800">
-              Request received!
+              {t.getStartedPage.success.title}
             </p>
             <p className="text-sm text-emerald-700">
-              Our team will reach out to set up your account shortly.
+              {t.getStartedPage.success.description}
             </p>
           </div>
         ) : (
@@ -48,17 +54,17 @@ export default function GetStartedPage() {
             }}
           >
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Full name
+              {t.getStartedPage.form.fullName}
               <input
                 type="text"
                 required
-                placeholder="e.g. Jean Claude Uwimana"
+                placeholder={t.getStartedPage.form.fullNamePlaceholder}
                 className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
               />
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Email address
+              {t.getStartedPage.form.emailAddress}
               <input
                 type="email"
                 required
@@ -68,7 +74,7 @@ export default function GetStartedPage() {
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Phone number
+              {t.getStartedPage.form.phoneNumber}
               <input
                 type="tel"
                 required
@@ -78,29 +84,29 @@ export default function GetStartedPage() {
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              I am a...
+              {t.getStartedPage.form.iAmA}
               <select className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none">
-                <option>Landlord / Property Owner</option>
-                <option>Property Manager / Agent</option>
-                <option>Tenant</option>
+                <option>{t.getStartedPage.form.optionLandlord}</option>
+                <option>{t.getStartedPage.form.optionManager}</option>
+                <option>{t.getStartedPage.form.optionTenant}</option>
               </select>
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Number of properties (if applicable)
+              {t.getStartedPage.form.numProperties}
               <input
                 type="number"
                 min={0}
-                placeholder="e.g. 3"
+                placeholder={t.getStartedPage.form.numPropertiesPlaceholder}
                 className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
               />
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Anything else we should know?
+              {t.getStartedPage.form.anythingElse}
               <textarea
                 rows={3}
-                placeholder="Optional message"
+                placeholder={t.getStartedPage.form.anythingElsePlaceholder}
                 className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
               />
             </label>
@@ -109,18 +115,18 @@ export default function GetStartedPage() {
               type="submit"
               className="mt-2 rounded-lg bg-gold px-6 py-3 font-semibold text-white transition-colors hover:bg-gold/90"
             >
-              Request Access
+              {t.getStartedPage.form.requestAccess}
             </button>
           </form>
         )}
 
         <p className="mt-6 text-center text-sm text-slate-500">
-          Already have an account?{" "}
+          {t.getStartedPage.alreadyHaveAccount}{" "}
           <Link
             href="/login"
             className="font-semibold text-gold hover:underline"
           >
-            Log in
+            {t.getStartedPage.logIn}
           </Link>
         </p>
       </div>

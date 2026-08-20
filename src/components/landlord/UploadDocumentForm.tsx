@@ -6,6 +6,7 @@ import { TODAY, type Property } from "@/lib/mock-admin-data";
 import { getUnitsForProperty, type UnitOverrides } from "@/lib/units";
 import type { DocumentCategory, LandlordDocument } from "@/lib/documents";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const CATEGORIES: DocumentCategory[] = [
   "Property Document",
@@ -25,6 +26,14 @@ export function UploadDocumentForm({
   onSuccess: (doc: LandlordDocument) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.landlord.uploadDocumentForm;
+  const categoryLabel: Record<DocumentCategory, string> = {
+    "Property Document": c.categories.propertyDocument,
+    "Lease Agreement": c.categories.leaseAgreement,
+    "ID Verification": c.categories.idVerification,
+    Other: c.categories.other,
+  };
   const [propertyId, setPropertyId] = useState(properties[0]?.id ?? "");
   const [unitNumber, setUnitNumber] = useState("");
   const [category, setCategory] = useState<DocumentCategory>("Property Document");
@@ -46,11 +55,11 @@ export function UploadDocumentForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProperty) {
-      setError("Please select a property.");
+      setError(c.errorSelectProperty);
       return;
     }
     if (!fileName) {
-      setError("Please choose a file to upload.");
+      setError(c.errorChooseFile);
       return;
     }
     setError(null);
@@ -77,11 +86,11 @@ export function UploadDocumentForm({
       )}
 
       <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-        File
+        {c.file}
         <div className="flex items-center gap-3">
           <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
             <Upload className="h-4 w-4" />
-            Choose file
+            {c.chooseFile}
             <input
               type="file"
               className="hidden"
@@ -94,20 +103,20 @@ export function UploadDocumentForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Category
+          {c.category}
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value as DocumentCategory)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
+            {CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>{categoryLabel[cat]}</option>
             ))}
           </select>
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Property
+          {c.property}
           <SearchableSelect
             value={propertyId}
             onChange={(value) => {
@@ -118,23 +127,23 @@ export function UploadDocumentForm({
               value: property.id,
               label: property.name,
             }))}
-            placeholder="Select a property"
+            placeholder={c.selectProperty}
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-          Unit (optional)
+          {c.unitOptional}
           <SearchableSelect
             value={unitNumber}
             onChange={setUnitNumber}
             options={[
-              { value: "", label: "Property-wide document" },
+              { value: "", label: c.propertyWideDocument },
               ...occupiedUnits.map((unit) => ({
                 value: unit.unitNumber,
                 label: `${unit.unitNumber} · ${unit.tenant}`,
               })),
             ]}
-            placeholder="Property-wide document"
+            placeholder={c.propertyWideDocument}
           />
         </label>
       </div>
@@ -145,13 +154,13 @@ export function UploadDocumentForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Cancel
+          {t.dashboard.actions.cancel}
         </button>
         <button
           type="submit"
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
-          Upload Document
+          {c.submit}
         </button>
       </div>
     </form>

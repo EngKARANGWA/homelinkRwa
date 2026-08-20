@@ -10,20 +10,22 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const TENANT_NAV_ITEMS = [
-  { label: "Overview", href: "/tenant", icon: LayoutDashboard },
-  { label: "My Lease", href: "/tenant/lease", icon: FileText },
-  { label: "Maintenance", href: "/tenant/maintenance", icon: Wrench },
-  { label: "Payments", href: "/tenant/payments", icon: CreditCard },
-];
+  { key: "overview", href: "/tenant", icon: LayoutDashboard },
+  { key: "myLease", href: "/tenant/lease", icon: FileText },
+  { key: "maintenance", href: "/tenant/maintenance", icon: Wrench },
+  { key: "payments", href: "/tenant/payments", icon: CreditCard },
+] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   return (
     <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
-      {TENANT_NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+      {TENANT_NAV_ITEMS.map(({ key, href, icon: Icon }) => {
         const isActive =
           href === "/tenant" ? pathname === href : pathname.startsWith(href);
 
@@ -39,7 +41,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             }`}
           >
             <Icon className="h-4 w-4" strokeWidth={2} />
-            {label}
+            {t.dashboard.nav[key]}
           </Link>
         );
       })}
@@ -54,6 +56,8 @@ export function Sidebar({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
+
   return (
     <>
       <aside className="hidden w-64 flex-col bg-navy text-white lg:fixed lg:inset-y-0 lg:left-0 lg:flex">
@@ -64,7 +68,7 @@ export function Sidebar({
               HomeLink
             </span>
             <span className="block text-[11px] font-semibold tracking-[0.2em] text-gold">
-              TENANT
+              {t.dashboard.roleBadge.tenant}
             </span>
           </span>
         </Link>
@@ -98,7 +102,7 @@ export function Sidebar({
                     HomeLink
                   </span>
                   <span className="block text-[11px] font-semibold tracking-[0.2em] text-gold">
-                    TENANT
+                    {t.dashboard.roleBadge.tenant}
                   </span>
                 </span>
               </Link>

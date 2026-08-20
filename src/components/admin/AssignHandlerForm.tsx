@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { MAINTENANCE_HANDLERS, type Laborer } from "@/lib/mock-admin-data";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 type LaborerRow = { name: string; role: string; contact: string; amount: string };
 
@@ -16,6 +17,8 @@ export function AssignHandlerForm({
   onSuccess: (laborers: Laborer[]) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.assignHandlerForm;
   const [laborers, setLaborers] = useState<LaborerRow[]>([{ ...EMPTY_ROW }]);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +52,7 @@ export function AssignHandlerForm({
           }));
 
         if (cleaned.length === 0) {
-          setError("Add at least one laborer with a name.");
+          setError(c.errorNeedName);
           return;
         }
         setError(null);
@@ -75,7 +78,7 @@ export function AssignHandlerForm({
               <button
                 type="button"
                 onClick={() => removeLaborer(index)}
-                aria-label="Remove laborer"
+                aria-label={c.removeLaborer}
                 className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-50 hover:text-red-600"
               >
                 <X className="h-4 w-4" />
@@ -83,47 +86,47 @@ export function AssignHandlerForm({
             )}
             <div className="grid gap-4 pr-8 sm:grid-cols-2">
               <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-                Name
+                {c.name}
                 <input
                   type="text"
                   list="known-handlers"
                   value={laborer.name}
                   onChange={(e) => updateLaborer(index, "name", e.target.value)}
-                  placeholder="e.g. Faustin Gasana"
+                  placeholder={c.namePlaceholder}
                   className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
                 />
               </label>
 
               <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-                Role
+                {c.role}
                 <input
                   type="text"
                   value={laborer.role}
                   onChange={(e) => updateLaborer(index, "role", e.target.value)}
-                  placeholder="e.g. Electrician, Plumber"
+                  placeholder={c.rolePlaceholder}
                   className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
                 />
               </label>
 
               <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-                Contact
+                {c.contact}
                 <input
                   type="text"
                   value={laborer.contact}
                   onChange={(e) => updateLaborer(index, "contact", e.target.value)}
-                  placeholder="e.g. +250 788 123 456"
+                  placeholder={c.contactPlaceholder}
                   className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
                 />
               </label>
 
               <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-                Amount to pay (RWF)
+                {c.amountToPay}
                 <input
                   type="number"
                   min={0}
                   value={laborer.amount}
                   onChange={(e) => updateLaborer(index, "amount", e.target.value)}
-                  placeholder="e.g. 15000"
+                  placeholder={c.amountPlaceholder}
                   className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
                 />
               </label>
@@ -138,12 +141,12 @@ export function AssignHandlerForm({
         className="mt-3 inline-flex w-fit items-center gap-1.5 text-sm font-medium text-gold hover:underline"
       >
         <Plus className="h-3.5 w-3.5" />
-        Add another laborer
+        {c.addAnother}
       </button>
 
       <div className="mt-5 flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
         <span className="text-sm font-medium text-slate-600">
-          Total labor cost
+          {c.totalLaborCost}
         </span>
         <span className="text-lg font-bold text-navy">
           {formatMoney(total)} RWF
@@ -156,13 +159,13 @@ export function AssignHandlerForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Cancel
+          {t.dashboard.actions.cancel}
         </button>
         <button
           type="submit"
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
-          Assign
+          {c.submit}
         </button>
       </div>
     </form>

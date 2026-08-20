@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import type { TenantEditValues, Unit } from "@/lib/units";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const PAYMENT_METHODS = [
   "MTN Mobile Money",
   "Airtel Money",
   "Bank Transfer",
   "Cash",
-];
+] as const;
 
 export function EditTenantForm({
   unit,
@@ -19,6 +20,14 @@ export function EditTenantForm({
   onSuccess: (values: TenantEditValues) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.landlord.editTenantForm;
+  const methodLabel: Record<(typeof PAYMENT_METHODS)[number], string> = {
+    "MTN Mobile Money": t.dashboard.landlord.paymentMethods.mtnMobileMoney,
+    "Airtel Money": t.dashboard.landlord.paymentMethods.airtelMoney,
+    "Bank Transfer": t.dashboard.landlord.paymentMethods.bankTransfer,
+    Cash: t.dashboard.landlord.paymentMethods.cash,
+  };
   const [tenant, setTenant] = useState(unit.tenant ?? "");
   const [phone, setPhone] = useState(unit.phone ?? "");
   const [rent, setRent] = useState(String(unit.monthlyRent));
@@ -33,12 +42,12 @@ export function EditTenantForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenant.trim() || !phone.trim()) {
-      setError("Please enter the tenant's name and phone number.");
+      setError(c.errorNamePhone);
       return;
     }
     const rentValue = Number(rent);
     if (!rentValue || rentValue <= 0) {
-      setError("Please enter a valid monthly rent.");
+      setError(c.errorRent);
       return;
     }
     setError(null);
@@ -63,7 +72,7 @@ export function EditTenantForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Tenant name
+          {c.tenantName}
           <input
             type="text"
             value={tenant}
@@ -73,7 +82,7 @@ export function EditTenantForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Phone number
+          {c.phoneNumber}
           <input
             type="tel"
             value={phone}
@@ -83,7 +92,7 @@ export function EditTenantForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Monthly rent (RWF)
+          {c.monthlyRent}
           <input
             type="number"
             min={0}
@@ -94,7 +103,7 @@ export function EditTenantForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Security deposit (RWF)
+          {c.securityDeposit}
           <input
             type="number"
             min={0}
@@ -105,7 +114,7 @@ export function EditTenantForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Start date
+          {c.startDate}
           <input
             type="date"
             value={startDate}
@@ -115,7 +124,7 @@ export function EditTenantForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          End date (optional)
+          {c.endDate}
           <input
             type="date"
             value={endDate}
@@ -125,14 +134,14 @@ export function EditTenantForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-          Payment method
+          {c.paymentMethod}
           <select
             value={paymentMethod}
             onChange={(e) => setPaymentMethod(e.target.value)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
             {PAYMENT_METHODS.map((method) => (
-              <option key={method}>{method}</option>
+              <option key={method} value={method}>{methodLabel[method]}</option>
             ))}
           </select>
         </label>
@@ -144,13 +153,13 @@ export function EditTenantForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Cancel
+          {t.dashboard.actions.cancel}
         </button>
         <button
           type="submit"
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
-          Save Changes
+          {c.submit}
         </button>
       </div>
     </form>

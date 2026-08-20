@@ -4,19 +4,22 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Menu, X } from "lucide-react";
-
-const NAV_LINKS = [
-  { label: "Home", href: "/#home" },
-  { label: "Features", href: "/features" },
-  { label: "How it works", href: "/how-it-works" },
-  // { label: "Pricing", href: "#pricing" },
-  { label: "About us", href: "/about" },
-  { label: "Contact", href: "/contact" },
-];
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 
 export function Navbar() {
   const [isMenuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { t } = useLanguage();
+
+  const NAV_LINKS = [
+    { label: t.nav.home, href: "/#home" },
+    { label: t.nav.features, href: "/features" },
+    { label: t.nav.howItWorks, href: "/how-it-works" },
+    // { label: "Pricing", href: "#pricing" },
+    { label: t.nav.aboutUs, href: "/about" },
+    { label: t.nav.contact, href: "/contact" },
+  ];
 
   return (
     <>
@@ -55,26 +58,28 @@ export function Navbar() {
           </ul>
 
           <div className="hidden items-center gap-3 lg:flex">
+            <LanguageSwitcher variant="dark" />
             <Link
               href="/login"
               className="rounded-lg border border-white/25 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10"
             >
-              Login
+              {t.common.login}
             </Link>
             <Link
               href="/get-started"
               className="rounded-lg bg-gold px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
             >
-              Get Started
+              {t.common.getStarted}
             </Link>
           </div>
 
           <div className="flex items-center gap-2 lg:hidden">
+            <LanguageSwitcher variant="dark" />
             <Link
               href="/login"
               className="rounded-lg border border-white/25 px-3.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-white/10"
             >
-              Login
+              {t.common.login}
             </Link>
             <button
               type="button"
@@ -146,14 +151,14 @@ export function Navbar() {
                 onClick={() => setMenuOpen(false)}
                 className="rounded-lg bg-gold px-5 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-gold/90"
               >
-                Get Started
+                {t.common.getStarted}
               </Link>
               <Link
                 href="/login"
                 onClick={() => setMenuOpen(false)}
                 className="rounded-lg border border-white/25 px-5 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-white/10"
               >
-                Login
+                {t.common.login}
               </Link>
             </div>
           </div>

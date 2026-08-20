@@ -1,36 +1,28 @@
-import { Mail, MapPin, Phone } from "lucide-react";
+"use client";
 
-const CONTACT_DETAILS = [
-  {
-    icon: Mail,
-    label: "Email",
-    value: "info@homelinkrwanda.com",
-  },
-  {
-    icon: Phone,
-    label: "Phone",
-    value: "+250 7XX XXX XXX",
-  },
-  {
-    icon: MapPin,
-    label: "Address",
-    value: "Kigali, Rwanda",
-  },
-];
+import { Mail, MapPin, Phone } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export function Contact() {
+  const { t } = useLanguage();
+
+  const CONTACT_DETAILS = [
+    { icon: Mail, label: t.contact.details.email, value: "info@homelinkrwanda.com" },
+    { icon: Phone, label: t.contact.details.phone, value: "+250 7XX XXX XXX" },
+    { icon: MapPin, label: t.contact.details.address, value: "Kigali, Rwanda" },
+  ];
+
   return (
     <section id="contact" className="bg-navy/80 py-16">
       <div className="mx-auto max-w-7xl px-6 text-center lg:px-10">
         <p className="text-sm font-semibold uppercase tracking-wide text-gold">
-          Get in touch
+          {t.contact.eyebrow}
         </p>
         <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl">
-          Contact us
+          {t.contact.title}
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-white/70">
-          Have a question or want a demo? Reach out and our team will get
-          back to you.
+          {t.contact.description}
         </p>
 
         <div className="mt-10 grid gap-6 sm:grid-cols-3">

@@ -2,6 +2,7 @@
 
 import { daysVacant, type Property } from "@/lib/mock-admin-data";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const APPROVAL_STYLES: Record<Property["approval"], string> = {
   Approved: "bg-emerald-50 text-emerald-700",
@@ -12,6 +13,17 @@ const APPROVAL_STYLES: Record<Property["approval"], string> = {
 const AVAILABILITY_STYLES: Record<Property["availability"], string> = {
   Available: "bg-emerald-50 text-emerald-700",
   Occupied: "bg-slate-100 text-slate-600",
+};
+
+const APPROVAL_KEY: Record<Property["approval"], "approved" | "pending" | "rejected"> = {
+  Approved: "approved",
+  Pending: "pending",
+  Rejected: "rejected",
+};
+
+const AVAILABILITY_KEY: Record<Property["availability"], "available" | "occupied"> = {
+  Available: "available",
+  Occupied: "occupied",
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -26,49 +38,51 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export function PropertyDetail({ property }: { property: Property }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.propertyDetail;
   const vacantDays = daysVacant(property.vacantSince);
 
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-5">
-        <Field label="Property">{property.name}</Field>
-        <Field label="Owner">{property.owner}</Field>
+        <Field label={c.property}>{property.name}</Field>
+        <Field label={c.owner}>{property.owner}</Field>
 
-        <Field label="UPI">{property.upi}</Field>
-        <Field label="Type">
+        <Field label={c.upi}>{property.upi}</Field>
+        <Field label={c.type}>
           {property.buildingType} · {property.type}
           {property.size && ` · ${property.size}`}
         </Field>
 
-        <Field label="Monthly Rent">{formatMoney(property.rent)} RWF</Field>
-        <Field label="Availability">
+        <Field label={c.monthlyRent}>{formatMoney(property.rent)} RWF</Field>
+        <Field label={c.availability}>
           <span
             className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${AVAILABILITY_STYLES[property.availability]}`}
           >
-            {property.availability}
+            {t.dashboard.status[AVAILABILITY_KEY[property.availability]]}
           </span>
           {vacantDays != null && (
             <span className="ml-2 text-xs font-normal text-slate-400">
-              {vacantDays} days vacant
+              {c.daysVacantTemplate.replace("{value}", String(vacantDays))}
             </span>
           )}
         </Field>
 
-        <Field label="Approval">
+        <Field label={c.approval}>
           <span
             className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${APPROVAL_STYLES[property.approval]}`}
           >
-            {property.approval}
+            {t.dashboard.status[APPROVAL_KEY[property.approval]]}
           </span>
         </Field>
       </div>
 
-      <Field label="Address">{property.address}</Field>
+      <Field label={c.address}>{property.address}</Field>
 
       {property.terms.length > 0 && (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Rent Conditions
+            {c.rentConditions}
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
             {property.terms.map((term, index) => (
@@ -81,7 +95,7 @@ export function PropertyDetail({ property }: { property: Property }) {
       {property.attributes.length > 0 && (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Additional Details
+            {c.additionalDetails}
           </p>
           <div className="mt-2 flex flex-col gap-2">
             {property.attributes.map((attribute, index) => (
@@ -98,7 +112,7 @@ export function PropertyDetail({ property }: { property: Property }) {
       )}
 
       {property.documentName && (
-        <Field label="Document on File">{property.documentName}</Field>
+        <Field label={c.documentOnFile}>{property.documentName}</Field>
       )}
     </div>
   );

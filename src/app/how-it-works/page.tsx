@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   ArrowRight,
@@ -12,101 +14,46 @@ import {
 } from "lucide-react";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
-const LANDLORD_STEPS = [
-  {
-    icon: UserPlus,
-    step: "01",
-    title: "Register your account",
-    description:
-      "Sign up as a landlord or property manager and tell us about yourself.",
-  },
-  {
-    icon: Building2,
-    step: "02",
-    title: "List your property",
-    description:
-      "Add unit location, UPI, unit type, rent and lease conditions for admin approval.",
-  },
-  {
-    icon: FileSignature,
-    step: "03",
-    title: "Sign leases & collect rent",
-    description:
-      "Create a digital lease and collect rent via Mobile Money, bank transfer or card.",
-  },
-  {
-    icon: BarChart3,
-    step: "04",
-    title: "Track & manage",
-    description:
-      "Monitor vacancy, arrears, maintenance and performance from your dashboard.",
-  },
-];
-
-const TENANT_STEPS = [
-  {
-    icon: Search,
-    step: "01",
-    title: "Get set up on a property",
-    description:
-      "Your landlord or agent adds you to a property and shares your lease.",
-  },
-  {
-    icon: FileSignature,
-    step: "02",
-    title: "Sign your lease",
-    description:
-      "Review and view your digital lease agreement — start date, rent and deposit.",
-  },
-  {
-    icon: CreditCard,
-    step: "03",
-    title: "Pay rent",
-    description:
-      "Pay via MTN Mobile Money, Airtel Money, bank transfer or card, and get a receipt.",
-  },
-  {
-    icon: Wrench,
-    step: "04",
-    title: "Request maintenance",
-    description:
-      "Submit issues, track progress, and leave feedback once work is done.",
-  },
-];
+const LANDLORD_ICONS = [UserPlus, Building2, FileSignature, BarChart3];
+const TENANT_ICONS = [Search, FileSignature, CreditCard, Wrench];
+const STEP_NUMBERS = ["01", "02", "03", "04"];
 
 function StepGrid({
   steps,
+  icons,
 }: {
-  steps: {
-    icon: typeof UserPlus;
-    step: string;
-    title: string;
-    description: string;
-  }[];
+  steps: { title: string; description: string }[];
+  icons: typeof UserPlus[];
 }) {
   return (
     <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-      {steps.map(({ icon: Icon, step, title, description }) => (
-        <div
-          key={step}
-          className="relative flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center"
-        >
-          <span className="absolute right-4 top-4 text-3xl font-extrabold text-slate-200">
-            {step}
-          </span>
-          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gold/15">
-            <Icon className="h-6 w-6 text-gold" strokeWidth={2} />
-          </span>
-          <p className="font-semibold text-navy">{title}</p>
-          <p className="text-sm text-slate-500">{description}</p>
-        </div>
-      ))}
+      {steps.map(({ title, description }, index) => {
+        const Icon = icons[index];
+        return (
+          <div
+            key={title}
+            className="relative flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center"
+          >
+            <span className="absolute right-4 top-4 text-3xl font-extrabold text-slate-200">
+              {STEP_NUMBERS[index]}
+            </span>
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gold/15">
+              <Icon className="h-6 w-6 text-gold" strokeWidth={2} />
+            </span>
+            <p className="font-semibold text-navy">{title}</p>
+            <p className="text-sm text-slate-500">{description}</p>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 export default function HowItWorksPage() {
+  const { t } = useLanguage();
+
   return (
     <div className="flex flex-1 flex-col">
       <Navbar />
@@ -114,16 +61,15 @@ export default function HowItWorksPage() {
         <section className="bg-navy py-20">
           <div className="mx-auto max-w-4xl px-6 text-center lg:px-10">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-gold">
-              How it works
+              {t.howItWorksPage.eyebrow}
             </p>
             <h1 className="mt-4 text-4xl font-extrabold leading-[1.1] text-white sm:text-5xl">
-              A simple flow for{" "}
-              <span className="text-gold">landlords and tenants</span> alike.
+              {t.howItWorksPage.titlePrefix}
+              <span className="text-gold">{t.howItWorksPage.titleHighlight}</span>
+              {t.howItWorksPage.titleSuffix}
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg text-white/70">
-              HomeLink Rwanda guides property managers and tenants through
-              every step of the rental journey — from sign-up to rent
-              collection to maintenance.
+              {t.howItWorksPage.description}
             </p>
           </div>
         </section>
@@ -132,13 +78,13 @@ export default function HowItWorksPage() {
           <div className="mx-auto max-w-7xl px-6 lg:px-10">
             <div className="text-center">
               <p className="text-sm font-semibold uppercase tracking-wide text-gold">
-                For landlords & property managers
+                {t.howItWorksPage.landlordEyebrow}
               </p>
               <h2 className="mt-3 text-3xl font-bold text-navy sm:text-4xl">
-                From listing to rent collected
+                {t.howItWorksPage.landlordTitle}
               </h2>
             </div>
-            <StepGrid steps={LANDLORD_STEPS} />
+            <StepGrid steps={t.howItWorksPage.landlordSteps} icons={LANDLORD_ICONS} />
           </div>
         </section>
 
@@ -146,13 +92,13 @@ export default function HowItWorksPage() {
           <div className="mx-auto max-w-7xl px-6 lg:px-10">
             <div className="text-center">
               <p className="text-sm font-semibold uppercase tracking-wide text-gold">
-                For tenants
+                {t.howItWorksPage.tenantEyebrow}
               </p>
               <h2 className="mt-3 text-3xl font-bold text-navy sm:text-4xl">
-                From lease to move-in and beyond
+                {t.howItWorksPage.tenantTitle}
               </h2>
             </div>
-            <StepGrid steps={TENANT_STEPS} />
+            <StepGrid steps={t.howItWorksPage.tenantSteps} icons={TENANT_ICONS} />
           </div>
         </section>
 {/* 
@@ -175,13 +121,13 @@ export default function HowItWorksPage() {
         <section className="bg-navy py-16">
           <div className="mx-auto flex max-w-4xl flex-col items-center gap-6 px-6 text-center lg:px-10">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Ready to try it yourself?
+              {t.howItWorksPage.cta.title}
             </h2>
             <Link
               href="/get-started"
               className="inline-flex items-center gap-2 rounded-lg bg-gold px-6 py-3 font-semibold text-white transition-colors hover:bg-gold/90"
             >
-              Get Started Free
+              {t.howItWorksPage.cta.button}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>

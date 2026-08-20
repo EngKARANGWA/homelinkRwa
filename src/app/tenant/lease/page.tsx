@@ -10,6 +10,8 @@ import { LeaseDocument } from "@/components/admin/LeaseDocument";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
 const STATUS_STYLES: Record<Lease["status"], string> = {
   Active: "bg-emerald-50 text-emerald-700",
@@ -19,7 +21,17 @@ const STATUS_STYLES: Record<Lease["status"], string> = {
   Expired: "bg-slate-100 text-slate-600",
 };
 
+const STATUS_KEY: Record<Lease["status"], keyof Translations["dashboard"]["status"]> = {
+  Active: "active",
+  "Renewal Requested": "renewalRequested",
+  "Termination Requested": "terminationRequested",
+  Terminated: "terminated",
+  Expired: "expired",
+};
+
 export default function TenantLeasePage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.tenant.lease;
   const { tenantName } = useTenant();
   const [leases, setLeases] = useState(LEASES);
   const [viewingLease, setViewingLease] = useState<Lease | null>(null);
@@ -43,17 +55,17 @@ export default function TenantLeasePage() {
     );
     setNotice(
       status === "Renewal Requested"
-        ? "Renewal request sent to your landlord."
-        : "Termination request sent to your landlord.",
+        ? c.renewalRequestedNotice
+        : c.terminationRequestedNotice,
     );
   };
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-navy">My Lease</h1>
+        <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Your lease agreements on HomeLink Rwanda.
+          {c.subtitle}
         </p>
       </div>
 
@@ -67,13 +79,13 @@ export default function TenantLeasePage() {
       <Table variant="standalone">
         <THead>
           <Tr>
-            <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Property</Th>
-            <Th className="hidden px-6 py-3 sm:table-cell">Unit</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">Owner</Th>
-            <Th className="hidden px-6 py-3 sm:table-cell">Rent (RWF)</Th>
-            <Th className="hidden px-6 py-3 lg:table-cell">Term</Th>
-            <Th className="px-4 py-3 sm:px-6">Status</Th>
-            <Th className="px-4 py-3 sm:px-6">Actions</Th>
+            <Th className="max-w-[10rem] px-4 py-3 sm:px-6">{t.dashboard.table.property}</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.unit}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.owner}</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.rentRwf}</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.term}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
           </Tr>
         </THead>
         <TBody>
@@ -86,7 +98,7 @@ export default function TenantLeasePage() {
                   {lease.property}
                 </p>
                 <p className="truncate text-xs text-slate-400 md:hidden">
-                  {unitNumber ? `Unit ${unitNumber} · ` : ""}
+                  {unitNumber ? c.unitTemplate.replace("{unit}", unitNumber) : ""}
                   {lease.owner} · {formatMoney(lease.rent)} RWF
                 </p>
               </Td>
@@ -98,13 +110,13 @@ export default function TenantLeasePage() {
                 {formatMoney(lease.rent)}
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                {lease.startDate} → {lease.endDate ?? "Open-ended"}
+                {lease.startDate} → {lease.endDate ?? t.dashboard.admin.leases.openEnded}
               </Td>
               <Td className="px-4 py-3 sm:px-6">
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[lease.status]}`}
                 >
-                  {lease.status}
+                  {t.dashboard.status[STATUS_KEY[lease.status]]}
                 </span>
               </Td>
               <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
@@ -115,7 +127,7 @@ export default function TenantLeasePage() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   >
                     <Eye className="h-3.5 w-3.5" />
-                    View
+                    {t.dashboard.actions.view}
                   </button>
                   {lease.status === "Active" && (
                     <>
@@ -126,7 +138,7 @@ export default function TenantLeasePage() {
                         }
                         className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                       >
-                        Request Renewal
+                        {c.requestRenewal}
                       </button>
                       <button
                         type="button"
@@ -135,7 +147,7 @@ export default function TenantLeasePage() {
                         }
                         className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
                       >
-                        Request Termination
+                        {c.requestTermination}
                       </button>
                     </>
                   )}
@@ -145,7 +157,7 @@ export default function TenantLeasePage() {
             );
           })}
           {pagedLeases.length === 0 && (
-            <EmptyRow colSpan={7}>No lease agreements on file yet.</EmptyRow>
+            <EmptyRow colSpan={7}>{c.noLeases}</EmptyRow>
           )}
         </TBody>
       </Table>
@@ -160,7 +172,7 @@ export default function TenantLeasePage() {
 
       {viewingLease && (
         <Modal
-          title="Lease Agreement"
+          title={t.dashboard.admin.leases.agreementTitle}
           description={`${viewingLease.tenant} · ${viewingLease.property}`}
           onClose={() => setViewingLease(null)}
           maxWidthClassName="max-w-3xl"

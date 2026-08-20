@@ -4,6 +4,7 @@ import { Printer } from "lucide-react";
 import { type Payment } from "@/lib/mock-admin-data";
 import { getTenantUnitNumber } from "@/lib/units";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-GB", {
@@ -14,6 +15,8 @@ function formatDate(dateStr: string) {
 }
 
 export function PaymentReceipt({ payment }: { payment: Payment }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.paymentReceipt;
   const unitNumber = getTenantUnitNumber(payment.property, payment.tenant);
 
   return (
@@ -25,7 +28,7 @@ export function PaymentReceipt({ payment }: { payment: Payment }) {
           className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
           <Printer className="h-4 w-4" />
-          Print / Download
+          {c.printDownload}
         </button>
       </div>
 
@@ -35,10 +38,10 @@ export function PaymentReceipt({ payment }: { payment: Payment }) {
             HomeLink Rwanda
           </p>
           <h3 className="mt-2 text-2xl font-bold uppercase tracking-wide text-navy">
-            {payment.status === "Paid" ? "Payment Receipt" : "Invoice"}
+            {payment.status === "Paid" ? c.receiptTitle : c.invoiceTitle}
           </h3>
           <p className="mt-1 text-xs text-slate-400">
-            Invoice No: INV-{payment.id.padStart(4, "0")}
+            {c.invoiceNoTemplate.replace("{id}", payment.id.padStart(4, "0"))}
           </p>
         </div>
 
@@ -47,13 +50,13 @@ export function PaymentReceipt({ payment }: { payment: Payment }) {
         <div className="mt-6 grid grid-cols-2 gap-6 text-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Billed To
+              {c.billedTo}
             </p>
             <p className="mt-1 font-medium text-navy">{payment.tenant}</p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Payable To
+              {c.payableTo}
             </p>
             <p className="mt-1 font-medium text-navy">{payment.owner}</p>
           </div>
@@ -61,18 +64,18 @@ export function PaymentReceipt({ payment }: { payment: Payment }) {
 
         <div className="mt-6">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Property
+            {c.property}
           </p>
           <p className="mt-1 font-medium text-navy">
             {payment.property}
-            {unitNumber ? ` · Unit ${unitNumber}` : ""}
+            {unitNumber ? c.unitTemplate.replace("{unit}", unitNumber) : ""}
           </p>
         </div>
 
         <div className="mt-6 grid grid-cols-3 gap-6 text-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Due Date
+              {c.dueDate}
             </p>
             <p className="mt-1 font-medium text-navy">
               {formatDate(payment.dueDate)}
@@ -80,13 +83,13 @@ export function PaymentReceipt({ payment }: { payment: Payment }) {
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Payment Method
+              {c.paymentMethod}
             </p>
             <p className="mt-1 font-medium text-navy">{payment.method}</p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Amount
+              {c.amount}
             </p>
             <p className="mt-1 font-medium text-navy">
               {formatMoney(payment.amount)} RWF
@@ -98,10 +101,12 @@ export function PaymentReceipt({ payment }: { payment: Payment }) {
 
         <p className="mt-6 text-center text-sm">
           {payment.status === "Paid"
-            ? `Paid in full on ${formatDate(payment.paidDate!)} via ${payment.method}.`
+            ? c.paidInFullTemplate
+                .replace("{date}", formatDate(payment.paidDate!))
+                .replace("{method}", payment.method)
             : payment.status === "Late"
-              ? "This payment is overdue. Please settle as soon as possible."
-              : "This payment has not yet been received."}
+              ? c.overdueMessage
+              : c.notReceivedMessage}
         </p>
       </div>
     </div>

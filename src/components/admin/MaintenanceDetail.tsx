@@ -2,6 +2,7 @@
 
 import { type MaintenanceRequest } from "@/lib/mock-admin-data";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const STATUS_STYLES: Record<MaintenanceRequest["status"], string> = {
   Submitted: "bg-amber-50 text-amber-700",
@@ -16,6 +17,19 @@ const PRIORITY_STYLES: Record<MaintenanceRequest["priority"], string> = {
   High: "bg-red-50 text-red-700",
 };
 
+const STATUS_KEY: Record<MaintenanceRequest["status"], "submitted" | "assigned" | "inProgress" | "completed"> = {
+  Submitted: "submitted",
+  Assigned: "assigned",
+  "In Progress": "inProgress",
+  Completed: "completed",
+};
+
+const PRIORITY_KEY: Record<MaintenanceRequest["priority"], "low" | "medium" | "high"> = {
+  Low: "low",
+  Medium: "medium",
+  High: "high",
+};
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -28,36 +42,38 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export function MaintenanceDetail({ request }: { request: MaintenanceRequest }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.maintenanceDetail;
   const totalLaborCost = request.laborers.reduce((sum, l) => sum + l.amount, 0);
 
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-5">
-        <Field label="Tenant">{request.tenant}</Field>
-        <Field label="Property">{request.property}</Field>
+        <Field label={c.tenant}>{request.tenant}</Field>
+        <Field label={c.property}>{request.property}</Field>
 
-        <Field label="Priority">
+        <Field label={c.priority}>
           <span
             className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[request.priority]}`}
           >
-            {request.priority}
+            {t.dashboard.status[PRIORITY_KEY[request.priority]]}
           </span>
         </Field>
 
-        <Field label="Status">
+        <Field label={c.status}>
           <span
             className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[request.status]}`}
           >
-            {request.status}
+            {t.dashboard.status[STATUS_KEY[request.status]]}
           </span>
         </Field>
 
-        <Field label="Submitted">{request.submittedAt}</Field>
+        <Field label={c.submitted}>{request.submittedAt}</Field>
       </div>
 
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Reported Issues
+          {c.reportedIssues}
         </p>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
           {request.issue.map((item, index) => (
@@ -68,7 +84,7 @@ export function MaintenanceDetail({ request }: { request: MaintenanceRequest }) 
 
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Assigned Laborers
+          {c.assignedLaborers}
         </p>
         {request.laborers.length > 0 ? (
           <div className="mt-2 flex flex-col gap-2">
@@ -94,35 +110,35 @@ export function MaintenanceDetail({ request }: { request: MaintenanceRequest }) 
               </div>
             ))}
             <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-              <span className="text-sm font-medium text-slate-600">Labor cost total</span>
+              <span className="text-sm font-medium text-slate-600">{c.laborCostTotal}</span>
               <span className="font-bold text-navy">
                 {formatMoney(totalLaborCost)} RWF
               </span>
             </div>
           </div>
         ) : (
-          <p className="mt-1 text-sm text-slate-400">Not yet assigned.</p>
+          <p className="mt-1 text-sm text-slate-400">{c.notYetAssigned}</p>
         )}
       </div>
 
       {request.status === "Completed" && (
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-          <Field label="Work Done">{request.workDone ?? "—"}</Field>
+          <Field label={c.workDone}>{request.workDone ?? "—"}</Field>
           <div className="mt-3 flex flex-col gap-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">Labor cost</span>
+              <span className="text-slate-500">{c.laborCost}</span>
               <span className="font-medium text-navy">
                 {formatMoney(totalLaborCost)} RWF
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">Item / materials cost</span>
+              <span className="text-slate-500">{c.itemMaterialsCost}</span>
               <span className="font-medium text-navy">
                 {formatMoney(request.itemCost ?? 0)} RWF
               </span>
             </div>
             <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-sm">
-              <span className="font-medium text-slate-600">Total expense</span>
+              <span className="font-medium text-slate-600">{c.totalExpense}</span>
               <span className="font-bold text-navy">
                 {formatMoney(totalLaborCost + (request.itemCost ?? 0))} RWF
               </span>
@@ -131,7 +147,7 @@ export function MaintenanceDetail({ request }: { request: MaintenanceRequest }) 
           {request.feedback && (
             <div className="mt-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Tenant Feedback
+                {c.tenantFeedback}
               </p>
               <p className="mt-1 text-sm italic text-slate-600">
                 &ldquo;{request.feedback}&rdquo;

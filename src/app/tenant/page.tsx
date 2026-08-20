@@ -24,12 +24,14 @@ import { Modal } from "@/components/admin/Modal";
 import { PayNowForm } from "@/components/tenant/PayNowForm";
 import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
 const QUICK_ACTIONS = [
-  { label: "Pay Rent", href: "/tenant/payments", icon: Wallet },
-  { label: "Invoices", href: "/tenant/payments", icon: FileText },
-  { label: "Maintenance", href: "/tenant/maintenance", icon: Wrench },
-  { label: "Lease", href: "/tenant/lease", icon: Home },
+  { key: "payRent", href: "/tenant/payments", icon: Wallet },
+  { key: "invoices", href: "/tenant/payments", icon: FileText },
+  { key: "maintenance", href: "/tenant/maintenance", icon: Wrench },
+  { key: "lease", href: "/tenant/lease", icon: Home },
 ] as const;
 
 function shortDate(dateStr: string): string {
@@ -40,37 +42,44 @@ function shortDate(dateStr: string): string {
 }
 
 const STAT_META: Record<
-  string,
-  { href: string; icon: typeof Home; accent: StatAccent; subtitle: string }
+  keyof Translations["dashboard"]["tenant"]["overview"]["statLabels"],
+  {
+    href: string;
+    icon: typeof Home;
+    accent: StatAccent;
+    subtitleKey: keyof Translations["dashboard"]["tenant"]["overview"]["statSubtitles"];
+  }
 > = {
-  "Current Property": {
+  currentProperty: {
     href: "/tenant/lease",
     icon: Home,
     accent: "blue",
-    subtitle: "Your active residence",
+    subtitleKey: "activeResidence",
   },
-  "Monthly Rent": {
+  monthlyRent: {
     href: "/tenant/lease",
     icon: Banknote,
     accent: "emerald",
-    subtitle: "Due monthly",
+    subtitleKey: "dueMonthly",
   },
-  "Pending Maintenance": {
+  pendingMaintenance: {
     href: "/tenant/maintenance",
     icon: Wrench,
     accent: "amber",
-    subtitle: "Open requests",
+    subtitleKey: "openRequests",
   },
-  "Next Payment Due": {
+  nextPaymentDue: {
     href: "/tenant/payments",
     icon: CalendarClock,
     accent: "teal",
-    subtitle: "Upcoming due date",
+    subtitleKey: "upcomingDueDate",
   },
 };
 
 export default function TenantOverviewPage() {
   const { tenantName } = useTenant();
+  const { t } = useLanguage();
+  const c = t.dashboard.tenant.overview;
   const [payments, setPayments] = useState(PAYMENTS);
   const [isPaying, setPaying] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -115,41 +124,41 @@ export default function TenantOverviewPage() {
       ),
     );
     setPaying(false);
-    setNotice(
-      needsApproval
-        ? "Payment submitted. Awaiting your landlord's approval."
-        : "Payment successful. Your receipt is available on the Payments page.",
-    );
+    setNotice(needsApproval ? c.paymentSubmitted : c.paymentSuccessful);
   };
 
-  const stats: { label: string; value: string | number; subtitle?: string }[] = [
+  const stats: {
+    label: keyof Translations["dashboard"]["tenant"]["overview"]["statLabels"];
+    value: string | number;
+    subtitle?: string;
+  }[] = [
     {
-      label: "Current Property",
-      value: currentLease ? currentLease.property : "No active lease",
-      subtitle: currentUnitNumber ? `Unit ${currentUnitNumber}` : undefined,
+      label: "currentProperty",
+      value: currentLease ? currentLease.property : c.noActiveLease,
+      subtitle: currentUnitNumber ? `${c.unitPrefix}${currentUnitNumber}` : undefined,
     },
     {
-      label: "Monthly Rent",
+      label: "monthlyRent",
       value: currentLease
         ? `${formatMoney(currentLease.rent)} RWF`
         : "-",
     },
     {
-      label: "Pending Maintenance",
+      label: "pendingMaintenance",
       value: myMaintenance.filter((m) => m.status !== "Completed").length,
     },
     {
-      label: "Next Payment Due",
-      value: nextPayment ? shortDate(nextPayment.dueDate) : "All paid up",
+      label: "nextPaymentDue",
+      value: nextPayment ? shortDate(nextPayment.dueDate) : c.allPaidUp,
     },
   ];
 
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-bold text-navy">Overview</h1>
+        <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Welcome back, {tenantName}.
+          {c.welcomeBackPrefix}{tenantName}{c.welcomeBackSuffix}
         </p>
       </div>
 
@@ -164,11 +173,11 @@ export default function TenantOverviewPage() {
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-gold/30 bg-gold/5 p-5 shadow-sm">
           <div>
             <p className="font-semibold text-navy">
-              Rent pending - {formatMoney(nextPayment.amount)} RWF
+              {c.rentPendingTemplate.replace("{amount}", formatMoney(nextPayment.amount))}
             </p>
             <p className="mt-1 text-sm text-slate-500">
               {nextPayment.property}
-              {nextPaymentUnitNumber ? ` · Unit ${nextPaymentUnitNumber}` : ""} · due{" "}
+              {nextPaymentUnitNumber ? ` · ${c.unitPrefix}${nextPaymentUnitNumber}` : ""} · {c.due}{" "}
               {nextPayment.dueDate}
             </p>
           </div>
@@ -178,7 +187,7 @@ export default function TenantOverviewPage() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
           >
             <Wallet className="h-4 w-4" />
-            Pay Now
+            {c.payNow}
           </button>
         </div>
       )}
@@ -189,9 +198,9 @@ export default function TenantOverviewPage() {
           return (
             <StatCard
               key={label}
-              label={label}
+              label={c.statLabels[label]}
               value={value}
-              subtitle={subtitle ?? meta?.subtitle}
+              subtitle={subtitle ?? c.statSubtitles[meta.subtitleKey]}
               href={meta?.href ?? "/tenant"}
               icon={meta?.icon ?? Home}
               accent={meta?.accent ?? "blue"}
@@ -201,16 +210,16 @@ export default function TenantOverviewPage() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="font-semibold text-navy">Quick Actions</p>
+        <p className="font-semibold text-navy">{c.quickActions}</p>
         <div className="mt-3 grid grid-cols-2 gap-3">
-          {QUICK_ACTIONS.map(({ label, href, icon: Icon }) => (
+          {QUICK_ACTIONS.map(({ key, href, icon: Icon }) => (
             <Link
-              key={label}
+              key={key}
               href={href}
               className="flex items-center justify-center gap-2 rounded-full border border-slate-200 px-4 py-2.5 text-sm font-medium text-navy transition-colors hover:border-gold/40 hover:bg-slate-50"
             >
               <Icon className="h-4 w-4 shrink-0 text-slate-500" />
-              {label}
+              {c.quickActionLabels[key]}
             </Link>
           ))}
         </div>
@@ -218,7 +227,7 @@ export default function TenantOverviewPage() {
 
       {isPaying && nextPayment && (
         <Modal
-          title="Pay Rent"
+          title={c.payRentModalTitle}
           description={nextPayment.property}
           onClose={() => setPaying(false)}
         >

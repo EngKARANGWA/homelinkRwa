@@ -19,6 +19,7 @@ import { UploadDocumentForm } from "@/components/landlord/UploadDocumentForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const CATEGORY_STYLES: Record<DocumentCategory, string> = {
   "Property Document": "bg-blue-50 text-blue-700",
@@ -35,15 +36,24 @@ const CATEGORY_ICONS: Record<DocumentCategory, typeof FileText> = {
 };
 
 export default function LandlordDocumentsPage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.landlord.documents;
+  const categoryLabel = t.dashboard.landlord.uploadDocumentForm.categories;
+  const CATEGORY_LABEL: Record<DocumentCategory, string> = {
+    "Property Document": categoryLabel.propertyDocument,
+    "Lease Agreement": categoryLabel.leaseAgreement,
+    "ID Verification": categoryLabel.idVerification,
+    Other: categoryLabel.other,
+  };
   const { landlordName, unitOverrides, documents, addDocument, removeDocument } = useLandlord();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"All" | DocumentCategory>("All");
-  const [propertyFilter, setPropertyFilter] = useState("All Properties");
+  const [propertyFilter, setPropertyFilter] = useState(t.dashboard.landlord.payments.allProperties);
   const [isUploading, setUploading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
-  const propertyOptions = ["All Properties", ...myProperties.map((p) => p.name)];
+  const propertyOptions = [t.dashboard.landlord.payments.allProperties, ...myProperties.map((p) => p.name)];
 
   const allDocuments: LandlordDocument[] = useMemo(() => {
     const base = getBaseDocuments(myProperties);
@@ -60,7 +70,7 @@ export default function LandlordDocumentsPage() {
       (doc.tenant?.toLowerCase().includes(search.toLowerCase()) ?? false);
     const matchesCategory = categoryFilter === "All" || doc.category === categoryFilter;
     const matchesProperty =
-      propertyFilter === "All Properties" || doc.propertyName === propertyFilter;
+      propertyFilter === t.dashboard.landlord.payments.allProperties || doc.propertyName === propertyFilter;
     return matchesSearch && matchesCategory && matchesProperty;
   });
 
@@ -84,25 +94,25 @@ export default function LandlordDocumentsPage() {
   const handleUpload = (doc: LandlordDocument) => {
     addDocument(doc);
     setUploading(false);
-    setNotice(`${doc.name} uploaded successfully.`);
+    setNotice(c.uploadedNoticeTemplate.replace("{name}", doc.name));
   };
 
   const handleDownload = (doc: LandlordDocument) => {
-    setNotice(`Downloading ${doc.name}…`);
+    setNotice(c.downloadingNoticeTemplate.replace("{name}", doc.name));
   };
 
   const handleDelete = (doc: LandlordDocument) => {
     removeDocument(doc.id);
-    setNotice(`${doc.name} deleted.`);
+    setNotice(c.deletedNoticeTemplate.replace("{name}", doc.name));
   };
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Documents</h1>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Lease agreements, property paperwork, and tenant documents.
+            {c.subtitle}
           </p>
         </div>
         <button
@@ -111,7 +121,7 @@ export default function LandlordDocumentsPage() {
           className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           <Plus className="h-4 w-4" />
-          Upload Document
+          {c.uploadDocument}
         </button>
       </div>
 
@@ -123,44 +133,44 @@ export default function LandlordDocumentsPage() {
       )}
 
       <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
-        <SummaryCard label="Total Documents" value={counts.total} />
-        <SummaryCard label="Property Documents" value={counts.property} accent="blue" />
-        <SummaryCard label="Lease Agreements" value={counts.lease} accent="emerald" />
-        <SummaryCard label="ID Verifications" value={counts.id} accent="amber" />
+        <SummaryCard label={c.totalDocuments} value={counts.total} />
+        <SummaryCard label={c.propertyDocuments} value={counts.property} accent="blue" />
+        <SummaryCard label={c.leaseAgreements} value={counts.lease} accent="emerald" />
+        <SummaryCard label={c.idVerifications} value={counts.id} accent="amber" />
       </div>
 
       <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <label className="flex flex-1 min-w-[200px] flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Search
+          {c.search}
           <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 focus-within:border-gold">
             <Search className="h-4 w-4 text-slate-400" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by document or tenant name"
+              placeholder={c.searchPlaceholder}
               className="w-full bg-transparent text-sm text-navy placeholder:text-slate-400 focus:outline-none"
             />
           </div>
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Category
+          {c.category}
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value as typeof categoryFilter)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            <option value="All">All</option>
-            <option value="Property Document">Property Document</option>
-            <option value="Lease Agreement">Lease Agreement</option>
-            <option value="ID Verification">ID Verification</option>
-            <option value="Other">Other</option>
+            <option value="All">{t.dashboard.actions.all}</option>
+            <option value="Property Document">{categoryLabel.propertyDocument}</option>
+            <option value="Lease Agreement">{categoryLabel.leaseAgreement}</option>
+            <option value="ID Verification">{categoryLabel.idVerification}</option>
+            <option value="Other">{categoryLabel.other}</option>
           </select>
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Property
+          {c.property}
           <select
             value={propertyFilter}
             onChange={(e) => setPropertyFilter(e.target.value)}
@@ -176,12 +186,12 @@ export default function LandlordDocumentsPage() {
       <Table variant="standalone">
         <THead>
           <Tr>
-            <Th className="max-w-[12rem] px-4 py-3 sm:px-6">Document</Th>
-            <Th className="hidden px-6 py-3 sm:table-cell">Category</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">Unit / Tenant</Th>
-            <Th className="hidden px-6 py-3 lg:table-cell">Uploaded</Th>
-            <Th className="px-4 py-3 text-right sm:px-6">Actions</Th>
+            <Th className="max-w-[12rem] px-4 py-3 sm:px-6">{c.document}</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">{c.category}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{c.property}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{c.unitTenant}</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">{c.uploaded}</Th>
+            <Th className="px-4 py-3 text-right sm:px-6">{t.dashboard.table.actions}</Th>
           </Tr>
         </THead>
         <TBody>
@@ -197,21 +207,21 @@ export default function LandlordDocumentsPage() {
                     </p>
                   </div>
                   <p className="truncate pl-6 text-xs text-slate-400 sm:hidden">
-                    {doc.category} · {doc.propertyName}
+                    {CATEGORY_LABEL[doc.category]} · {doc.propertyName}
                   </p>
                 </Td>
                 <Td className="hidden px-6 py-3 sm:table-cell">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${CATEGORY_STYLES[doc.category]}`}
                   >
-                    {doc.category}
+                    {CATEGORY_LABEL[doc.category]}
                   </span>
                 </Td>
                 <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                   {doc.propertyName}
                 </Td>
                 <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {doc.unitNumber ? `${doc.unitNumber} · ${doc.tenant}` : "Property-wide"}
+                  {doc.unitNumber ? `${doc.unitNumber} · ${doc.tenant}` : c.propertyWide}
                 </Td>
                 <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                   {doc.uploadedAt}
@@ -221,17 +231,17 @@ export default function LandlordDocumentsPage() {
                     <button
                       type="button"
                       onClick={() => handleDownload(doc)}
-                      aria-label={`Download ${doc.name}`}
+                      aria-label={c.downloadAriaTemplate.replace("{name}", doc.name)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                     >
                       <Download className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Download</span>
+                      <span className="hidden sm:inline">{c.download}</span>
                     </button>
                     {doc.isUploaded && (
                       <button
                         type="button"
                         onClick={() => handleDelete(doc)}
-                        aria-label={`Delete ${doc.name}`}
+                        aria-label={c.deleteAriaTemplate.replace("{name}", doc.name)}
                         className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -243,7 +253,7 @@ export default function LandlordDocumentsPage() {
             );
           })}
           {pagedDocuments.length === 0 && (
-            <EmptyRow colSpan={6}>No documents match these filters.</EmptyRow>
+            <EmptyRow colSpan={6}>{c.noDocumentsMatch}</EmptyRow>
           )}
         </TBody>
       </Table>
@@ -258,8 +268,8 @@ export default function LandlordDocumentsPage() {
 
       {isUploading && (
         <Modal
-          title="Upload Document"
-          description="Attach a document to a property or a specific tenant's unit."
+          title={c.uploadTitle}
+          description={c.uploadDescription}
           onClose={() => setUploading(false)}
         >
           <UploadDocumentForm

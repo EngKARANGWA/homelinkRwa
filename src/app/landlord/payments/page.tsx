@@ -26,6 +26,8 @@ import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboar
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { downloadCSV } from "@/lib/csv";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
 type RowStatus = Payment["status"] | "Overdue" | "Arrears";
 
@@ -36,6 +38,15 @@ const STATUS_STYLES: Record<RowStatus, string> = {
   "Pending Approval": "bg-sky-50 text-sky-700",
   Overdue: "bg-amber-50 text-amber-700",
   Arrears: "bg-red-50 text-red-700",
+};
+
+const STATUS_KEY: Record<RowStatus, keyof Translations["dashboard"]["status"]> = {
+  Paid: "paid",
+  Late: "late",
+  Pending: "pending",
+  "Pending Approval": "pendingApproval",
+  Overdue: "overdue",
+  Arrears: "arrears",
 };
 
 const STATUS_PRIORITY: Record<RowStatus, number> = {
@@ -67,30 +78,39 @@ function daysBetween(from: string, to: string): number {
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
 }
 
-function arrearsPeriodLabel(unit: Unit): { lastPaymentDate: string | null; period: string } {
+function arrearsPeriodLabel(
+  unit: Unit,
+  t: Translations,
+): { lastPaymentDate: string | null; period: string } {
+  const ov = t.dashboard.landlord.overview;
   const paidEntries = unit.paymentHistory.filter((p) => p.status === "Paid" && p.paidDate);
   if (paidEntries.length === 0) {
-    return { lastPaymentDate: null, period: "No payments on file" };
+    return { lastPaymentDate: null, period: ov.noPaymentsOnFile };
   }
   const last = paidEntries[paidEntries.length - 1];
   const days = daysBetween(last.paidDate as string, TODAY);
-  const period = days < 60 ? `${days} days` : `${Math.round(days / 30)} months`;
+  const period =
+    days < 60
+      ? ov.overdueDaysTemplate.replace("{value}", String(days))
+      : ov.overdueMonthsTemplate.replace("{value}", String(Math.round(days / 30)));
   return { lastPaymentDate: last.paidDate, period };
 }
 
 export default function LandlordPaymentsPage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.landlord.payments;
   const { landlordName, unitOverrides, recordPayment } = useLandlord();
   const [payments, setPayments] = useState(PAYMENTS);
   const [viewingPayment, setViewingPayment] = useState<Payment | null>(null);
   const [isRecording, setRecording] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [propertyFilter, setPropertyFilter] = useState("All Properties");
+  const [propertyFilter, setPropertyFilter] = useState(c.allProperties);
   const [statusFilter, setStatusFilter] = useState<"All" | RowStatus>("All");
   const [methodFilter, setMethodFilter] = useState<"All" | Payment["method"]>("All");
   const [page, setPage] = useState(1);
 
   const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
-  const propertyOptions = ["All Properties", ...myProperties.map((p) => p.name)];
+  const propertyOptions = [c.allProperties, ...myProperties.map((p) => p.name)];
 
   const myPayments = payments.filter((p) => p.owner === landlordName);
   const collected = myPayments
@@ -100,7 +120,7 @@ export default function LandlordPaymentsPage() {
     .filter((p) => p.status !== "Paid")
     .reduce((sum, p) => sum + p.amount, 0);
   const propertyMethodFilteredPayments = myPayments.filter((p) => {
-    const matchesProperty = propertyFilter === "All Properties" || p.property === propertyFilter;
+    const matchesProperty = propertyFilter === c.allProperties || p.property === propertyFilter;
     const matchesMethod = methodFilter === "All" || p.method === methodFilter;
     return matchesProperty && matchesMethod;
   });
@@ -125,7 +145,7 @@ export default function LandlordPaymentsPage() {
   const totalInArrears = overdueUnits.reduce((sum, u) => sum + u.monthlyRent, 0);
 
   const propertyFilteredArrearsUnits = overdueUnits.filter(
-    (u) => propertyFilter === "All Properties" || u.propertyName === propertyFilter,
+    (u) => propertyFilter === c.allProperties || u.propertyName === propertyFilter,
   );
 
   const filteredArrearsUnits =
@@ -136,11 +156,14 @@ export default function LandlordPaymentsPage() {
         )
       : [];
 
-  const TABS: { key: "All" | "Pending Approval" | "Overdue" | "Arrears"; label: string }[] = [
-    { key: "All", label: "All" },
-    { key: "Pending Approval", label: "Pending Approval" },
-    { key: "Overdue", label: "Overdue" },
-    { key: "Arrears", label: "Arrears" },
+  const TABS: {
+    key: "All" | "Pending Approval" | "Overdue" | "Arrears";
+    labelKey: keyof Translations["dashboard"]["landlord"]["overview"]["tabs"];
+  }[] = [
+    { key: "All", labelKey: "all" },
+    { key: "Pending Approval", labelKey: "pendingApproval" },
+    { key: "Overdue", labelKey: "overdue" },
+    { key: "Arrears", labelKey: "arrears" },
   ];
   const tabCounts: Record<(typeof TABS)[number]["key"], number> = {
     All: propertyMethodFilteredPayments.length + propertyFilteredArrearsUnits.length,
@@ -155,16 +178,16 @@ export default function LandlordPaymentsPage() {
 
   const rows: PaymentRow[] = [
     ...filteredArrearsUnits.map((unit): PaymentRow => {
-      const { lastPaymentDate, period } = arrearsPeriodLabel(unit);
+      const { lastPaymentDate, period } = arrearsPeriodLabel(unit, t);
       return {
         id: `unit-${unit.id}`,
-        tenant: unit.tenant ?? "Unknown tenant",
+        tenant: unit.tenant ?? t.dashboard.landlord.overview.unknownTenant,
         property: unit.propertyName,
         unit: unit.unitNumber,
         amount: unit.monthlyRent,
         method: "—",
-        dueDate: `${period} overdue`,
-        dueDateSubtext: lastPaymentDate ? `Last paid ${lastPaymentDate}` : undefined,
+        dueDate: period,
+        dueDateSubtext: lastPaymentDate ? c.lastPaidTemplate.replace("{date}", lastPaymentDate) : undefined,
         status: unit.currentPaymentStatus === "Arrears" ? "Arrears" : "Overdue",
         actions: { type: "unit", propertyId: unit.propertyId, unitId: unit.id },
       };
@@ -202,11 +225,7 @@ export default function LandlordPaymentsPage() {
           : p,
       ),
     );
-    setNotice(
-      approve
-        ? "Payment approved and marked as paid."
-        : "Payment sent back to pending.",
-    );
+    setNotice(approve ? c.approvedNotice : c.backToPendingNotice);
   };
 
   const handleRecordPayment = (
@@ -216,7 +235,7 @@ export default function LandlordPaymentsPage() {
     recordPayment(unit, values);
     const newPayment: Payment = {
       id: String(Date.now()),
-      tenant: unit.tenant ?? "Unknown tenant",
+      tenant: unit.tenant ?? t.dashboard.landlord.overview.unknownTenant,
       property: unit.propertyName,
       owner: landlordName,
       amount: values.amount,
@@ -227,14 +246,20 @@ export default function LandlordPaymentsPage() {
     };
     setPayments((prev) => [newPayment, ...prev]);
     setRecording(false);
-    setNotice(`Cash payment of ${formatMoney(values.amount)} RWF recorded for ${unit.tenant}.`);
+    setNotice(
+      c.recordedPaymentTemplate
+        .replace("{amount}", formatMoney(values.amount))
+        .replace("{tenant}", unit.tenant ?? ""),
+    );
   };
 
   const handleSendArrearsReminder = () => {
     setNotice(
       overdueUnits.length > 0
-        ? `Reminder sent to ${overdueUnits.length} tenant${overdueUnits.length === 1 ? "" : "s"} in arrears.`
-        : "No tenants are currently in arrears.",
+        ? c.reminderSentArrearsTemplate
+            .replace("{count}", String(overdueUnits.length))
+            .replace("{plural}", overdueUnits.length === 1 ? "" : "s")
+        : c.noArrearsTenants,
     );
   };
 
@@ -251,16 +276,16 @@ export default function LandlordPaymentsPage() {
         p.status,
       ]),
     );
-    setNotice("rent-statement.csv downloaded — check your browser's Downloads.");
+    setNotice(c.statementDownloadedNotice);
   };
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Payments</h1>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Rent payments across your properties.
+            {c.subtitle}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -270,7 +295,7 @@ export default function LandlordPaymentsPage() {
             className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
           >
             <Download className="h-4 w-4" />
-            Download Statement
+            {c.downloadStatement}
           </button>
           <button
             type="button"
@@ -278,7 +303,7 @@ export default function LandlordPaymentsPage() {
             className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
           >
             <Plus className="h-4 w-4" />
-            Record Payment (Cash)
+            {c.recordPaymentCash}
           </button>
         </div>
       </div>
@@ -293,13 +318,13 @@ export default function LandlordPaymentsPage() {
       <div className="grid grid-cols-2 gap-5">
         <IconStatCard
           icon={Wallet}
-          label="Collected"
+          label={c.statCollected}
           value={`${formatMoney(collected)} RWF`}
           accent="emerald"
         />
         <IconStatCard
           icon={AlertCircle}
-          label="Outstanding"
+          label={c.statOutstanding}
           value={`${formatMoney(outstanding)} RWF`}
           accent="red"
         />
@@ -308,8 +333,8 @@ export default function LandlordPaymentsPage() {
       <AlertBanner
         isAlert={overdueUnits.length > 0}
         stats={[
-          { label: "Total in Arrears", value: `${formatMoney(totalInArrears)} RWF` },
-          { label: "Units / Tenants", value: overdueUnits.length },
+          { label: c.alertTotalInArrears, value: `${formatMoney(totalInArrears)} RWF` },
+          { label: c.alertUnitsTenants, value: overdueUnits.length },
         ]}
       >
         <button
@@ -318,13 +343,13 @@ export default function LandlordPaymentsPage() {
           className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           <Bell className="h-4 w-4" />
-          Send Reminder
+          {t.dashboard.landlord.overview.sendReminder}
         </button>
       </AlertBanner>
 
       <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Property
+          {c.filterProperty}
           <select
             value={propertyFilter}
             onChange={(e) => setPropertyFilter(e.target.value)}
@@ -338,43 +363,43 @@ export default function LandlordPaymentsPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Status
+            {c.filterStatus}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
             >
-              <option value="All">All</option>
-              <option value="Overdue">Overdue</option>
-              <option value="Arrears">Arrears</option>
-              <option value="Paid">Paid</option>
-              <option value="Late">Late</option>
-              <option value="Pending">Pending</option>
-              <option value="Pending Approval">Pending Approval</option>
+              <option value="All">{t.dashboard.actions.all}</option>
+              <option value="Overdue">{t.dashboard.status.overdue}</option>
+              <option value="Arrears">{t.dashboard.status.arrears}</option>
+              <option value="Paid">{t.dashboard.status.paid}</option>
+              <option value="Late">{t.dashboard.status.late}</option>
+              <option value="Pending">{t.dashboard.status.pending}</option>
+              <option value="Pending Approval">{t.dashboard.status.pendingApproval}</option>
             </select>
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Method
+            {c.filterMethod}
             <select
               value={methodFilter}
               onChange={(e) => setMethodFilter(e.target.value as typeof methodFilter)}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
             >
-              <option value="All">All</option>
-              <option value="MTN Mobile Money">MTN Mobile Money</option>
-              <option value="Airtel Money">Airtel Money</option>
-              <option value="Bank Transfer">Bank Transfer</option>
-              <option value="Card / PayPal">Card / PayPal</option>
-              <option value="Cash">Cash</option>
+              <option value="All">{t.dashboard.actions.all}</option>
+              <option value="MTN Mobile Money">{t.dashboard.landlord.paymentMethods.mtnMobileMoney}</option>
+              <option value="Airtel Money">{t.dashboard.landlord.paymentMethods.airtelMoney}</option>
+              <option value="Bank Transfer">{t.dashboard.landlord.paymentMethods.bankTransfer}</option>
+              <option value="Card / PayPal">{c.methodCardPaypal}</option>
+              <option value="Cash">{t.dashboard.landlord.paymentMethods.cash}</option>
             </select>
           </label>
         </div>
       </div>
 
-      <Card title="Transactions">
+      <Card title={c.transactionsTitle}>
         <p className="mt-1 text-sm text-slate-500">
-          All rent payments and tenants currently in arrears, across your properties.
+          {c.transactionsSubtitle}
         </p>
 
         <div className="mt-4 flex items-center gap-6 overflow-x-auto border-b border-slate-200">
@@ -391,7 +416,7 @@ export default function LandlordPaymentsPage() {
                     : "border-transparent text-slate-500 hover:text-navy"
                 }`}
               >
-                {tab.label}
+                {t.dashboard.landlord.overview.tabs[tab.labelKey]}
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                     isActive ? "bg-gold/10 text-gold" : "bg-slate-100 text-slate-500"
@@ -407,14 +432,14 @@ export default function LandlordPaymentsPage() {
         <Table variant="card">
           <THead>
             <Tr>
-              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Tenant</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Unit</Th>
-              <Th className="hidden px-6 py-3 sm:table-cell">Amount (RWF)</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Method</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Due Date</Th>
-              <Th className="px-4 py-3 sm:px-6">Status</Th>
-              <Th className="px-4 py-3 sm:px-6">Actions</Th>
+              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">{t.dashboard.table.tenant}</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.property}</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.unit}</Th>
+              <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.amountRwf}</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.method}</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.dueDate}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
             </Tr>
           </THead>
           <TBody>
@@ -453,7 +478,7 @@ export default function LandlordPaymentsPage() {
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[row.status]}`}
                   >
-                    {row.status}
+                    {t.dashboard.status[STATUS_KEY[row.status]]}
                   </span>
                 </Td>
                 <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
@@ -464,7 +489,7 @@ export default function LandlordPaymentsPage() {
                         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                       >
                         <Eye className="h-3.5 w-3.5" />
-                        View
+                        {t.dashboard.actions.view}
                       </Link>
                     ) : (
                       (() => {
@@ -477,14 +502,14 @@ export default function LandlordPaymentsPage() {
                               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                             >
                               <Eye className="h-3.5 w-3.5" />
-                              View
+                              {t.dashboard.actions.view}
                             </button>
                             {payment.status === "Pending Approval" && (
                               <>
                                 <button
                                   type="button"
                                   onClick={() => resolvePayment(payment.id, true)}
-                                  aria-label={`Approve payment from ${row.tenant}`}
+                                  aria-label={c.approvePaymentAriaTemplate.replace("{name}", row.tenant)}
                                   className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                                 >
                                   <Check className="h-4 w-4" />
@@ -492,7 +517,7 @@ export default function LandlordPaymentsPage() {
                                 <button
                                   type="button"
                                   onClick={() => resolvePayment(payment.id, false)}
-                                  aria-label={`Reject payment from ${row.tenant}`}
+                                  aria-label={c.rejectPaymentAriaTemplate.replace("{name}", row.tenant)}
                                   className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100"
                                 >
                                   <X className="h-4 w-4" />
@@ -507,7 +532,7 @@ export default function LandlordPaymentsPage() {
                 </Td>
               </Tr>
             ))}
-            {pagedRows.length === 0 && <EmptyRow colSpan={8}>No payments match these filters.</EmptyRow>}
+            {pagedRows.length === 0 && <EmptyRow colSpan={8}>{c.noPaymentsMatch}</EmptyRow>}
           </TBody>
         </Table>
         <Pagination
@@ -521,7 +546,7 @@ export default function LandlordPaymentsPage() {
 
       {viewingPayment && (
         <Modal
-          title={viewingPayment.status === "Paid" ? "Payment Receipt" : "Invoice"}
+          title={viewingPayment.status === "Paid" ? t.dashboard.admin.payments.receiptTitle : t.dashboard.admin.payments.invoiceTitle}
           description={`${viewingPayment.tenant} · ${viewingPayment.property}`}
           onClose={() => setViewingPayment(null)}
           maxWidthClassName="max-w-3xl"
@@ -532,8 +557,8 @@ export default function LandlordPaymentsPage() {
 
       {isRecording && (
         <Modal
-          title="Record Payment"
-          description="Log a payment received outside the app, e.g. in cash."
+          title={c.recordPaymentTitle}
+          description={c.recordPaymentDescription}
           onClose={() => setRecording(false)}
         >
           <RecordPaymentForm

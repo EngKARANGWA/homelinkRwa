@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Payment } from "@/lib/mock-admin-data";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const METHODS: Payment["method"][] = [
   "MTN Mobile Money",
@@ -21,6 +22,15 @@ export function PayNowForm({
   onSuccess: (method: Payment["method"]) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.tenant.payNowForm;
+  const methodLabel: Record<Payment["method"], string> = {
+    "MTN Mobile Money": t.dashboard.landlord.paymentMethods.mtnMobileMoney,
+    "Airtel Money": t.dashboard.landlord.paymentMethods.airtelMoney,
+    "Bank Transfer": t.dashboard.landlord.paymentMethods.bankTransfer,
+    "Card / PayPal": c.methodCardPaypal,
+    Cash: t.dashboard.landlord.paymentMethods.cash,
+  };
   const [method, setMethod] = useState<Payment["method"]>(METHODS[0]);
   const isMobileMoney = method === "MTN Mobile Money" || method === "Airtel Money";
   const isBankTransfer = method === "Bank Transfer";
@@ -38,7 +48,7 @@ export function PayNowForm({
       <div className="flex flex-col gap-5">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Amount due
+            {c.amountDue}
           </p>
           <p className="mt-1 text-2xl font-bold text-navy">
             {formatMoney(amount)} RWF
@@ -46,7 +56,7 @@ export function PayNowForm({
         </div>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Payment method
+          {c.paymentMethod}
           <select
             name="method"
             value={method}
@@ -54,14 +64,14 @@ export function PayNowForm({
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
             {METHODS.map((m) => (
-              <option key={m}>{m}</option>
+              <option key={m} value={m}>{methodLabel[m]}</option>
             ))}
           </select>
         </label>
 
         {isMobileMoney && (
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Phone number
+            {c.phoneNumber}
             <input
               type="tel"
               required
@@ -73,11 +83,11 @@ export function PayNowForm({
 
         {isBankTransfer && (
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Account number
+            {c.accountNumber}
             <input
               type="text"
               required
-              placeholder="e.g. 000123456789"
+              placeholder={c.accountNumberPlaceholder}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
             />
           </label>
@@ -86,7 +96,7 @@ export function PayNowForm({
         {isCard && (
           <>
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Card number
+              {c.cardNumber}
               <input
                 type="text"
                 required
@@ -99,7 +109,7 @@ export function PayNowForm({
 
             <div className="grid grid-cols-2 gap-4">
               <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-                Expiry date
+                {c.expiryDate}
                 <input
                   type="text"
                   required
@@ -111,7 +121,7 @@ export function PayNowForm({
               </label>
 
               <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-                CVV
+                {c.cvv}
                 <input
                   type="text"
                   required
@@ -127,9 +137,7 @@ export function PayNowForm({
 
         {needsApproval && (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            {isCash
-              ? "Pay your landlord directly in cash, then submit this to notify them. They'll confirm receipt before it's marked paid."
-              : "Bank transfers are confirmed manually. Your landlord will approve this once they've verified receipt."}
+            {isCash ? c.cashHint : c.bankTransferHint}
           </p>
         )}
       </div>
@@ -140,13 +148,13 @@ export function PayNowForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Cancel
+          {t.dashboard.actions.cancel}
         </button>
         <button
           type="submit"
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
-          {needsApproval ? "Submit for Approval" : "Pay Now"}
+          {needsApproval ? c.submitForApproval : c.payNow}
         </button>
       </div>
     </form>

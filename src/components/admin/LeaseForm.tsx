@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, Upload } from "lucide-react";
 import { PROPERTIES, type Property } from "@/lib/mock-admin-data";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export type LeaseFormValues = {
   tenant: string;
@@ -18,8 +19,6 @@ export type LeaseFormValues = {
   documentName: string | null;
 };
 
-const STEPS = ["Tenant & Property", "Dates & Term", "Rent & Deposit", "Documents & Confirm"];
-
 export function LeaseForm({
   properties = PROPERTIES,
   onSuccess,
@@ -29,6 +28,14 @@ export function LeaseForm({
   onSuccess: (values: LeaseFormValues) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.leaseForm;
+  const STEPS = [
+    c.steps.tenantAndProperty,
+    c.steps.datesAndTerm,
+    c.steps.rentAndDeposit,
+    c.steps.documentsAndConfirm,
+  ];
   const [step, setStep] = useState(1);
   const [stepError, setStepError] = useState<string | null>(null);
 
@@ -46,15 +53,15 @@ export function LeaseForm({
 
   const goNext = () => {
     if (step === 1 && (!tenant.trim() || !propertyName)) {
-      setStepError("Please enter the tenant name and select a property.");
+      setStepError(c.errorTenantProperty);
       return;
     }
     if (step === 2 && !startDate) {
-      setStepError("Please select a lease start date.");
+      setStepError(c.errorStartDate);
       return;
     }
     if (step === 3 && (!rent.trim() || Number(rent) <= 0 || !deposit.trim() || !momoNumber.trim())) {
-      setStepError("Please fill in rent, deposit, and MoMo number.");
+      setStepError(c.errorRentDeposit);
       return;
     }
     setStepError(null);
@@ -68,7 +75,7 @@ export function LeaseForm({
 
   const submitForm = () => {
     if (!confirmed) {
-      setStepError("Please confirm the details above are accurate before submitting.");
+      setStepError(c.errorConfirm);
       return;
     }
     setStepError(null);
@@ -136,18 +143,18 @@ export function LeaseForm({
       {step === 1 && (
         <div className="flex flex-col gap-5">
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Tenant name
+            {c.tenantName}
             <input
               type="text"
               value={tenant}
               onChange={(e) => setTenant(e.target.value)}
-              placeholder="e.g. Claudine Uwase"
+              placeholder={c.tenantNamePlaceholder}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
             />
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Property
+            {c.property}
             <select
               value={propertyName}
               onChange={(e) => setPropertyName(e.target.value)}
@@ -164,7 +171,7 @@ export function LeaseForm({
       {step === 2 && (
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Start date
+            {c.startDate}
             <input
               type="date"
               value={startDate}
@@ -174,7 +181,7 @@ export function LeaseForm({
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            End date (optional)
+            {c.endDate}
             <input
               type="date"
               value={endDate}
@@ -184,7 +191,7 @@ export function LeaseForm({
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Payment date (optional)
+            {c.paymentDate}
             <input
               type="date"
               value={paymentDate}
@@ -194,12 +201,12 @@ export function LeaseForm({
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-            Lease period (optional)
+            {c.leasePeriod}
             <textarea
               value={leasePeriodNote}
               onChange={(e) => setLeasePeriodNote(e.target.value)}
               rows={2}
-              placeholder="e.g. 12-month renewable lease, month-to-month after initial term"
+              placeholder={c.leasePeriodPlaceholder}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
             />
           </label>
@@ -209,31 +216,31 @@ export function LeaseForm({
       {step === 3 && (
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Monthly rent (RWF)
+            {c.monthlyRent}
             <input
               type="number"
               min={0}
               value={rent}
               onChange={(e) => setRent(e.target.value)}
-              placeholder="e.g. 450000"
+              placeholder={c.monthlyRentPlaceholder}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
             />
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Security deposit (RWF)
+            {c.securityDeposit}
             <input
               type="number"
               min={0}
               value={deposit}
               onChange={(e) => setDeposit(e.target.value)}
-              placeholder="e.g. 900000"
+              placeholder={c.securityDepositPlaceholder}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
             />
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-            Rent MoMo number
+            {c.rentMomoNumber}
             <input
               type="tel"
               value={momoNumber}
@@ -248,14 +255,14 @@ export function LeaseForm({
       {step === 4 && (
         <div className="flex flex-col gap-5">
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Lease document (optional)
+            {c.documentLabel}
             <p className="text-xs font-normal text-slate-400">
-              Upload a scan or photo of the signed physical agreement, if you have one.
+              {c.documentHint}
             </p>
             <div className="flex items-center gap-3">
               <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
                 <Upload className="h-4 w-4" />
-                Choose file
+                {c.chooseFile}
                 <input
                   type="file"
                   className="hidden"
@@ -277,7 +284,7 @@ export function LeaseForm({
               onChange={(e) => setConfirmed(e.target.checked)}
               className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-gold"
             />
-            I confirm the details entered for this lease are accurate.
+            {c.confirmCheckbox}
           </label>
         </div>
       )}
@@ -291,7 +298,7 @@ export function LeaseForm({
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back
+              {c.back}
             </button>
           )}
         </div>
@@ -302,7 +309,7 @@ export function LeaseForm({
               onClick={onCancel}
               className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
             >
-              Cancel
+              {t.dashboard.actions.cancel}
             </button>
           )}
           <button
@@ -312,11 +319,11 @@ export function LeaseForm({
           >
             {step < STEPS.length ? (
               <>
-                Next
+                {c.next}
                 <ArrowRight className="h-4 w-4" />
               </>
             ) : (
-              "Create Lease"
+              c.submit
             )}
           </button>
         </div>

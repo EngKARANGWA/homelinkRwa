@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export function MaintenanceRequestForm({
   property,
@@ -12,6 +13,8 @@ export function MaintenanceRequestForm({
   onSuccess: (items: string[], priority: "Low" | "Medium" | "High") => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.tenant.maintenanceRequestForm;
   const [items, setItems] = useState<string[]>([""]);
 
   const updateItem = (index: number, value: string) => {
@@ -36,13 +39,13 @@ export function MaintenanceRequestForm({
       <div className="flex flex-col gap-5">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Property
+            {c.property}
           </p>
           <p className="mt-1 text-sm font-medium text-navy">{property}</p>
         </div>
 
         <div className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Issues
+          {c.issues}
           <div className="flex flex-col gap-2">
             {items.map((item, index) => (
               <div key={index} className="flex items-center gap-2">
@@ -51,13 +54,13 @@ export function MaintenanceRequestForm({
                   required
                   value={item}
                   onChange={(e) => updateItem(index, e.target.value)}
-                  placeholder="e.g. Kitchen sink is leaking under the cabinet."
+                  placeholder={c.issuePlaceholder}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => removeItem(index)}
-                  aria-label="Remove item"
+                  aria-label={c.removeItem}
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-400 hover:bg-slate-50 hover:text-red-600"
                 >
                   <X className="h-4 w-4" />
@@ -71,20 +74,20 @@ export function MaintenanceRequestForm({
             className="mt-1 inline-flex w-fit items-center gap-1.5 text-sm font-medium text-gold hover:underline"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add item
+            {c.addItem}
           </button>
         </div>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Priority
+          {c.priority}
           <select
             name="priority"
             defaultValue="Medium"
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            <option>Low</option>
-            <option>Medium</option>
-            <option>High</option>
+            <option value="Low">{t.dashboard.status.low}</option>
+            <option value="Medium">{t.dashboard.status.medium}</option>
+            <option value="High">{t.dashboard.status.high}</option>
           </select>
         </label>
       </div>
@@ -95,13 +98,13 @@ export function MaintenanceRequestForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Cancel
+          {t.dashboard.actions.cancel}
         </button>
         <button
           type="submit"
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
-          Submit Request
+          {c.submit}
         </button>
       </div>
     </form>

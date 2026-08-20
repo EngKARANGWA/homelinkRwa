@@ -3,20 +3,22 @@
 import { AppLink as Link } from "@/components/shared/AppLink";
 import { usePathname } from "next/navigation";
 import { Building2, CreditCard, LayoutDashboard, Users } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const BOTTOM_NAV_ITEMS = [
-  { label: "Dashboard", href: "/landlord", icon: LayoutDashboard },
-  { label: "Properties", href: "/landlord/properties", icon: Building2 },
-  { label: "Payments", href: "/landlord/payments", icon: CreditCard },
-  { label: "Tenants", href: "/landlord/tenants", icon: Users },
-];
+  { key: "dashboard", href: "/landlord", icon: LayoutDashboard },
+  { key: "properties", href: "/landlord/properties", icon: Building2 },
+  { key: "payments", href: "/landlord/payments", icon: CreditCard },
+  { key: "tenants", href: "/landlord/tenants", icon: Users },
+] as const;
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgba(0,0,0,0.04)] lg:hidden">
-      {BOTTOM_NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+      {BOTTOM_NAV_ITEMS.map(({ key, href, icon: Icon }) => {
         // Unit detail pages live under /landlord/properties/[id]/units/[unitId]
         // but represent a tenant, so they should light up Tenants instead of
         // Properties even though the URL is nested there.
@@ -39,7 +41,7 @@ export function BottomNav() {
             }`}
           >
             <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
-            {label}
+            {t.dashboard.nav[key]}
           </Link>
         );
       })}

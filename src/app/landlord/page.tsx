@@ -40,6 +40,8 @@ import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
 import { AlertBanner } from "@/components/dashboard/AlertBanner";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
 type TransactionRowStatus = Payment["status"] | "Overdue" | "Arrears";
 
@@ -50,6 +52,15 @@ const TRANSACTION_STATUS_STYLES: Record<TransactionRowStatus, string> = {
   "Pending Approval": "bg-sky-50 text-sky-700",
   Overdue: "bg-amber-50 text-amber-700",
   Arrears: "bg-red-50 text-red-700",
+};
+
+const TRANSACTION_STATUS_KEY: Record<TransactionRowStatus, keyof Translations["dashboard"]["status"]> = {
+  Paid: "paid",
+  Late: "late",
+  Pending: "pending",
+  "Pending Approval": "pendingApproval",
+  Overdue: "overdue",
+  Arrears: "arrears",
 };
 
 const TRANSACTION_STATUS_PRIORITY: Record<TransactionRowStatus, number> = {
@@ -78,52 +89,64 @@ function daysBetween(from: string, to: string): number {
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
 }
 
-function arrearsPeriodLabel(unit: Unit): string {
+function arrearsPeriodLabel(unit: Unit, t: Translations): string {
+  const c = t.dashboard.landlord.overview;
   const paidEntries = unit.paymentHistory.filter((p) => p.status === "Paid" && p.paidDate);
-  if (paidEntries.length === 0) return "No payments on file";
+  if (paidEntries.length === 0) return c.noPaymentsOnFile;
   const last = paidEntries[paidEntries.length - 1];
   const days = daysBetween(last.paidDate as string, TODAY);
-  const period = days < 60 ? `${days} days` : `${Math.round(days / 30)} months`;
-  return `${period} overdue`;
+  return days < 60
+    ? c.overdueDaysTemplate.replace("{value}", String(days))
+    : c.overdueMonthsTemplate.replace("{value}", String(Math.round(days / 30)));
 }
 
 const TRANSACTION_TABS: {
   key: "All" | "Pending Approval" | "Overdue" | "Arrears";
-  label: string;
+  labelKey: keyof Translations["dashboard"]["landlord"]["overview"]["tabs"];
 }[] = [
-  { key: "All", label: "All" },
-  { key: "Pending Approval", label: "Pending Approval" },
-  { key: "Overdue", label: "Overdue" },
-  { key: "Arrears", label: "Arrears" },
+  { key: "All", labelKey: "all" },
+  { key: "Pending Approval", labelKey: "pendingApproval" },
+  { key: "Overdue", labelKey: "overdue" },
+  { key: "Arrears", labelKey: "arrears" },
 ];
 
 const STAT_META: Record<
   string,
-  { href: string; icon: typeof Building2; accent: StatAccent; subtitle: string }
+  {
+    href: string;
+    icon: typeof Building2;
+    accent: StatAccent;
+    labelKey: keyof Translations["dashboard"]["landlord"]["overview"]["statLabels"];
+    subtitleKey: keyof Translations["dashboard"]["landlord"]["overview"]["statSubtitles"];
+  }
 > = {
   "My Properties": {
     href: "/landlord/properties",
     icon: Building2,
     accent: "blue",
-    subtitle: "Registered by you",
+    labelKey: "myProperties",
+    subtitleKey: "registeredByYou",
   },
   "Active Leases": {
     href: "/landlord/leases",
     icon: FileText,
     accent: "emerald",
-    subtitle: "Currently active",
+    labelKey: "activeLeases",
+    subtitleKey: "currentlyActive",
   },
   "Pending Maintenance": {
     href: "/landlord/maintenance",
     icon: Wrench,
     accent: "amber",
-    subtitle: "Awaiting action",
+    labelKey: "pendingMaintenance",
+    subtitleKey: "awaitingAction",
   },
   "Revenue Collected": {
     href: "/landlord/payments",
     icon: Wallet,
     accent: "teal",
-    subtitle: "This month",
+    labelKey: "revenueCollected",
+    subtitleKey: "thisMonth",
   },
 };
 
@@ -140,6 +163,8 @@ function formatMonth(month: string): string {
 
 export default function LandlordOverviewPage() {
   const { landlordName, unitOverrides } = useLandlord();
+  const { t } = useLanguage();
+  const c = t.dashboard.landlord.overview;
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"All" | TransactionRowStatus>("All");
 
@@ -194,8 +219,10 @@ export default function LandlordOverviewPage() {
   const handleSendReminder = () => {
     setReminderNotice(
       outstandingTenants > 0
-        ? `Reminder sent to ${outstandingTenants} tenant${outstandingTenants === 1 ? "" : "s"} with an outstanding balance.`
-        : "No tenants currently have an outstanding balance.",
+        ? c.reminderSentTemplate
+            .replace("{count}", String(outstandingTenants))
+            .replace("{plural}", outstandingTenants === 1 ? "" : "s")
+        : c.noOutstandingTenants,
     );
   };
 
@@ -256,12 +283,12 @@ export default function LandlordOverviewPage() {
     ...filteredArrearsUnits.map(
       (unit): TransactionRow => ({
         id: `unit-${unit.id}`,
-        tenant: unit.tenant ?? "Unknown tenant",
+        tenant: unit.tenant ?? c.unknownTenant,
         property: unit.propertyName,
         unit: unit.unitNumber,
         amount: unit.monthlyRent,
         method: "—",
-        dueDate: arrearsPeriodLabel(unit),
+        dueDate: arrearsPeriodLabel(unit, t),
         status: unit.currentPaymentStatus === "Arrears" ? "Arrears" : "Overdue",
         actions: { type: "unit", propertyId: unit.propertyId, unitId: unit.id },
       }),
@@ -287,9 +314,9 @@ export default function LandlordOverviewPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-bold text-navy">Overview</h1>
+        <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          A quick look at your properties, {landlordName}.
+          {c.subtitlePrefix}{landlordName}{c.subtitleSuffix}
         </p>
       </div>
 
@@ -299,9 +326,9 @@ export default function LandlordOverviewPage() {
           return (
             <StatCard
               key={label}
-              label={label}
+              label={meta ? c.statLabels[meta.labelKey] : label}
               value={value}
-              subtitle={meta?.subtitle}
+              subtitle={meta ? c.statSubtitles[meta.subtitleKey] : undefined}
               href={meta?.href ?? "/landlord"}
               icon={meta?.icon ?? Building2}
               accent={meta?.accent ?? "blue"}
@@ -315,14 +342,10 @@ export default function LandlordOverviewPage() {
           className="order-2 lg:order-1"
           isAlert={balanceDue > 0}
           stats={[
-            { label: "Balance Due", value: `${formatMoney(balanceDue)} RWF` },
-            { label: "Tenants Outstanding", value: outstandingTenants },
+            { label: c.balanceDue, value: `${formatMoney(balanceDue)} RWF` },
+            { label: c.tenantsOutstanding, value: outstandingTenants },
           ]}
-          message={
-            balanceDue > 0
-              ? "Some tenants haven't paid this month's rent yet. Send a reminder or check the full report."
-              : "All tenants are paid up this month."
-          }
+          message={balanceDue > 0 ? c.alertMessage : c.allPaidMessage}
         >
           <button
             type="button"
@@ -330,19 +353,19 @@ export default function LandlordOverviewPage() {
             className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
           >
             <Bell className="h-4 w-4" />
-            Send Reminder
+            {c.sendReminder}
           </button>
           <Link
             href="/landlord/reports"
             className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
           >
-            View Report
+            {c.viewReport}
           </Link>
         </AlertBanner>
 
         {myProperties.length > 0 && (
           <div className="order-1 rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:order-2">
-            <p className="font-semibold text-navy">Revenue by Month</p>
+            <p className="font-semibold text-navy">{c.revenueByMonth}</p>
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={revenueByMonth}>
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
@@ -369,16 +392,16 @@ export default function LandlordOverviewPage() {
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div>
-            <h2 className="font-semibold text-navy">Transactions</h2>
+            <h2 className="font-semibold text-navy">{c.transactionsTitle}</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Rent payments and tenants currently in arrears, across your properties.
+              {c.transactionsSubtitle}
             </p>
           </div>
           <Link
             href="/landlord/payments"
             className="inline-flex items-center gap-1 whitespace-nowrap text-sm font-medium text-gold hover:underline"
           >
-            View all
+            {t.dashboard.actions.viewAll}
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
@@ -397,7 +420,7 @@ export default function LandlordOverviewPage() {
                     : "border-transparent text-slate-500 hover:text-navy"
                 }`}
               >
-                {tab.label}
+                {c.tabs[tab.labelKey]}
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                     isActive ? "bg-gold/10 text-gold" : "bg-slate-100 text-slate-500"
@@ -413,14 +436,14 @@ export default function LandlordOverviewPage() {
         <Table variant="plain">
           <THead>
             <Tr>
-              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Tenant</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Unit</Th>
-              <Th className="hidden px-6 py-3 sm:table-cell">Amount (RWF)</Th>
-              <Th className="hidden px-6 py-3 lg:table-cell">Method</Th>
-              <Th className="hidden px-6 py-3 md:table-cell">Due Date</Th>
-              <Th className="px-4 py-3 sm:px-6">Status</Th>
-              <Th className="px-4 py-3 text-right sm:px-6">Actions</Th>
+              <Th className="max-w-[10rem] px-4 py-3 sm:px-6">{t.dashboard.table.tenant}</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.property}</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.unit}</Th>
+              <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.amountRwf}</Th>
+              <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.method}</Th>
+              <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.dueDate}</Th>
+              <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+              <Th className="px-4 py-3 text-right sm:px-6">{t.dashboard.table.actions}</Th>
             </Tr>
           </THead>
           <TBody>
@@ -454,7 +477,7 @@ export default function LandlordOverviewPage() {
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${TRANSACTION_STATUS_STYLES[row.status]}`}
                   >
-                    {row.status}
+                    {t.dashboard.status[TRANSACTION_STATUS_KEY[row.status]]}
                   </span>
                 </Td>
                 <Td className="px-4 py-3 text-right sm:px-6">
@@ -464,14 +487,14 @@ export default function LandlordOverviewPage() {
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                     >
                       <Eye className="h-3.5 w-3.5" />
-                      View
+                      {t.dashboard.actions.view}
                     </Link>
                   )}
                 </Td>
               </Tr>
             ))}
             {visibleTransactions.length === 0 && (
-              <EmptyRow colSpan={8}>No transactions match this filter.</EmptyRow>
+              <EmptyRow colSpan={8}>{c.noTransactions}</EmptyRow>
             )}
           </TBody>
         </Table>

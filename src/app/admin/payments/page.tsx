@@ -8,6 +8,8 @@ import { PaymentReceipt } from "@/components/admin/PaymentReceipt";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
 const STATUS_STYLES: Record<Payment["status"], string> = {
   Paid: "bg-emerald-50 text-emerald-700",
@@ -16,9 +18,18 @@ const STATUS_STYLES: Record<Payment["status"], string> = {
   "Pending Approval": "bg-sky-50 text-sky-700",
 };
 
+const STATUS_KEY: Record<Payment["status"], keyof Translations["dashboard"]["status"]> = {
+  Paid: "paid",
+  Late: "late",
+  Pending: "pending",
+  "Pending Approval": "pendingApproval",
+};
+
 const TODAY = "2026-07-08";
 
 export default function PaymentsPage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.payments;
   const [payments, setPayments] = useState(PAYMENTS);
   const [viewingPayment, setViewingPayment] = useState<Payment | null>(null);
   const [page, setPage] = useState(1);
@@ -43,22 +54,22 @@ export default function PaymentsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-navy">Payments</h1>
+        <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Rent payments and platform revenue.
+          {c.subtitle}
         </p>
       </div>
 
       <Table variant="standalone">
         <THead>
           <Tr>
-            <Th className="px-6 py-3">Tenant</Th>
-            <Th className="px-6 py-3">Property</Th>
-            <Th className="px-6 py-3">Amount (RWF)</Th>
-            <Th className="px-6 py-3">Method</Th>
-            <Th className="px-6 py-3">Due Date</Th>
-            <Th className="px-6 py-3">Status</Th>
-            <Th className="px-6 py-3">Actions</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.tenant}</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.property}</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.amountRwf}</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.method}</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.dueDate}</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.status}</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.actions}</Th>
           </Tr>
         </THead>
         <TBody>
@@ -83,7 +94,7 @@ export default function PaymentsPage() {
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[payment.status]}`}
                 >
-                  {payment.status}
+                  {t.dashboard.status[STATUS_KEY[payment.status]]}
                 </span>
               </Td>
               <Td className="px-6 py-3">
@@ -94,7 +105,7 @@ export default function PaymentsPage() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   >
                     <Eye className="h-3.5 w-3.5" />
-                    View
+                    {t.dashboard.actions.view}
                   </button>
                   {payment.status !== "Paid" && (
                     <button
@@ -103,7 +114,7 @@ export default function PaymentsPage() {
                       className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />
-                      Mark as Paid
+                      {c.markAsPaid}
                     </button>
                   )}
                 </div>
@@ -123,7 +134,7 @@ export default function PaymentsPage() {
 
       {viewingPayment && (
         <Modal
-          title={viewingPayment.status === "Paid" ? "Payment Receipt" : "Invoice"}
+          title={viewingPayment.status === "Paid" ? c.receiptTitle : c.invoiceTitle}
           description={`${viewingPayment.tenant} · ${viewingPayment.property}`}
           onClose={() => setViewingPayment(null)}
           maxWidthClassName="max-w-3xl"

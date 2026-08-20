@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { X } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export function Modal({
   title,
@@ -16,6 +17,8 @@ export function Modal({
   children: React.ReactNode;
   maxWidthClassName?: string;
 }) {
+  const { t } = useLanguage();
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -28,7 +31,7 @@ export function Modal({
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-navy/50 px-4 py-8">
       <button
         type="button"
-        aria-label="Close"
+        aria-label={t.dashboard.actions.close}
         onClick={onClose}
         className="fixed inset-0 cursor-default"
       />
@@ -45,7 +48,7 @@ export function Modal({
           </div>
           <button
             type="button"
-            aria-label="Close"
+            aria-label={t.dashboard.actions.close}
             onClick={onClose}
             className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-navy"
           >

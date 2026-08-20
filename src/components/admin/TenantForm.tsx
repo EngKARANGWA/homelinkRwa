@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+
 export function TenantForm({
   onSuccess,
   onCancel,
@@ -7,6 +9,9 @@ export function TenantForm({
   onSuccess: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.tenantForm;
+
   return (
     <form
       onSubmit={(e) => {
@@ -16,51 +21,51 @@ export function TenantForm({
     >
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Full name
+          {c.fullName}
           <input
             type="text"
             required
-            placeholder="e.g. Claudine Uwase"
+            placeholder={c.fullNamePlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          National ID
+          {c.nationalId}
           <input
             type="text"
             required
-            placeholder="1 1998 8 0123456 0 12"
+            placeholder={c.nationalIdPlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Email address
+          {c.emailAddress}
           <input
             type="email"
             required
-            placeholder="tenant@example.com"
+            placeholder={c.emailPlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Phone number
+          {c.phoneNumber}
           <input
             type="tel"
             required
-            placeholder="+250 7XX XXX XXX"
+            placeholder={c.phonePlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-          Status
+          {c.status}
           <select className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none">
-            <option>Active</option>
-            <option>Pending</option>
-            <option>Inactive</option>
+            <option>{t.dashboard.status.active}</option>
+            <option>{t.dashboard.status.pending}</option>
+            <option>{t.dashboard.status.inactive}</option>
           </select>
         </label>
       </div>
@@ -71,13 +76,13 @@ export function TenantForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Cancel
+          {t.dashboard.actions.cancel}
         </button>
         <button
           type="submit"
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
-          Add Tenant
+          {c.submit}
         </button>
       </div>
     </form>

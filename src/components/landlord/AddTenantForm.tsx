@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { TODAY, type Lease, type Property } from "@/lib/mock-admin-data";
 import { getUnitsForProperty, type UnitOverrides } from "@/lib/units";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export function AddTenantForm({
   properties,
@@ -16,6 +17,8 @@ export function AddTenantForm({
   onSuccess: (lease: Lease) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.landlord.addTenantForm;
   const [propertyId, setPropertyId] = useState(properties[0]?.id ?? "");
   const [unitNumber, setUnitNumber] = useState("");
   const [tenant, setTenant] = useState("");
@@ -48,20 +51,20 @@ export function AddTenantForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProperty) {
-      setError("Please select a property.");
+      setError(c.errorSelectProperty);
       return;
     }
     if (!selectedUnit) {
-      setError("This property has no vacant units right now.");
+      setError(c.errorNoVacantUnits);
       return;
     }
     if (!tenant.trim() || !phone.trim()) {
-      setError("Please enter the tenant's name and phone number.");
+      setError(c.errorNamePhone);
       return;
     }
     const rentValue = Number(rent);
     if (!rentValue || rentValue <= 0) {
-      setError("Please enter a valid monthly rent.");
+      setError(c.errorRent);
       return;
     }
     setError(null);
@@ -94,7 +97,7 @@ export function AddTenantForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Property
+          {c.property}
           <SearchableSelect
             value={propertyId}
             onChange={handlePropertyChange}
@@ -102,17 +105,17 @@ export function AddTenantForm({
               value: property.id,
               label: property.name,
             }))}
-            placeholder="Select a property"
+            placeholder={c.selectProperty}
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Unit
+          {c.unit}
           <SearchableSelect
             value={selectedUnit?.unitNumber ?? ""}
             onChange={setUnitNumber}
             disabled={vacantUnits.length === 0}
-            placeholder={vacantUnits.length === 0 ? "No vacant units" : "Select a unit"}
+            placeholder={vacantUnits.length === 0 ? c.noVacantUnits : c.selectUnit}
             options={vacantUnits.map((unit) => ({
               value: unit.unitNumber,
               label: unit.unitNumber,
@@ -123,18 +126,18 @@ export function AddTenantForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Tenant name
+          {c.tenantName}
           <input
             type="text"
             value={tenant}
             onChange={(e) => setTenant(e.target.value)}
-            placeholder="e.g. Claudine Uwase"
+            placeholder={c.tenantNamePlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Phone number
+          {c.phoneNumber}
           <input
             type="tel"
             value={phone}
@@ -145,31 +148,31 @@ export function AddTenantForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Monthly rent (RWF)
+          {c.monthlyRent}
           <input
             type="number"
             min={0}
             value={rent}
             onChange={(e) => setRent(e.target.value)}
-            placeholder={selectedProperty ? String(selectedProperty.rent) : "e.g. 450000"}
+            placeholder={selectedProperty ? String(selectedProperty.rent) : c.monthlyRentPlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Security deposit (RWF)
+          {c.securityDeposit}
           <input
             type="number"
             min={0}
             value={deposit}
             onChange={(e) => setDeposit(e.target.value)}
-            placeholder="e.g. 900000"
+            placeholder={c.securityDepositPlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Start date
+          {c.startDate}
           <input
             type="date"
             value={startDate}
@@ -179,12 +182,12 @@ export function AddTenantForm({
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Lease period (optional)
+          {c.leasePeriod}
           <input
             type="text"
             value={leasePeriodNote}
             onChange={(e) => setLeasePeriodNote(e.target.value)}
-            placeholder="e.g. 12-month renewable lease"
+            placeholder={c.leasePeriodPlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
@@ -196,14 +199,14 @@ export function AddTenantForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Cancel
+          {t.dashboard.actions.cancel}
         </button>
         <button
           type="submit"
           disabled={vacantUnits.length === 0}
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Add Tenant
+          {c.submit}
         </button>
       </div>
     </form>

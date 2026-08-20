@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+
 export function FeedbackForm({
   onSuccess,
   onCancel,
@@ -7,6 +9,9 @@ export function FeedbackForm({
   onSuccess: (feedback: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.tenant.feedbackForm;
+
   return (
     <form
       onSubmit={(e) => {
@@ -16,12 +21,12 @@ export function FeedbackForm({
       }}
     >
       <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-        How was the repair?
+        {c.question}
         <textarea
           name="feedback"
           required
           rows={3}
-          placeholder="e.g. Fixed quickly, very professional."
+          placeholder={c.placeholder}
           className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
         />
       </label>
@@ -32,13 +37,13 @@ export function FeedbackForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Cancel
+          {t.dashboard.actions.cancel}
         </button>
         <button
           type="submit"
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
-          Submit Feedback
+          {c.submit}
         </button>
       </div>
     </form>

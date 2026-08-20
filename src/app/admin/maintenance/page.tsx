@@ -11,6 +11,8 @@ import { MaintenanceDetail } from "@/components/admin/MaintenanceDetail";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
 const STATUS_STYLES: Record<MaintenanceRequest["status"], string> = {
   Submitted: "bg-amber-50 text-amber-700",
@@ -25,7 +27,22 @@ const PRIORITY_STYLES: Record<MaintenanceRequest["priority"], string> = {
   High: "bg-red-50 text-red-700",
 };
 
+const STATUS_KEY: Record<MaintenanceRequest["status"], keyof Translations["dashboard"]["status"]> = {
+  Submitted: "submitted",
+  Assigned: "assigned",
+  "In Progress": "inProgress",
+  Completed: "completed",
+};
+
+const PRIORITY_KEY: Record<MaintenanceRequest["priority"], keyof Translations["dashboard"]["status"]> = {
+  Low: "low",
+  Medium: "medium",
+  High: "high",
+};
+
 export default function MaintenancePage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.maintenance;
   const [requests, setRequests] = useState(MAINTENANCE_REQUESTS);
   const [isNewRequestOpen, setNewRequestOpen] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
@@ -72,9 +89,9 @@ export default function MaintenancePage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Maintenance</h1>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Maintenance and repair requests across the platform.
+            {c.subtitle}
           </p>
         </div>
         <button
@@ -83,28 +100,28 @@ export default function MaintenancePage() {
           className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
         >
           <Plus className="h-4 w-4" />
-          New Request
+          {c.newRequest}
         </button>
       </div>
 
       {justSubmitted && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
           <CheckCircle2 className="h-4 w-4" />
-          Maintenance request submitted.
+          {c.successNotice}
         </div>
       )}
 
       <Table variant="standalone">
         <THead>
           <Tr>
-            <Th className="max-w-[10rem] px-4 py-3 sm:px-6">Tenant</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">Property</Th>
-            <Th className="hidden px-6 py-3 lg:table-cell">Issue</Th>
-            <Th className="hidden px-6 py-3 sm:table-cell">Priority</Th>
-            <Th className="hidden px-6 py-3 lg:table-cell">Assigned To</Th>
-            <Th className="px-4 py-3 sm:px-6">Status</Th>
-            <Th className="hidden px-6 py-3 lg:table-cell">Cost / Feedback</Th>
-            <Th className="px-4 py-3 sm:px-6">Actions</Th>
+            <Th className="max-w-[10rem] px-4 py-3 sm:px-6">{t.dashboard.table.tenant}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.property}</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.issue}</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.priority}</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.assignedTo}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.costFeedback}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
           </Tr>
         </THead>
         <TBody>
@@ -118,7 +135,7 @@ export default function MaintenancePage() {
                   {request.property}
                 </p>
                 <p className="text-xs text-slate-400 sm:hidden">
-                  {request.priority} priority
+                  {c.priorityLabelTemplate.replace("{priority}", t.dashboard.status[PRIORITY_KEY[request.priority]])}
                 </p>
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
@@ -131,19 +148,21 @@ export default function MaintenancePage() {
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[request.priority]}`}
                 >
-                  {request.priority}
+                  {t.dashboard.status[PRIORITY_KEY[request.priority]]}
                 </span>
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                 {request.laborers.length > 0
-                  ? `${request.laborers.length} worker${request.laborers.length === 1 ? "" : "s"}`
+                  ? c.workerCountTemplate
+                      .replace("{count}", String(request.laborers.length))
+                      .replace("{plural}", request.laborers.length === 1 ? "" : "s")
                   : "—"}
               </Td>
               <Td className="px-4 py-3 sm:px-6">
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[request.status]}`}
                 >
-                  {request.status}
+                  {t.dashboard.status[STATUS_KEY[request.status]]}
                 </span>
               </Td>
               <Td className="hidden max-w-xs px-6 py-3 text-slate-500 lg:table-cell">
@@ -171,39 +190,39 @@ export default function MaintenancePage() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   >
                     <Eye className="h-3.5 w-3.5" />
-                    View
+                    {t.dashboard.actions.view}
                   </button>
                   {request.status === "Submitted" && (
                     <button
                       type="button"
                       onClick={() => setAssigningId(request.id)}
-                      aria-label={`Assign handler for ${request.tenant}`}
+                      aria-label={c.assignAriaTemplate.replace("{name}", request.tenant)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                     >
                       <UserPlus className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Assign</span>
+                      <span className="hidden sm:inline">{c.assign}</span>
                     </button>
                   )}
                   {request.status === "Assigned" && (
                     <button
                       type="button"
                       onClick={() => startProgress(request.id)}
-                      aria-label={`Start progress for ${request.tenant}`}
+                      aria-label={c.startAriaTemplate.replace("{name}", request.tenant)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                     >
                       <PlayCircle className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Start</span>
+                      <span className="hidden sm:inline">{c.start}</span>
                     </button>
                   )}
                   {request.status === "In Progress" && (
                     <button
                       type="button"
                       onClick={() => setCompletingId(request.id)}
-                      aria-label={`Mark completed for ${request.tenant}`}
+                      aria-label={c.markCompletedAriaTemplate.replace("{name}", request.tenant)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
                     >
                       <Wrench className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Mark Completed</span>
+                      <span className="hidden sm:inline">{c.markCompleted}</span>
                     </button>
                   )}
                 </div>
@@ -223,8 +242,8 @@ export default function MaintenancePage() {
 
       {isNewRequestOpen && (
         <Modal
-          title="New Maintenance Request"
-          description="Submit a repair or maintenance request on behalf of a tenant."
+          title={c.newRequestTitle}
+          description={c.newRequestDescription}
           onClose={() => setNewRequestOpen(false)}
         >
           <MaintenanceRequestForm
@@ -239,7 +258,7 @@ export default function MaintenancePage() {
 
       {viewingRequest && (
         <Modal
-          title="Maintenance Request"
+          title={c.requestTitle}
           description={`${viewingRequest.tenant} · ${viewingRequest.property}`}
           onClose={() => setViewingRequest(null)}
         >
@@ -249,8 +268,8 @@ export default function MaintenancePage() {
 
       {assigningId && (
         <Modal
-          title="Assign Handler"
-          description="Add the laborers who will handle this request and what each will be paid."
+          title={c.assignHandlerTitle}
+          description={c.assignHandlerDescription}
           onClose={() => setAssigningId(null)}
         >
           <AssignHandlerForm
@@ -262,8 +281,8 @@ export default function MaintenancePage() {
 
       {completingId && (
         <Modal
-          title="Complete Request"
-          description="Confirm the work that was done."
+          title={c.completeRequestTitle}
+          description={c.completeRequestDescription}
           onClose={() => setCompletingId(null)}
         >
           <CompleteRequestForm

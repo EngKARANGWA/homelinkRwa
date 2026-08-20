@@ -4,6 +4,7 @@ import { Printer } from "lucide-react";
 import { type Lease, PROPERTIES } from "@/lib/mock-admin-data";
 import { getTenantUnitNumber } from "@/lib/units";
 import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return "—";
@@ -15,6 +16,8 @@ function formatDate(dateStr: string | null) {
 }
 
 export function LeaseDocument({ lease }: { lease: Lease }) {
+  const { t } = useLanguage();
+  const c = t.dashboard.admin.leaseDocument;
   const property = PROPERTIES.find((p) => p.name === lease.property);
   const unitNumber = getTenantUnitNumber(lease.property, lease.tenant);
   const isSigned = lease.status !== "Renewal Requested";
@@ -28,7 +31,7 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
           className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
           <Printer className="h-4 w-4" />
-          Print / Download
+          {c.printDownload}
         </button>
       </div>
 
@@ -38,29 +41,27 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
             HomeLink Rwanda
           </p>
           <h3 className="mt-2 text-2xl font-bold uppercase tracking-wide text-navy">
-            Residential Lease Agreement
+            {c.title}
           </h3>
-          <p className="mt-1 text-xs text-slate-400">Lease ID: LA-{lease.id.padStart(4, "0")}</p>
+          <p className="mt-1 text-xs text-slate-400">{c.leaseIdTemplate.replace("{id}", lease.id.padStart(4, "0"))}</p>
         </div>
 
         <div className="mx-auto mt-6 h-px w-full bg-slate-200" />
 
         <p className="mt-6 text-sm leading-relaxed">
-          This Lease Agreement is entered into between the Landlord and the
-          Tenant named below, for the rental of the property described
-          herein, under the terms and conditions set out in this document.
+          {c.intro}
         </p>
 
         <div className="mt-6 grid grid-cols-2 gap-6 text-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Landlord
+              {c.landlord}
             </p>
             <p className="mt-1 font-medium text-navy">{lease.owner}</p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Tenant
+              {c.tenant}
             </p>
             <p className="mt-1 font-medium text-navy">{lease.tenant}</p>
           </div>
@@ -68,11 +69,11 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
 
         <div className="mt-6">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Property
+            {c.property}
           </p>
           <p className="mt-1 font-medium text-navy">
             {lease.property}
-            {unitNumber ? ` · Unit ${unitNumber}` : ""}
+            {unitNumber ? c.unitTemplate.replace("{unit}", unitNumber) : ""}
           </p>
           {property && (
             <p className="text-sm text-slate-500">{property.address}</p>
@@ -82,7 +83,7 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
         <div className="mt-6 grid grid-cols-3 gap-6 text-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Lease Start
+              {c.leaseStart}
             </p>
             <p className="mt-1 font-medium text-navy">
               {formatDate(lease.startDate)}
@@ -90,15 +91,15 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Lease End
+              {c.leaseEnd}
             </p>
             <p className="mt-1 font-medium text-navy">
-              {lease.endDate ? formatDate(lease.endDate) : "Open-ended"}
+              {lease.endDate ? formatDate(lease.endDate) : c.openEnded}
             </p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Payment Date
+              {c.paymentDate}
             </p>
             <p className="mt-1 font-medium text-navy">
               {formatDate(lease.paymentDate)}
@@ -106,7 +107,7 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Monthly Rent
+              {c.monthlyRent}
             </p>
             <p className="mt-1 font-medium text-navy">
               {formatMoney(lease.rent)} RWF
@@ -114,7 +115,7 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Security Deposit
+              {c.securityDeposit}
             </p>
             <p className="mt-1 font-medium text-navy">
               {formatMoney(lease.deposit)} RWF
@@ -122,7 +123,7 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Rent MoMo Number
+              {c.rentMomoNumber}
             </p>
             <p className="mt-1 font-medium text-navy">{lease.momoNumber}</p>
           </div>
@@ -131,7 +132,7 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
         {lease.leasePeriodNote && (
           <div className="mt-6">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Lease Period
+              {c.leasePeriod}
             </p>
             <p className="mt-1 text-sm text-slate-600">{lease.leasePeriodNote}</p>
           </div>
@@ -140,7 +141,7 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
         {property && property.terms.length > 0 && (
           <div className="mt-6">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Terms &amp; Conditions
+              {c.termsAndConditions}
             </p>
             <ul className="mt-1 list-disc pl-5 text-sm text-slate-600">
               {property.terms.map((term) => (
@@ -154,21 +155,19 @@ export function LeaseDocument({ lease }: { lease: Lease }) {
           <div>
             <div className="h-10 border-b border-slate-300" />
             <p className="mt-2 text-xs text-slate-400">
-              Landlord signature — {lease.owner}
+              {c.landlordSignatureTemplate.replace("{name}", lease.owner)}
             </p>
           </div>
           <div>
             <div className="h-10 border-b border-slate-300" />
             <p className="mt-2 text-xs text-slate-400">
-              Tenant signature — {lease.tenant}
+              {c.tenantSignatureTemplate.replace("{name}", lease.tenant)}
             </p>
           </div>
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-400">
-          {isSigned
-            ? "This document has been electronically signed by both parties."
-            : "Awaiting electronic signature."}
+          {isSigned ? c.signedMessage : c.awaitingSignature}
         </p>
       </div>
     </div>
