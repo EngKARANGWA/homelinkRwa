@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppLink as Link } from "@/components/shared/AppLink";
 import { Bell, CheckCircle2, Eye, Plus, Search } from "lucide-react";
-import { PROPERTIES, type Lease } from "@/lib/mock-admin-data";
+import { PROPERTIES, TODAY, type Lease } from "@/lib/mock-admin-data";
 import { getUnitsForProperty, type Unit } from "@/lib/units";
 import { useLandlord } from "@/components/landlord/LandlordContext";
 import { Modal } from "@/components/admin/Modal";
@@ -26,6 +26,22 @@ const STATUS_KEY: Record<string, keyof Translations["dashboard"]["status"]> = {
   Overdue: "overdue",
   Arrears: "arrears",
 };
+
+function daysBetween(from: string, to: string): number {
+  const ms = new Date(to).getTime() - new Date(from).getTime();
+  return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
+}
+
+function arrearsPeriodLabel(unit: Unit, t: Translations): string {
+  const ov = t.dashboard.landlord.overview;
+  const paidEntries = unit.paymentHistory.filter((p) => p.status === "Paid" && p.paidDate);
+  if (paidEntries.length === 0) return ov.noPaymentsOnFile;
+  const last = paidEntries[paidEntries.length - 1];
+  const days = daysBetween(last.paidDate as string, TODAY);
+  return days < 60
+    ? ov.overdueDaysTemplate.replace("{value}", String(days))
+    : ov.overdueMonthsTemplate.replace("{value}", String(Math.round(days / 30)));
+}
 
 export default function LandlordTenantsPage() {
   const { t } = useLanguage();
@@ -237,6 +253,12 @@ export default function LandlordTenantsPage() {
                 >
                   {STATUS_KEY[tenant.currentPaymentStatus] ? t.dashboard.status[STATUS_KEY[tenant.currentPaymentStatus]] : tenant.currentPaymentStatus}
                 </span>
+                {(tenant.currentPaymentStatus === "Overdue" ||
+                  tenant.currentPaymentStatus === "Arrears") && (
+                  <p className="mt-1 whitespace-nowrap text-xs text-slate-400">
+                    {arrearsPeriodLabel(tenant, t)}
+                  </p>
+                )}
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
                 {tenant.endDate ?? t.dashboard.landlord.unitDetail.openEnded}
