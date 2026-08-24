@@ -302,10 +302,12 @@ export default function LandlordOverviewPage() {
               href={`/landlord/payments?status=${encodeURIComponent(action.key)}`}
               className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-slate-200 px-4 py-3 text-center transition-colors hover:border-gold/40 hover:bg-slate-50"
             >
-              <span className="flex items-center gap-2 text-sm font-medium text-navy">
-                <action.icon className="h-4 w-4 shrink-0 text-slate-500" />
-                {c.tabs[action.labelKey]}
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+              <span className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm font-medium text-navy">
+                <span className="flex items-center gap-1.5">
+                  <action.icon className="h-4 w-4 shrink-0 text-slate-500" />
+                  {c.tabs[action.labelKey]}
+                </span>
+                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
                   {transactionTabCounts[action.key]}
                 </span>
               </span>
