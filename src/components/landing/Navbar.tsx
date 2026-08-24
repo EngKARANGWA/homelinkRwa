@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Menu, X } from "lucide-react";
+import { Home, LogIn, Menu, X } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 
@@ -73,13 +73,14 @@ export function Navbar() {
             </Link>
           </div>
 
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex shrink-0 items-center gap-1.5 lg:hidden">
             <LanguageSwitcher variant="dark" />
             <Link
               href="/login"
-              className="rounded-lg border border-white/25 px-3.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-white/10"
+              aria-label={t.common.login}
+              className="rounded-lg border border-white/25 p-2 text-white transition-colors hover:bg-white/10"
             >
-              {t.common.login}
+              <LogIn className="h-4 w-4" />
             </Link>
             <button
               type="button"
