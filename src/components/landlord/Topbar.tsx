@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AppLink as Link } from "@/components/shared/AppLink";
-import { Bell, ChevronDown, LogOut, Menu } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Bell, ChevronDown, LogOut, Menu, User } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthContext";
 import { getInitials } from "@/lib/initials";
-import { useLandlord } from "./LandlordContext";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 
 export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
-  const { landlordName } = useLandlord();
+  const { user, signOut } = useAuth();
+  const router = useRouter();
   const { t } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const name = user ? `${user.firstName} ${user.lastName}` : "";
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -54,10 +57,10 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
             className="flex min-w-0 items-center gap-2 rounded-lg px-1 py-1 hover:bg-slate-50"
           >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-semibold text-white">
-              {getInitials(landlordName)}
+              {getInitials(name)}
             </span>
             <div className="hidden min-w-0 leading-tight text-left sm:block">
-              <p className="truncate text-sm font-semibold text-navy">{landlordName}</p>
+              <p className="truncate text-sm font-semibold text-navy">{name}</p>
               <p className="truncate text-xs text-slate-500">{t.dashboard.topbar.propertyOwner}</p>
             </div>
             <ChevronDown
@@ -69,13 +72,25 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
           {menuOpen && (
             <div className="absolute right-0 top-full z-20 mt-2 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
               <Link
-                href="/login"
+                href="/landlord/profile"
+                onClick={() => setMenuOpen(false)}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <User className="h-4 w-4" strokeWidth={2} />
+                Profile
+              </Link>
+              <button
+                type="button"
+                onClick={async () => {
+                  await signOut();
+                  router.push("/login");
+                }}
                 aria-label={t.dashboard.topbar.logout}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                className="flex w-full items-center gap-2 border-t border-slate-100 px-4 py-2.5 text-left text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 <LogOut className="h-4 w-4" strokeWidth={2} />
                 {t.dashboard.topbar.logout}
-              </Link>
+              </button>
             </div>
           )}
         </div>

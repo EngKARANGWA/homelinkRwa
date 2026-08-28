@@ -1,78 +1,140 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, CheckCircle2, Eye, Plus, X } from "lucide-react";
-import { LEASES, PROPERTIES, type Lease } from "@/lib/mock-admin-data";
-import { useLandlord } from "@/components/landlord/LandlordContext";
+import { AlertCircle, Check, CheckCircle2, Eye, FileStack, Plus, X } from "lucide-react";
+import { listUsers } from "@/lib/api/admin";
+import { listProperties, listUnits } from "@/lib/api/properties";
+import {
+  approveLeaseChangeRequest,
+  createLease,
+  getLease,
+  listLeaseChangeRequests,
+  listLeases,
+  rejectLeaseChangeRequest,
+} from "@/lib/api/leases";
+import { ApiError } from "@/lib/api/client";
+import type { CreateLeaseInput, Lease, Property, PropertyUnit, User } from "@/lib/api/types";
+import { formatLeaseStatus, LEASE_STATUS_STYLES } from "@/lib/leaseStatus";
+import { useAuth } from "@/components/auth/AuthContext";
 import { Modal } from "@/components/admin/Modal";
-import { LeaseForm, type LeaseFormValues } from "@/components/admin/LeaseForm";
-import { LeaseDocument } from "@/components/admin/LeaseDocument";
+import { LeaseForm } from "@/components/admin/LeaseForm";
+import { LeaseDocumentsPanel } from "@/components/leases/LeaseDocumentsPanel";
+import { LeaseDetail } from "@/components/leases/LeaseDetail";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import type { Translations } from "@/lib/i18n/translations";
-
-const STATUS_STYLES: Record<Lease["status"], string> = {
-  Active: "bg-emerald-50 text-emerald-700",
-  "Renewal Requested": "bg-amber-50 text-amber-700",
-  "Termination Requested": "bg-amber-50 text-amber-700",
-  Terminated: "bg-red-50 text-red-700",
-  Expired: "bg-slate-100 text-slate-600",
-};
-
-const STATUS_KEY: Record<Lease["status"], keyof Translations["dashboard"]["status"]> = {
-  Active: "active",
-  "Renewal Requested": "renewalRequested",
-  "Termination Requested": "terminationRequested",
-  Terminated: "terminated",
-  Expired: "expired",
-};
 
 export default function LandlordLeasesPage() {
+  const { user } = useAuth();
   const { t } = useLanguage();
   const c = t.dashboard.landlord.leases;
   const lc = t.dashboard.admin.leases;
-  const { landlordName } = useLandlord();
-  const [leases, setLeases] = useState(LEASES);
+  const [leases, setLeases] = useState<Lease[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [units, setUnits] = useState<PropertyUnit[]>([]);
+  const [tenants, setTenants] = useState<User[]>([]);
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [justCreated, setJustCreated] = useState(false);
+  const [documentsLease, setDocumentsLease] = useState<Lease | null>(null);
   const [viewingLease, setViewingLease] = useState<Lease | null>(null);
-
-  const myLeases = leases.filter((l) => l.owner === landlordName);
-  const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
-
+  const [isViewLoading, setViewLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(myLeases.length / DEFAULT_PAGE_SIZE));
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
-  const pagedLeases = myLeases.slice((page - 1) * DEFAULT_PAGE_SIZE, page * DEFAULT_PAGE_SIZE);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
-  const addLease = (values: LeaseFormValues) => {
-    const newLease: Lease = {
-      id: String(Date.now()),
-      status: "Active",
-      ...values,
-    };
-    setLeases((prev) => [newLease, ...prev]);
-    setModalOpen(false);
-    setJustCreated(true);
+  const propertyFor = (id: string) => properties.find((p) => p.id === id);
+  const unitFor = (id: string) => units.find((u) => u.id === id);
+  const tenantName = (id: string) => {
+    const tenant = tenants.find((t) => t.id === id);
+    return tenant ? `${tenant.firstName} ${tenant.lastName}` : "—";
   };
 
-  const resolveRequest = (id: string, approve: boolean) => {
-    setLeases((prev) =>
-      prev.map((lease) => {
-        if (lease.id !== id) return lease;
-        if (lease.status === "Renewal Requested") {
-          return { ...lease, status: approve ? "Active" : "Expired" };
-        }
-        if (lease.status === "Termination Requested") {
-          return { ...lease, status: approve ? "Terminated" : "Active" };
-        }
-        return lease;
-      }),
-    );
+  const load = () => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      listLeases({ page, limit: DEFAULT_PAGE_SIZE }),
+      listProperties({ ownerId: user.id, limit: 100 }),
+      listUsers({ role: "tenant", limit: 100 }),
+    ])
+      .then(async ([leasesRes, propertiesRes, tenantsRes]) => {
+        setLeases(leasesRes.data);
+        setTotalPages(leasesRes.meta.totalPages);
+        setTotalItems(leasesRes.meta.total);
+        setProperties(propertiesRes.data);
+        setTenants(tenantsRes.data);
+        const unitsByProperty = await Promise.all(
+          propertiesRes.data.map((p) => listUnits(p.id)),
+        );
+        setUnits(unitsByProperty.flat());
+      })
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : "Failed to load leases."),
+      )
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, [user, page]);
+
+  const addLease = async (values: CreateLeaseInput) => {
+    setFormError(null);
+    try {
+      await createLease(values);
+      setModalOpen(false);
+      setJustCreated(true);
+      load();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Failed to create lease.");
+    }
+  };
+
+  const viewLease = async (lease: Lease) => {
+    setActionError(null);
+    setViewLoading(true);
+    try {
+      setViewingLease(await getLease(lease.id));
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Failed to load lease details.");
+    } finally {
+      setViewLoading(false);
+    }
+  };
+
+  const resolveRequest = async (lease: Lease, approve: boolean) => {
+    let decisionNotes = "";
+    if (!approve) {
+      decisionNotes = window.prompt("Reason for rejecting this request:")?.trim() ?? "";
+      if (!decisionNotes) return;
+    }
+    setActionError(null);
+    setProcessingId(lease.id);
+    try {
+      const changeRequests = await listLeaseChangeRequests(lease.id);
+      const pending = changeRequests.find((cr) => cr.status === "pending");
+      if (!pending) {
+        setActionError("No pending change request found for this lease.");
+        return;
+      }
+      if (approve) {
+        await approveLeaseChangeRequest(pending.id);
+      } else {
+        await rejectLeaseChangeRequest(pending.id, decisionNotes);
+      }
+      load();
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "Failed to resolve the request.",
+      );
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   return (
@@ -101,6 +163,20 @@ export default function LandlordLeasesPage() {
         </div>
       )}
 
+      {(error || actionError) && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            {error ?? actionError}
+          </span>
+          {error && (
+            <button type="button" onClick={load} className="underline hover:no-underline">
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+
       <Table variant="standalone">
         <THead>
           <Tr>
@@ -113,68 +189,90 @@ export default function LandlordLeasesPage() {
           </Tr>
         </THead>
         <TBody>
-          {pagedLeases.map((lease) => (
-            <Tr key={lease.id}>
-              <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
-                <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                  {lease.tenant}
-                </p>
-                <p className="truncate text-xs text-slate-400 md:hidden">
-                  {lease.property} · {formatMoney(lease.rent)} RWF
-                </p>
-              </Td>
-              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">{lease.property}</Td>
-              <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                {formatMoney(lease.rent)}
-              </Td>
-              <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                {lease.startDate} → {lease.endDate ?? lc.openEnded}
-              </Td>
-              <Td className="px-4 py-3 sm:px-6">
-                <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[lease.status]}`}
-                >
-                  {t.dashboard.status[STATUS_KEY[lease.status]]}
-                </span>
-              </Td>
-              <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setViewingLease(lease)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    {t.dashboard.actions.view}
-                  </button>
-
-                  {(lease.status === "Renewal Requested" ||
-                    lease.status === "Termination Requested") && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => resolveRequest(lease.id, true)}
-                        aria-label={lc.approveRequestAriaTemplate.replace("{name}", lease.tenant)}
-                        className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                      >
-                        <Check className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => resolveRequest(lease.id, false)}
-                        aria-label={lc.rejectRequestAriaTemplate.replace("{name}", lease.tenant)}
-                        className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </Td>
-            </Tr>
-          ))}
-          {pagedLeases.length === 0 && (
+          {isLoading ? (
+            <EmptyRow colSpan={6}>Loading leases...</EmptyRow>
+          ) : leases.length === 0 ? (
             <EmptyRow colSpan={6}>{c.noLeases}</EmptyRow>
+          ) : (
+            leases.map((lease) => {
+              const property = propertyFor(lease.propertyId);
+              const name = tenantName(lease.tenantId);
+              const isProcessing = processingId === lease.id;
+              return (
+                <Tr key={lease.id}>
+                  <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                    <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                      {name}
+                    </p>
+                    <p className="truncate text-xs text-slate-400 md:hidden">
+                      {property?.title ?? "—"} · {formatMoney(Number(lease.rentAmount))} RWF
+                    </p>
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                    {property?.title ?? "—"}
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                    {formatMoney(Number(lease.rentAmount))}
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                    {lease.startDate} → {lease.endDate ?? lc.openEnded}
+                  </Td>
+                  <Td className="px-4 py-3 sm:px-6">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${LEASE_STATUS_STYLES[lease.status]}`}
+                    >
+                      {formatLeaseStatus(lease.status)}
+                    </span>
+                  </Td>
+                  <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => viewLease(lease)}
+                        disabled={isViewLoading}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        {t.dashboard.actions.view}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDocumentsLease(lease)}
+                        aria-label={`Documents for ${name}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        <FileStack className="h-3.5 w-3.5" />
+                        Documents
+                      </button>
+
+                      {(lease.status === "pending_renewal" ||
+                        lease.status === "pending_termination") && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => resolveRequest(lease, true)}
+                            disabled={isProcessing}
+                            aria-label={lc.approveRequestAriaTemplate.replace("{name}", name)}
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => resolveRequest(lease, false)}
+                            disabled={isProcessing}
+                            aria-label={lc.rejectRequestAriaTemplate.replace("{name}", name)}
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </Td>
+                </Tr>
+              );
+            })
           )}
         </TBody>
       </Table>
@@ -182,7 +280,7 @@ export default function LandlordLeasesPage() {
       <Pagination
         page={page}
         totalPages={totalPages}
-        totalItems={myLeases.length}
+        totalItems={totalItems}
         pageSize={DEFAULT_PAGE_SIZE}
         onPageChange={setPage}
       />
@@ -193,10 +291,30 @@ export default function LandlordLeasesPage() {
           description={lc.createDescription}
           onClose={() => setModalOpen(false)}
         >
+          {formError && (
+            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {formError}
+            </p>
+          )}
           <LeaseForm
-            properties={myProperties}
+            properties={properties}
+            tenants={tenants}
             onCancel={() => setModalOpen(false)}
             onSuccess={addLease}
+          />
+        </Modal>
+      )}
+
+      {documentsLease && (
+        <Modal
+          title="Lease Documents"
+          description={`${tenantName(documentsLease.tenantId)} · ${propertyFor(documentsLease.propertyId)?.title ?? "—"}`}
+          onClose={() => setDocumentsLease(null)}
+        >
+          <LeaseDocumentsPanel
+            leaseId={documentsLease.id}
+            documentsConfirmed={documentsLease.documentsConfirmed}
+            onConfirmed={load}
           />
         </Modal>
       )}
@@ -204,11 +322,16 @@ export default function LandlordLeasesPage() {
       {viewingLease && (
         <Modal
           title={lc.agreementTitle}
-          description={`${viewingLease.tenant} · ${viewingLease.property}`}
+          description={`${tenantName(viewingLease.tenantId)} · ${propertyFor(viewingLease.propertyId)?.title ?? "—"}`}
           onClose={() => setViewingLease(null)}
-          maxWidthClassName="max-w-3xl"
         >
-          <LeaseDocument lease={viewingLease} />
+          <LeaseDetail
+            lease={viewingLease}
+            propertyLabel={propertyFor(viewingLease.propertyId)?.title ?? "—"}
+            unitLabel={unitFor(viewingLease.unitId)?.label ?? "—"}
+            tenantLabel={tenantName(viewingLease.tenantId)}
+            ownerLabel={user ? `${user.firstName} ${user.lastName}` : "—"}
+          />
         </Modal>
       )}
     </div>

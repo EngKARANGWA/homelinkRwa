@@ -1,16 +1,21 @@
 "use client";
 
-import { AppLink as Link } from "@/components/shared/AppLink";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Building2, CreditCard, LayoutDashboard, Users } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
-const BOTTOM_NAV_ITEMS = [
+type NavItem =
+  | { key: keyof Translations["dashboard"]["nav"]; label?: undefined; href: string; icon: typeof LayoutDashboard }
+  | { key?: undefined; label: string; href: string; icon: typeof LayoutDashboard };
+
+const BOTTOM_NAV_ITEMS: NavItem[] = [
   { key: "dashboard", href: "/landlord", icon: LayoutDashboard },
   { key: "properties", href: "/landlord/properties", icon: Building2 },
   { key: "payments", href: "/landlord/payments", icon: CreditCard },
-  { key: "tenants", href: "/landlord/tenants", icon: Users },
-] as const;
+  { key: "team", href: "/landlord/team", icon: Users },
+];
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -18,7 +23,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgba(0,0,0,0.04)] lg:hidden">
-      {BOTTOM_NAV_ITEMS.map(({ key, href, icon: Icon }) => {
+      {BOTTOM_NAV_ITEMS.map(({ key, label, href, icon: Icon }) => {
         // Unit detail pages live under /landlord/properties/[id]/units/[unitId]
         // but represent a tenant, so they should light up Tenants instead of
         // Properties even though the URL is nested there.
@@ -41,7 +46,7 @@ export function BottomNav() {
             }`}
           >
             <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
-            {t.dashboard.nav[key]}
+            {key ? t.dashboard.nav[key] : label}
           </Link>
         );
       })}

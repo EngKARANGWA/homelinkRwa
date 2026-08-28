@@ -1,0 +1,319 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { AlertCircle, Check, CheckCircle2, Eye, FileStack, Plus, X } from "lucide-react";
+import { listProperties, listUnits } from "@/lib/api/properties";
+import {
+  approveLeaseChangeRequest,
+  getLease,
+  listLeaseChangeRequests,
+  listLeases,
+  rejectLeaseChangeRequest,
+} from "@/lib/api/leases";
+import { inviteTenant } from "@/lib/api/iam";
+import { ApiError } from "@/lib/api/client";
+import type { Lease, Property, PropertyUnit } from "@/lib/api/types";
+import { formatLeaseStatus, LEASE_STATUS_STYLES } from "@/lib/leaseStatus";
+import { Modal } from "@/components/admin/Modal";
+import { InviteTenantForm, type InviteTenantValues } from "@/components/landlord/InviteTenantForm";
+import { LeaseDocumentsPanel } from "@/components/leases/LeaseDocumentsPanel";
+import { LeaseDetail } from "@/components/leases/LeaseDetail";
+import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { formatMoney } from "@/lib/money";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+
+export default function HouseManagerLeasesPage() {
+  const { t } = useLanguage();
+  const c = t.dashboard.houseManager.leases;
+  const [leases, setLeases] = useState<Lease[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [units, setUnits] = useState<PropertyUnit[]>([]);
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [isInviting, setInviting] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [documentsLease, setDocumentsLease] = useState<Lease | null>(null);
+  const [viewingLease, setViewingLease] = useState<Lease | null>(null);
+  const [isViewLoading, setViewLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  const propertyFor = (id: string) => properties.find((p) => p.id === id);
+  const unitFor = (id: string) => units.find((u) => u.id === id);
+  const tenantName = (id: string) => `${c.tenantLabelPrefix} ${id.slice(0, 8).toUpperCase()}`;
+  const ownerName = (id: string) => `${c.ownerLabelPrefix} ${id.slice(0, 8).toUpperCase()}`;
+
+  const load = () => {
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      listLeases({ page, limit: DEFAULT_PAGE_SIZE }),
+      listProperties({ limit: 100 }),
+    ])
+      .then(async ([leasesRes, propertiesRes]) => {
+        setLeases(leasesRes.data);
+        setTotalPages(leasesRes.meta.totalPages);
+        setTotalItems(leasesRes.meta.total);
+        setProperties(propertiesRes.data);
+        const unitsByProperty = await Promise.all(
+          propertiesRes.data.map((p) => listUnits(p.id)),
+        );
+        setUnits(unitsByProperty.flat());
+      })
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : "Failed to load leases."),
+      )
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, [page]);
+
+  const handleInvite = async (values: InviteTenantValues) => {
+    setActionError(null);
+    try {
+      await inviteTenant(values.email, values.propertyId);
+      setInviting(false);
+      setNotice(c.inviteSentTemplate.replace("{email}", values.email));
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Failed to send invite.");
+    }
+  };
+
+  const viewLease = async (lease: Lease) => {
+    setActionError(null);
+    setViewLoading(true);
+    try {
+      setViewingLease(await getLease(lease.id));
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Failed to load lease details.");
+    } finally {
+      setViewLoading(false);
+    }
+  };
+
+  const resolveRequest = async (lease: Lease, approve: boolean) => {
+    let decisionNotes = "";
+    if (!approve) {
+      decisionNotes = window.prompt(c.rejectPrompt)?.trim() ?? "";
+      if (!decisionNotes) return;
+    }
+    setActionError(null);
+    setProcessingId(lease.id);
+    try {
+      const changeRequests = await listLeaseChangeRequests(lease.id);
+      const pending = changeRequests.find((cr) => cr.status === "pending");
+      if (!pending) {
+        setActionError(c.noPendingRequest);
+        return;
+      }
+      if (approve) {
+        await approveLeaseChangeRequest(pending.id);
+      } else {
+        await rejectLeaseChangeRequest(pending.id, decisionNotes);
+      }
+      load();
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "Failed to resolve the request.",
+      );
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{c.subtitle}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setInviting(true)}
+          className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+        >
+          <Plus className="h-4 w-4" />
+          {c.inviteTenant}
+        </button>
+      </div>
+
+      {notice && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle2 className="h-4 w-4" />
+          {notice}
+        </div>
+      )}
+
+      {(error || actionError) && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            {error ?? actionError}
+          </span>
+          {error && (
+            <button type="button" onClick={load} className="underline hover:no-underline">
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+
+      <Table variant="standalone">
+        <THead>
+          <Tr>
+            <Th className="max-w-[10rem] px-4 py-3 sm:px-6">{t.dashboard.table.tenant}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.property}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.rentRwf}</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.term}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
+          </Tr>
+        </THead>
+        <TBody>
+          {isLoading ? (
+            <EmptyRow colSpan={6}>{c.loading}</EmptyRow>
+          ) : leases.length === 0 ? (
+            <EmptyRow colSpan={6}>{c.empty}</EmptyRow>
+          ) : (
+            leases.map((lease) => {
+              const property = propertyFor(lease.propertyId);
+              const name = tenantName(lease.tenantId);
+              const isProcessing = processingId === lease.id;
+              return (
+                <Tr key={lease.id}>
+                  <Td className="max-w-[10rem] px-4 py-3 sm:max-w-none sm:px-6">
+                    <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                      {name}
+                    </p>
+                    <p className="truncate text-xs text-slate-400 md:hidden">
+                      {property?.title ?? "—"} · {formatMoney(Number(lease.rentAmount))} RWF
+                    </p>
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                    {property?.title ?? "—"}
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                    {formatMoney(Number(lease.rentAmount))}
+                  </Td>
+                  <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                    {lease.startDate} → {lease.endDate ?? c.openEnded}
+                  </Td>
+                  <Td className="px-4 py-3 sm:px-6">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${LEASE_STATUS_STYLES[lease.status]}`}
+                    >
+                      {formatLeaseStatus(lease.status)}
+                    </span>
+                  </Td>
+                  <Td className="max-w-[6.5rem] px-4 py-3 sm:max-w-none sm:whitespace-nowrap sm:px-6">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => viewLease(lease)}
+                        disabled={isViewLoading}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        {t.dashboard.actions.view}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDocumentsLease(lease)}
+                        aria-label={c.documentsAriaTemplate.replace("{name}", name)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        <FileStack className="h-3.5 w-3.5" />
+                        {c.documents}
+                      </button>
+
+                      {(lease.status === "pending_renewal" ||
+                        lease.status === "pending_termination") && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => resolveRequest(lease, true)}
+                            disabled={isProcessing}
+                            aria-label={c.approveAriaTemplate.replace("{name}", name)}
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => resolveRequest(lease, false)}
+                            disabled={isProcessing}
+                            aria-label={c.rejectAriaTemplate.replace("{name}", name)}
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </Td>
+                </Tr>
+              );
+            })
+          )}
+        </TBody>
+      </Table>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
+
+      {isInviting && (
+        <Modal
+          title={c.inviteTenantTitle}
+          description={c.inviteTenantDescription}
+          onClose={() => setInviting(false)}
+        >
+          <InviteTenantForm
+            properties={properties}
+            onCancel={() => setInviting(false)}
+            onSuccess={handleInvite}
+          />
+        </Modal>
+      )}
+
+      {documentsLease && (
+        <Modal
+          title={c.leaseDocumentsTitle}
+          description={`${tenantName(documentsLease.tenantId)} · ${propertyFor(documentsLease.propertyId)?.title ?? "—"}`}
+          onClose={() => setDocumentsLease(null)}
+        >
+          <LeaseDocumentsPanel
+            leaseId={documentsLease.id}
+            documentsConfirmed={documentsLease.documentsConfirmed}
+            onConfirmed={load}
+          />
+        </Modal>
+      )}
+
+      {viewingLease && (
+        <Modal
+          title={c.leaseDetailsTitle}
+          description={`${tenantName(viewingLease.tenantId)} · ${propertyFor(viewingLease.propertyId)?.title ?? "—"}`}
+          onClose={() => setViewingLease(null)}
+        >
+          <LeaseDetail
+            lease={viewingLease}
+            propertyLabel={propertyFor(viewingLease.propertyId)?.title ?? "—"}
+            unitLabel={unitFor(viewingLease.unitId)?.label ?? "—"}
+            tenantLabel={tenantName(viewingLease.tenantId)}
+            ownerLabel={ownerName(viewingLease.ownerId)}
+          />
+        </Modal>
+      )}
+    </div>
+  );
+}

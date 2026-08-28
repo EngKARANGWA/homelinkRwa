@@ -1,6 +1,6 @@
 "use client";
 
-import { AppLink as Link } from "@/components/shared/AppLink";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CreditCard, FileText, LayoutDashboard, Wrench } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";

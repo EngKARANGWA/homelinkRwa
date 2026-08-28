@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { AppLink as Link } from "@/components/shared/AppLink";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
+  AlertCircle,
   Banknote,
   CalendarClock,
   CheckCircle2,
@@ -11,15 +12,13 @@ import {
   Wallet,
   Wrench,
 } from "lucide-react";
-import {
-  LEASES,
-  MAINTENANCE_REQUESTS,
-  PAYMENTS,
-  TODAY,
-  type Payment,
-} from "@/lib/mock-admin-data";
-import { useTenant } from "@/components/tenant/TenantContext";
-import { getTenantUnitNumber } from "@/lib/units";
+import { useAuth } from "@/components/auth/AuthContext";
+import { getTenantDashboard } from "@/lib/api/dashboard";
+import { getLease } from "@/lib/api/leases";
+import { listUnits } from "@/lib/api/properties";
+import { payInvoice } from "@/lib/api/payments";
+import { ApiError } from "@/lib/api/client";
+import type { PayInvoiceInput, TenantDashboard } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
 import { PayNowForm } from "@/components/tenant/PayNowForm";
 import { StatCard, type StatAccent } from "@/components/dashboard/StatCard";
@@ -77,55 +76,58 @@ const STAT_META: Record<
 };
 
 export default function TenantOverviewPage() {
-  const { tenantName } = useTenant();
+  const { user } = useAuth();
   const { t } = useLanguage();
   const c = t.dashboard.tenant.overview;
-  const [payments, setPayments] = useState(PAYMENTS);
+  const [dashboard, setDashboard] = useState<TenantDashboard | null>(null);
+  const [unitLabel, setUnitLabel] = useState<string | null>(null);
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isPaying, setPaying] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const myLeases = LEASES.filter((l) => l.tenant === tenantName);
-  const currentLease =
-    myLeases.find((l) => l.status === "Active") ??
-    myLeases.find(
-      (l) =>
-        l.status === "Renewal Requested" || l.status === "Termination Requested",
-    ) ??
-    myLeases[0];
-
-  const myMaintenance = MAINTENANCE_REQUESTS.filter(
-    (m) => m.tenant === tenantName,
-  );
-  const myPayments = payments.filter((p) => p.tenant === tenantName);
-  const nextPayment = myPayments
-    .filter((p) => p.status !== "Paid" && p.status !== "Pending Approval")
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
-
-  const currentUnitNumber = currentLease
-    ? getTenantUnitNumber(currentLease.property, tenantName)
-    : undefined;
-  const nextPaymentUnitNumber = nextPayment
-    ? getTenantUnitNumber(nextPayment.property, tenantName)
-    : undefined;
-
-  const payNow = (method: Payment["method"]) => {
-    if (!nextPayment) return;
-    const needsApproval = method === "Cash" || method === "Bank Transfer";
-    setPayments((prev) =>
-      prev.map((p) =>
-        p.id === nextPayment.id
-          ? {
-              ...p,
-              status: needsApproval ? "Pending Approval" : "Paid",
-              method,
-              paidDate: needsApproval ? null : TODAY,
-            }
-          : p,
-      ),
-    );
-    setPaying(false);
-    setNotice(needsApproval ? c.paymentSubmitted : c.paymentSuccessful);
+  const load = () => {
+    setLoading(true);
+    setError(null);
+    getTenantDashboard()
+      .then(async (dash) => {
+        setDashboard(dash);
+        if (dash.activeLease) {
+          const lease = await getLease(dash.activeLease.id);
+          const units = await listUnits(lease.propertyId);
+          setUnitLabel(units.find((u) => u.id === lease.unitId)?.label ?? null);
+        } else {
+          setUnitLabel(null);
+        }
+      })
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : "Failed to load your dashboard."),
+      )
+      .finally(() => setLoading(false));
   };
+
+  useEffect(load, []);
+
+  const payNow = async (values: PayInvoiceInput) => {
+    if (!dashboard?.nextDueInvoice) return;
+    setError(null);
+    try {
+      await payInvoice(dashboard.nextDueInvoice.id, values);
+      setPaying(false);
+      setNotice(
+        values.method === "mobile_money" ? c.paymentSuccessful : c.paymentSubmitted,
+      );
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to submit payment.");
+    }
+  };
+
+  const activeLease = dashboard?.activeLease ?? null;
+  const nextDueInvoice = dashboard?.nextDueInvoice ?? null;
+  const pendingMaintenance = dashboard
+    ? dashboard.maintenanceRequests.open + dashboard.maintenanceRequests.inProgress
+    : 0;
 
   const stats: {
     label: keyof Translations["dashboard"]["tenant"]["overview"]["statLabels"];
@@ -134,22 +136,20 @@ export default function TenantOverviewPage() {
   }[] = [
     {
       label: "currentProperty",
-      value: currentLease ? currentLease.property : c.noActiveLease,
-      subtitle: currentUnitNumber ? `${c.unitPrefix}${currentUnitNumber}` : undefined,
+      value: isLoading ? "…" : (activeLease?.propertyTitle ?? c.noActiveLease),
+      subtitle: unitLabel ? `${c.unitPrefix}${unitLabel}` : undefined,
     },
     {
       label: "monthlyRent",
-      value: currentLease
-        ? `${formatMoney(currentLease.rent)} RWF`
-        : "-",
+      value: isLoading ? "…" : activeLease ? `${formatMoney(activeLease.rentAmount)} RWF` : "-",
     },
     {
       label: "pendingMaintenance",
-      value: myMaintenance.filter((m) => m.status !== "Completed").length,
+      value: isLoading ? "…" : pendingMaintenance,
     },
     {
       label: "nextPaymentDue",
-      value: nextPayment ? shortDate(nextPayment.dueDate) : c.allPaidUp,
+      value: isLoading ? "…" : nextDueInvoice ? shortDate(nextDueInvoice.dueDate) : c.allPaidUp,
     },
   ];
 
@@ -158,7 +158,9 @@ export default function TenantOverviewPage() {
       <div>
         <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          {c.welcomeBackPrefix}{tenantName}{c.welcomeBackSuffix}
+          {c.welcomeBackPrefix}
+          {user ? `${user.firstName} ${user.lastName}` : ""}
+          {c.welcomeBackSuffix}
         </p>
       </div>
 
@@ -169,16 +171,27 @@ export default function TenantOverviewPage() {
         </div>
       )}
 
-      {nextPayment && (
+      {error && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            {error}
+          </span>
+          <button type="button" onClick={load} className="underline hover:no-underline">
+            Retry
+          </button>
+        </div>
+      )}
+
+      {nextDueInvoice && activeLease && (
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-gold/30 bg-gold/5 p-5 shadow-sm">
           <div>
             <p className="font-semibold text-navy">
-              {c.rentPendingTemplate.replace("{amount}", formatMoney(nextPayment.amount))}
+              {c.rentPendingTemplate.replace("{amount}", formatMoney(nextDueInvoice.amountDue))}
             </p>
             <p className="mt-1 text-sm text-slate-500">
-              {nextPayment.property}
-              {nextPaymentUnitNumber ? ` · ${c.unitPrefix}${nextPaymentUnitNumber}` : ""} · {c.due}{" "}
-              {nextPayment.dueDate}
+              {activeLease.propertyTitle}
+              {unitLabel ? ` · ${c.unitPrefix}${unitLabel}` : ""} · {c.due} {nextDueInvoice.dueDate}
             </p>
           </div>
           <button
@@ -201,9 +214,9 @@ export default function TenantOverviewPage() {
               label={c.statLabels[label]}
               value={value}
               subtitle={subtitle ?? c.statSubtitles[meta.subtitleKey]}
-              href={meta?.href ?? "/tenant"}
-              icon={meta?.icon ?? Home}
-              accent={meta?.accent ?? "blue"}
+              href={meta.href}
+              icon={meta.icon}
+              accent={meta.accent}
             />
           );
         })}
@@ -225,16 +238,16 @@ export default function TenantOverviewPage() {
         </div>
       </div>
 
-      {isPaying && nextPayment && (
+      {isPaying && nextDueInvoice && activeLease && (
         <Modal
           title={c.payRentModalTitle}
-          description={nextPayment.property}
+          description={activeLease.propertyTitle}
           onClose={() => setPaying(false)}
         >
           <PayNowForm
-            amount={nextPayment.amount}
+            amount={nextDueInvoice.amountDue}
             onCancel={() => setPaying(false)}
-            onSuccess={(method) => payNow(method)}
+            onSuccess={(values) => payNow(values)}
           />
         </Modal>
       )}

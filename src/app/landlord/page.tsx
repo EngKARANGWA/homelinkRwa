@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { AppLink as Link } from "@/components/shared/AppLink";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
+  AlertOctagon,
   AlertTriangle,
   ArrowRight,
   Bell,
@@ -24,9 +25,20 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { LEASES, MAINTENANCE_REQUESTS, PAYMENTS, PROPERTIES, TODAY } from "@/lib/mock-admin-data";
-import { useLandlord } from "@/components/landlord/LandlordContext";
-import { getUnitsForProperty } from "@/lib/units";
+import { useAuth } from "@/components/auth/AuthContext";
+import { getOwnerDashboard } from "@/lib/api/dashboard";
+import { listProperties } from "@/lib/api/properties";
+import { listLeases } from "@/lib/api/leases";
+import { listInvoices, listPayments } from "@/lib/api/payments";
+import { listMaintenanceRequests } from "@/lib/api/maintenance";
+import { ApiError } from "@/lib/api/client";
+import type {
+  Invoice,
+  Lease,
+  OwnerDashboard,
+  Payment,
+  Property,
+} from "@/lib/api/types";
 import {
   CHART_COLORS,
   CHART_GRID_COLOR,
@@ -38,15 +50,18 @@ import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { Translations } from "@/lib/i18n/translations";
 
+const ARREARS_THRESHOLD_DAYS = 30;
+
 const TRANSACTION_QUICK_ACTIONS: {
   key: "All" | "Pending Approval" | "Overdue" | "Arrears";
+  paymentsStatus: "All" | "pending" | "overdue";
   labelKey: keyof Translations["dashboard"]["landlord"]["overview"]["tabs"];
   icon: typeof Building2;
 }[] = [
-  { key: "All", labelKey: "all", icon: ListChecks },
-  { key: "Pending Approval", labelKey: "pendingApproval", icon: Clock },
-  { key: "Overdue", labelKey: "overdue", icon: AlertTriangle },
-  { key: "Arrears", labelKey: "arrears", icon: AlertCircle },
+  { key: "All", paymentsStatus: "All", labelKey: "all", icon: ListChecks },
+  { key: "Pending Approval", paymentsStatus: "pending", labelKey: "pendingApproval", icon: Clock },
+  { key: "Overdue", paymentsStatus: "overdue", labelKey: "overdue", icon: AlertTriangle },
+  { key: "Arrears", paymentsStatus: "overdue", labelKey: "arrears", icon: AlertOctagon },
 ];
 
 const STAT_META: Record<
@@ -101,45 +116,71 @@ function formatMonth(month: string): string {
 }
 
 export default function LandlordOverviewPage() {
-  const { landlordName, unitOverrides } = useLandlord();
+  const { user } = useAuth();
   const { t } = useLanguage();
   const c = t.dashboard.landlord.overview;
+  const [dashboard, setDashboard] = useState<OwnerDashboard | null>(null);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [leases, setLeases] = useState<Lease[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [pendingMaintenanceCount, setPendingMaintenanceCount] = useState(0);
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [reminderNotice, setReminderNotice] = useState<string | null>(null);
 
-  const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
-  const myPropertyNames = myProperties.map((p) => p.name);
-  const myLeases = LEASES.filter((l) => l.owner === landlordName);
-  const myMaintenance = MAINTENANCE_REQUESTS.filter((m) =>
-    myPropertyNames.includes(m.property),
-  );
-  const myPayments = PAYMENTS.filter((p) => p.owner === landlordName);
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      getOwnerDashboard(),
+      listProperties({ ownerId: user.id, limit: 100 }),
+      listLeases({ status: "active", limit: 100 }),
+      listInvoices({ limit: 100 }),
+      listPayments({ limit: 100 }),
+      listMaintenanceRequests({ limit: 100 }),
+    ])
+      .then(([dash, propertiesRes, leasesRes, invoicesRes, paymentsRes, maintenanceRes]) => {
+        setDashboard(dash);
+        setProperties(propertiesRes.data);
+        setLeases(leasesRes.data);
+        setInvoices(invoicesRes.data);
+        setPayments(paymentsRes.data);
+        setPendingMaintenanceCount(
+          maintenanceRes.data.filter((m) => m.status !== "completed").length,
+        );
+      })
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : "Failed to load your dashboard."),
+      )
+      .finally(() => setLoading(false));
+  }, [user]);
 
-  const allTenantUnits = myProperties.flatMap((property) =>
-    getUnitsForProperty(property, unitOverrides).filter(
-      (u) => u.occupancyStatus === "Occupied",
-    ),
-  );
+  const leaseById = new Map(leases.map((l) => [l.id, l]));
 
-  const overdueTenantUnits = allTenantUnits.filter(
-    (u) => u.currentPaymentStatus === "Overdue" || u.currentPaymentStatus === "Arrears",
-  );
-  const overdueOnlyUnits = allTenantUnits.filter((u) => u.currentPaymentStatus === "Overdue");
-  const arrearsOnlyUnits = allTenantUnits.filter((u) => u.currentPaymentStatus === "Arrears");
-  const arrearsBalance = overdueTenantUnits.reduce((sum, u) => sum + u.monthlyRent, 0);
-  const overdueOnlyBalance = overdueOnlyUnits.reduce((sum, u) => sum + u.monthlyRent, 0);
-  const arrearsOnlyBalance = arrearsOnlyUnits.reduce((sum, u) => sum + u.monthlyRent, 0);
+  const overdueInvoices = invoices.filter((inv) => inv.status === "overdue");
+  const pendingApprovalPayments = payments.filter((p) => p.approvalStatus === "pending");
 
-  const pendingApprovalPayments = myPayments.filter((p) => p.status === "Pending Approval");
+  const daysOverdue = (inv: Invoice) =>
+    Math.floor((new Date().getTime() - new Date(inv.dueDate).getTime()) / (1000 * 60 * 60 * 24));
+  const arrearsInvoices = overdueInvoices.filter((inv) => daysOverdue(inv) >= ARREARS_THRESHOLD_DAYS);
+
+  const overdueTenantIds = new Set(
+    overdueInvoices
+      .map((inv) => leaseById.get(inv.leaseId)?.tenantId)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const pendingApprovalTenantIds = new Set(pendingApprovalPayments.map((p) => p.tenantId));
+
+  const overdueBalance = overdueInvoices.reduce((sum, inv) => sum + Number(inv.amountDue), 0);
+  const arrearsBalance = arrearsInvoices.reduce((sum, inv) => sum + Number(inv.amountDue), 0);
   const pendingApprovalBalance = pendingApprovalPayments.reduce(
-    (sum, p) => sum + p.amount,
+    (sum, p) => sum + Number(p.amount),
     0,
   );
-
-  const balanceDue = arrearsBalance + pendingApprovalBalance;
-  const outstandingTenants = new Set([
-    ...overdueTenantUnits.map((u) => u.tenant),
-    ...pendingApprovalPayments.map((p) => p.tenant),
-  ]).size;
+  const balanceDue = (dashboard?.outstandingRent ?? 0) + pendingApprovalBalance;
+  const outstandingTenants = new Set([...overdueTenantIds, ...pendingApprovalTenantIds]).size;
 
   const handleSendReminder = () => {
     setReminderNotice(
@@ -152,33 +193,23 @@ export default function LandlordOverviewPage() {
   };
 
   const stats = [
-    { label: "My Properties", value: myProperties.length },
-    {
-      label: "Active Leases",
-      value: myLeases.filter((l) => l.status === "Active").length,
-    },
-    {
-      label: "Pending Maintenance",
-      value: myMaintenance.filter((m) => m.status !== "Completed").length,
-    },
+    { label: "My Properties", value: dashboard?.occupancy.totalProperties ?? properties.length },
+    { label: "Active Leases", value: leases.length },
+    { label: "Pending Maintenance", value: pendingMaintenanceCount },
     {
       label: "Revenue Collected",
-      value: `${formatMoney(
-        myPayments
-          .filter((p) => p.status === "Paid")
-          .reduce((sum, p) => sum + p.amount, 0),
-      )} RWF`,
+      value: `${formatMoney(dashboard?.revenue.thisMonth ?? 0)} RWF`,
     },
   ];
 
   const revenueByMonth = (() => {
-    const currentYear = TODAY.slice(0, 4);
+    const currentYear = new Date().getFullYear().toString();
     const totals = new Map<string, number>();
-    myPayments
-      .filter((p) => p.status === "Paid")
+    payments
+      .filter((p) => p.status === "success" && p.paidAt)
       .forEach((p) => {
-        const month = (p.paidDate ?? p.dueDate).slice(0, 7);
-        totals.set(month, (totals.get(month) ?? 0) + p.amount);
+        const month = (p.paidAt as string).slice(0, 7);
+        totals.set(month, (totals.get(month) ?? 0) + Number(p.amount));
       });
     return Array.from({ length: 12 }, (_, i) => {
       const month = `${currentYear}-${String(i + 1).padStart(2, "0")}`;
@@ -187,17 +218,17 @@ export default function LandlordOverviewPage() {
   })();
 
   const transactionTabCounts: Record<(typeof TRANSACTION_QUICK_ACTIONS)[number]["key"], number> = {
-    All: myPayments.length + overdueTenantUnits.length,
+    All: overdueInvoices.length + pendingApprovalPayments.length,
     "Pending Approval": pendingApprovalPayments.length,
-    Overdue: overdueOnlyUnits.length,
-    Arrears: arrearsOnlyUnits.length,
+    Overdue: overdueInvoices.length,
+    Arrears: arrearsInvoices.length,
   };
 
   const transactionTabAmounts: Record<(typeof TRANSACTION_QUICK_ACTIONS)[number]["key"], number> = {
     All: balanceDue,
     "Pending Approval": pendingApprovalBalance,
-    Overdue: overdueOnlyBalance,
-    Arrears: arrearsOnlyBalance,
+    Overdue: overdueBalance,
+    Arrears: arrearsBalance,
   };
 
   return (
@@ -205,9 +236,18 @@ export default function LandlordOverviewPage() {
       <div>
         <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          {c.subtitlePrefix}{landlordName}{c.subtitleSuffix}
+          {c.subtitlePrefix}{user?.firstName ?? ""}{c.subtitleSuffix}
         </p>
       </div>
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            {error}
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
         {stats.map(({ label, value }) => {
@@ -216,7 +256,7 @@ export default function LandlordOverviewPage() {
             <StatCard
               key={label}
               label={meta ? c.statLabels[meta.labelKey] : label}
-              value={value}
+              value={isLoading ? "…" : value}
               subtitle={meta ? c.statSubtitles[meta.subtitleKey] : undefined}
               href={meta?.href ?? "/landlord"}
               icon={meta?.icon ?? Building2}
@@ -252,7 +292,7 @@ export default function LandlordOverviewPage() {
           </Link>
         </AlertBanner>
 
-        {myProperties.length > 0 && (
+        {properties.length > 0 && (
           <div className="order-1 rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:order-2">
             <p className="font-semibold text-navy">{c.revenueByMonth}</p>
             <ResponsiveContainer width="100%" height={240}>
@@ -299,7 +339,7 @@ export default function LandlordOverviewPage() {
           {TRANSACTION_QUICK_ACTIONS.map((action) => (
             <Link
               key={action.key}
-              href={`/landlord/payments?status=${encodeURIComponent(action.key)}`}
+              href={`/landlord/payments?status=${encodeURIComponent(action.paymentsStatus)}`}
               className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-slate-200 px-4 py-3 text-center transition-colors hover:border-gold/40 hover:bg-slate-50"
             >
               <span className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm font-medium text-navy">
@@ -308,11 +348,11 @@ export default function LandlordOverviewPage() {
                   {c.tabs[action.labelKey]}
                 </span>
                 <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                  {transactionTabCounts[action.key]}
+                  {isLoading ? "…" : transactionTabCounts[action.key]}
                 </span>
               </span>
               <span className="text-sm font-semibold text-slate-500">
-                {formatMoney(transactionTabAmounts[action.key])} RWF
+                {isLoading ? "…" : `${formatMoney(transactionTabAmounts[action.key])} RWF`}
               </span>
             </Link>
           ))}
