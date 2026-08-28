@@ -6,6 +6,11 @@
 # render-env.sh has written /opt/homelink-frontend/.env from SSM parameters
 # under /homelink/production/frontend/*.
 #
+# Note: since this is the *only* -f file passed (unlike the backend, which
+# merges with a root-level docker-compose.yml), Compose resolves every
+# relative path below against THIS file's own directory (infra/), not the
+# repo root — hence `../.env` and `./Caddyfile`, not `.env`/`./infra/Caddyfile`.
+#
 # GHCR_REPOSITORY comes from render-env.sh (SSM: frontend/ghcr_repository).
 # IMAGE_TAG is set by the CI/CD deploy step (see Jenkinsfile) — export it
 # yourself for a manual deploy: `export IMAGE_TAG=<git-sha-or-tag>`.
@@ -15,7 +20,7 @@ services:
     container_name: homelink-frontend
     restart: unless-stopped
     env_file:
-      - .env
+      - ../.env
     expose:
       - "3000"
 
@@ -29,7 +34,7 @@ services:
     environment:
       PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:?set by render-env.sh}
     volumes:
-      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
     depends_on:
       - frontend
