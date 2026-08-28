@@ -1,0 +1,17 @@
+# Frontend box reverse proxy: terminates TLS at the origin and forwards
+# everything to the Next.js SSR container over the compose network.
+# PUBLIC_HOSTNAME (from SSM frontend/public_hostname via render-env.sh,
+# passed through by infra/docker-compose.prod.yml's `caddy` service) is
+# either the real domain_name once one's registered, or a nip.io hostname
+# derived from this box's own Elastic IP while it isn't — either way it's a
+# real public hostname, so Caddy obtains a proper Let's Encrypt cert
+# automatically instead of a self-signed one. Mirrors homelink-bn's own
+# infra/Caddyfile.
+:80 {
+	redir https://{host}{uri} permanent
+}
+
+{$PUBLIC_HOSTNAME} {
+	encode gzip
+	reverse_proxy frontend:3000
+}

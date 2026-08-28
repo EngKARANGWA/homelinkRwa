@@ -1,0 +1,38 @@
+# Frontend box (Tier A) compose file. Run from the repo root as:
+#
+#   docker compose -f infra/docker-compose.prod.yml up -d
+#
+# Prerequisite: homelink-bn's infra/terraform/user-data/frontend.sh.tpl's
+# render-env.sh has written /opt/homelink-frontend/.env from SSM parameters
+# under /homelink/production/frontend/*.
+#
+# GHCR_REPOSITORY comes from render-env.sh (SSM: frontend/ghcr_repository).
+# IMAGE_TAG is set by the CI/CD deploy step (see Jenkinsfile) — export it
+# yourself for a manual deploy: `export IMAGE_TAG=<git-sha-or-tag>`.
+services:
+  frontend:
+    image: ${GHCR_REPOSITORY:?set by render-env.sh}:${IMAGE_TAG:?export before deploying}
+    container_name: homelink-frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: homelink-frontend-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:?set by render-env.sh}
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - frontend
+
+volumes:
+  caddy_data:
