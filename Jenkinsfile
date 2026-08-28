@@ -22,6 +22,9 @@ pipeline {
         // ghcr_username in homelink-bn's terraform.tfvars.
         REPOSITORY = "ghcr.io/ishkevin/homelinkrwa"
         IMAGE_TAG  = "${env.GIT_COMMIT}"
+        // Backend's public URL (homelink-bn's app box). Baked into the
+        // client bundle at build time — see Dockerfile.
+        NEXT_PUBLIC_API_BASE_URL = "https://52-17-7-91.nip.io/api/v1"
     }
 
     stages {
@@ -35,6 +38,7 @@ pipeline {
                           --build-arg GIT_COMMIT="$IMAGE_TAG" \
                           --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
                           --build-arg IMAGE_TAG="$IMAGE_TAG" \
+                          --build-arg NEXT_PUBLIC_API_BASE_URL="$NEXT_PUBLIC_API_BASE_URL" \
                           -t "$REPOSITORY:$IMAGE_TAG" .
                         docker push "$REPOSITORY:$IMAGE_TAG"
                     '''
