@@ -1,18 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AppLink as Link } from "@/components/shared/AppLink";
-import { Bell, ChevronDown, LogOut, Menu } from "lucide-react";
-import { getInitials } from "@/lib/initials";
-import { useTenant } from "./TenantContext";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Bell, ChevronDown, LogOut, Menu, User, UserCircle } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthContext";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 
 export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
-  const { tenantName } = useTenant();
+  const { user, signOut } = useAuth();
+  const router = useRouter();
   const { t } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const name = user ? `${user.firstName} ${user.lastName}` : "";
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -53,12 +55,10 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
             aria-label={t.dashboard.topbar.accountMenu}
             className="flex min-w-0 items-center gap-2 rounded-lg px-1 py-1 hover:bg-slate-50"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-semibold text-white">
-              {getInitials(tenantName)}
-            </span>
-            <div className="hidden min-w-0 leading-tight text-left sm:block">
-              <p className="truncate text-sm font-semibold text-navy">{tenantName}</p>
-              <p className="truncate text-xs text-slate-500">{t.dashboard.topbar.tenant}</p>
+            <UserCircle className="h-8 w-8 text-slate-400" strokeWidth={1.5} />
+            <div className="leading-tight text-left">
+              <p className="text-sm font-semibold text-navy">{name}</p>
+              <p className="hidden text-xs text-slate-500 sm:block">{t.dashboard.topbar.tenant}</p>
             </div>
             <ChevronDown
               className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${menuOpen ? "rotate-180" : ""}`}
@@ -69,13 +69,25 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
           {menuOpen && (
             <div className="absolute right-0 top-full z-20 mt-2 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
               <Link
-                href="/login"
+                href="/tenant/profile"
+                onClick={() => setMenuOpen(false)}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <User className="h-4 w-4" strokeWidth={2} />
+                Profile
+              </Link>
+              <button
+                type="button"
+                onClick={async () => {
+                  await signOut();
+                  router.push("/login");
+                }}
                 aria-label={t.dashboard.topbar.logout}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                className="flex w-full items-center gap-2 border-t border-slate-100 px-4 py-2.5 text-left text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 <LogOut className="h-4 w-4" strokeWidth={2} />
                 {t.dashboard.topbar.logout}
-              </Link>
+              </button>
             </div>
           )}
         </div>

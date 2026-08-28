@@ -1,115 +1,96 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Plus, Upload, X } from "lucide-react";
-import {
-  LANDLORDS,
-  PROPERTY_TYPES_BY_BUILDING,
-  type BuildingType,
-  type Property,
-  type PropertyAttribute,
-  type PropertyType,
-} from "@/lib/mock-admin-data";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import type {
+  CreatePropertyInput,
+  Property,
+  PropertyCategory,
+  PropertyType,
+  User,
+} from "@/lib/api/types";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
-export type PropertyFormValues = {
-  name: string;
-  address: string;
-  upi: string;
-  owner: string;
-  buildingType: BuildingType;
-  type: PropertyType;
-  size: string | null;
-  rent: number;
-  availability: Property["availability"];
-  terms: string[];
-  attributes: PropertyAttribute[];
-  documentName: string | null;
+const TYPE_OPTIONS: Record<PropertyCategory, PropertyType[]> = {
+  residential: ["apartment", "house", "studio", "condo", "other"],
+  commercial: ["commercial"],
 };
 
-const PROPERTY_TYPE_KEY: Record<string, "house" | "apartment" | "unitDoor" | "unit"> = {
-  House: "house",
-  Apartment: "apartment",
-  "Unit (Door)": "unitDoor",
-  Unit: "unit",
+const TYPE_LABELS: Record<PropertyType, string> = {
+  apartment: "Apartment",
+  house: "House",
+  studio: "Studio",
+  condo: "Condo",
+  commercial: "Commercial Unit",
+  other: "Other",
 };
 
 export function PropertyForm({
+  owners,
+  initialProperty,
+  showOwnerField = true,
   onSuccess,
   onCancel,
 }: {
-  onSuccess: (values: PropertyFormValues) => void;
+  owners: User[];
+  initialProperty?: Property;
+  showOwnerField?: boolean;
+  onSuccess: (values: CreatePropertyInput) => void;
   onCancel: () => void;
 }) {
   const { t } = useLanguage();
   const c = t.dashboard.admin.propertyForm;
-  const STEPS = [
-    c.steps.basicInfo,
-    c.steps.typeAndRent,
-    c.steps.rentConditions,
-    c.steps.additionalDetails,
-    c.steps.documentsAndConfirm,
-  ];
+  const STEPS = [c.steps.basicInfo, "Type & Details", "Rent & Owner"];
+  const isEditing = !!initialProperty;
   const [step, setStep] = useState(1);
   const [stepError, setStepError] = useState<string | null>(null);
 
-  const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
-  const [upi, setUpi] = useState("");
-  const [owner, setOwner] = useState(LANDLORDS[0].name);
-  const [rent, setRent] = useState("");
-  const [availability, setAvailability] =
-    useState<Property["availability"]>("Available");
-  const [buildingType, setBuildingType] = useState<BuildingType>("Residential");
-  const [propertyType, setPropertyType] = useState<PropertyType>(
-    PROPERTY_TYPES_BY_BUILDING.Residential[0],
+  const [title, setTitle] = useState(initialProperty?.title ?? "");
+  const [description, setDescription] = useState(initialProperty?.description ?? "");
+  const [addressLine, setAddressLine] = useState(initialProperty?.addressLine ?? "");
+  const [city, setCity] = useState(initialProperty?.city ?? "");
+  const [state, setState] = useState(initialProperty?.state ?? "");
+  const [country, setCountry] = useState(initialProperty?.country ?? "Rwanda");
+  const [postalCode, setPostalCode] = useState(initialProperty?.postalCode ?? "");
+
+  const [category, setCategory] = useState<PropertyCategory>(
+    initialProperty?.category ?? "residential",
   );
-  const [size, setSize] = useState("");
-  const [documentName, setDocumentName] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
-  const [conditions, setConditions] = useState<string[]>([""]);
-  const [attributes, setAttributes] = useState<PropertyAttribute[]>([
-    { label: "", value: "" },
-  ]);
+  const [type, setType] = useState<PropertyType>(initialProperty?.type ?? "apartment");
+  const [sizeSqm, setSizeSqm] = useState(
+    initialProperty?.sizeSqm != null ? String(initialProperty.sizeSqm) : "",
+  );
+  const [unitsCount, setUnitsCount] = useState(
+    initialProperty?.unitsCount != null ? String(initialProperty.unitsCount) : "",
+  );
+  const [bedrooms, setBedrooms] = useState(
+    initialProperty?.bedrooms != null ? String(initialProperty.bedrooms) : "",
+  );
+  const [bathrooms, setBathrooms] = useState(
+    initialProperty?.bathrooms != null ? String(initialProperty.bathrooms) : "",
+  );
 
-  const propertyTypeOptions = PROPERTY_TYPES_BY_BUILDING[buildingType];
+  const [rentAmount, setRentAmount] = useState(initialProperty?.rentAmount ?? "");
+  const [rentConditions, setRentConditions] = useState(
+    initialProperty?.rentConditions ?? "",
+  );
+  const [ownerId, setOwnerId] = useState(initialProperty?.ownerId ?? owners[0]?.id ?? "");
+  const typeOptions = TYPE_OPTIONS[category];
 
-  const handleBuildingTypeChange = (next: BuildingType) => {
-    setBuildingType(next);
-    if (!PROPERTY_TYPES_BY_BUILDING[next].includes(propertyType)) {
-      setPropertyType(PROPERTY_TYPES_BY_BUILDING[next][0]);
+  const handleCategoryChange = (next: PropertyCategory) => {
+    setCategory(next);
+    if (!TYPE_OPTIONS[next].includes(type)) {
+      setType(TYPE_OPTIONS[next][0]);
     }
-  };
-
-  const updateCondition = (index: number, value: string) => {
-    setConditions((prev) => prev.map((c, i) => (i === index ? value : c)));
-  };
-
-  const removeCondition = (index: number) => {
-    setConditions((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const updateAttribute = (
-    index: number,
-    field: "label" | "value",
-    value: string,
-  ) => {
-    setAttributes((prev) =>
-      prev.map((a, i) => (i === index ? { ...a, [field]: value } : a)),
-    );
-  };
-
-  const removeAttribute = (index: number) => {
-    setAttributes((prev) => prev.filter((_, i) => i !== index));
   };
 
   const goNext = () => {
-    if (step === 1 && (!name.trim() || !address.trim() || !upi.trim())) {
-      setStepError(c.errorBasicInfo);
+    if (step === 1 && (!title.trim() || !addressLine.trim() || !city.trim() || !country.trim())) {
+      setStepError("Please fill in title, address, city, and country.");
       return;
     }
-    if (step === 2 && (!rent.trim() || Number(rent) <= 0)) {
-      setStepError(c.errorRent);
+    if (step === 2 && category === "commercial" && !sizeSqm.trim()) {
+      setStepError("Size (sqm) is required for commercial properties.");
       return;
     }
     setStepError(null);
@@ -122,26 +103,32 @@ export function PropertyForm({
   };
 
   const submitForm = () => {
-    if (!confirmed) {
-      setStepError(c.errorConfirm);
+    if (!rentAmount.toString().trim() || Number(rentAmount) <= 0) {
+      setStepError("Please enter a valid monthly rent.");
+      return;
+    }
+    if (showOwnerField && !ownerId) {
+      setStepError("Please select an owner.");
       return;
     }
     setStepError(null);
     onSuccess({
-      name: name.trim(),
-      address: address.trim(),
-      upi: upi.trim(),
-      owner,
-      buildingType,
-      type: propertyType,
-      size: buildingType === "Commercial" ? size.trim() || null : null,
-      rent: Number(rent) || 0,
-      availability,
-      terms: conditions.map((c) => c.trim()).filter(Boolean),
-      attributes: attributes
-        .map((a) => ({ label: a.label.trim(), value: a.value.trim() }))
-        .filter((a) => a.label && a.value),
-      documentName,
+      title: title.trim(),
+      description: description.trim() || undefined,
+      addressLine: addressLine.trim(),
+      city: city.trim(),
+      state: state.trim() || undefined,
+      country: country.trim(),
+      postalCode: postalCode.trim() || undefined,
+      category,
+      type,
+      sizeSqm: category === "commercial" ? Number(sizeSqm) : undefined,
+      unitsCount: type === "apartment" && unitsCount.trim() ? Number(unitsCount) : undefined,
+      bedrooms: bedrooms.trim() ? Number(bedrooms) : undefined,
+      bathrooms: bathrooms.trim() ? Number(bathrooms) : undefined,
+      rentAmount: Number(rentAmount),
+      rentConditions: rentConditions.trim() || undefined,
+      ...(showOwnerField ? { ownerId } : {}),
     });
   };
 
@@ -158,9 +145,7 @@ export function PropertyForm({
             <div className="flex flex-col items-center gap-1.5">
               <div
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                  i + 1 <= step
-                    ? "bg-gold text-white"
-                    : "bg-slate-100 text-slate-400"
+                  i + 1 <= step ? "bg-gold text-white" : "bg-slate-100 text-slate-400"
                 }`}
               >
                 {i + 1}
@@ -175,9 +160,7 @@ export function PropertyForm({
             </div>
             {i < STEPS.length - 1 && (
               <div
-                className={`mx-2 h-px flex-1 ${
-                  i + 1 < step ? "bg-gold" : "bg-slate-200"
-                }`}
+                className={`mx-2 h-px flex-1 ${i + 1 < step ? "bg-gold" : "bg-slate-200"}`}
               />
             )}
           </div>
@@ -196,9 +179,20 @@ export function PropertyForm({
             {c.propertyName}
             <input
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               placeholder={c.propertyNamePlaceholder}
+              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+            Description (optional)
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              placeholder="Optional details about the property"
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
             />
           </label>
@@ -207,230 +201,180 @@ export function PropertyForm({
             {c.address}
             <input
               type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder={c.addressPlaceholder}
+              value={addressLine}
+              onChange={(e) => setAddressLine(e.target.value)}
+              placeholder="e.g. KG 7 Ave, Nyarutarama"
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
             />
           </label>
 
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            {c.upi}
-            <input
-              type="text"
-              value={upi}
-              onChange={(e) => setUpi(e.target.value)}
-              placeholder={c.upiPlaceholder}
-              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            {c.owner}
-            <select
-              value={owner}
-              onChange={(e) => setOwner(e.target.value)}
-              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-            >
-              {LANDLORDS.map((landlord) => (
-                <option key={landlord.id}>{landlord.name}</option>
-              ))}
-            </select>
-          </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+              City
+              <input
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Kigali"
+                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+              Country
+              <input
+                type="text"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                placeholder="Rwanda"
+                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+              State / Province (optional)
+              <input
+                type="text"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+              Postal Code (optional)
+              <input
+                type="text"
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+              />
+            </label>
+          </div>
         </div>
       )}
 
       {step === 2 && (
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            {c.buildingType}
+            Category
             <select
-              value={buildingType}
-              onChange={(e) =>
-                handleBuildingTypeChange(e.target.value as BuildingType)
-              }
+              value={category}
+              onChange={(e) => handleCategoryChange(e.target.value as PropertyCategory)}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
             >
-              <option value="Residential">{t.dashboard.status.residential}</option>
-              <option value="Commercial">{t.dashboard.status.commercial}</option>
+              <option value="residential">{t.dashboard.status.residential}</option>
+              <option value="commercial">{t.dashboard.status.commercial}</option>
             </select>
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
             {c.propertyType}
             <select
-              value={propertyType}
-              onChange={(e) => setPropertyType(e.target.value as PropertyType)}
+              value={type}
+              onChange={(e) => setType(e.target.value as PropertyType)}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
             >
-              {propertyTypeOptions.map((option) => (
+              {typeOptions.map((option) => (
                 <option key={option} value={option}>
-                  {t.dashboard.status[PROPERTY_TYPE_KEY[option] ?? "unit"]}
+                  {TYPE_LABELS[option]}
                 </option>
               ))}
             </select>
           </label>
 
-          {buildingType === "Commercial" && (
+          {category === "commercial" && (
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
               {c.size}
               <input
-                type="text"
-                value={size}
-                onChange={(e) => setSize(e.target.value)}
-                placeholder={c.sizePlaceholder}
+                type="number"
+                min={0}
+                value={sizeSqm}
+                onChange={(e) => setSizeSqm(e.target.value)}
+                placeholder="e.g. 85"
+                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+              />
+            </label>
+          )}
+
+          {type === "apartment" && (
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+              Units / doors in building
+              <input
+                type="number"
+                min={0}
+                value={unitsCount}
+                onChange={(e) => setUnitsCount(e.target.value)}
+                placeholder="e.g. 12"
                 className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
               />
             </label>
           )}
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            {c.monthlyRent}
+            Bedrooms (optional)
             <input
               type="number"
               min={0}
-              value={rent}
-              onChange={(e) => setRent(e.target.value)}
-              placeholder={c.monthlyRentPlaceholder}
-              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+              value={bedrooms}
+              onChange={(e) => setBedrooms(e.target.value)}
+              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
             />
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            {c.availability}
-            <select
-              value={availability}
-              onChange={(e) =>
-                setAvailability(e.target.value as Property["availability"])
-              }
+            Bathrooms (optional)
+            <input
+              type="number"
+              min={0}
+              value={bathrooms}
+              onChange={(e) => setBathrooms(e.target.value)}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-            >
-              <option value="Available">{t.dashboard.status.available}</option>
-              <option value="Occupied">{t.dashboard.status.occupied}</option>
-            </select>
+            />
           </label>
         </div>
       )}
 
       {step === 3 && (
-        <div className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          {c.rentConditionsLabel}
-          <div className="flex flex-col gap-2">
-            {conditions.map((condition, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={condition}
-                  onChange={(e) => updateCondition(index, e.target.value)}
-                  placeholder={c.rentConditionPlaceholder}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeCondition(index)}
-                  aria-label={c.removeCondition}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-400 hover:bg-slate-50 hover:text-red-600"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => setConditions((prev) => [...prev, ""])}
-            className="mt-1 inline-flex w-fit items-center gap-1.5 text-sm font-medium text-gold hover:underline"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {c.addCondition}
-          </button>
-        </div>
-      )}
-
-      {step === 4 && (
-        <div className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          {c.additionalDetailsLabel}
-          <p className="text-xs font-normal text-slate-400">
-            {c.additionalDetailsHint}
-          </p>
-          <div className="flex flex-col gap-2">
-            {attributes.map((attribute, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={attribute.label}
-                  onChange={(e) =>
-                    updateAttribute(index, "label", e.target.value)
-                  }
-                  placeholder={c.attributeLabelPlaceholder}
-                  className="w-2/5 rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-                />
-                <input
-                  type="text"
-                  value={attribute.value}
-                  onChange={(e) =>
-                    updateAttribute(index, "value", e.target.value)
-                  }
-                  placeholder={c.attributeValuePlaceholder}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeAttribute(index)}
-                  aria-label={c.removeDetail}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-400 hover:bg-slate-50 hover:text-red-600"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() =>
-              setAttributes((prev) => [...prev, { label: "", value: "" }])
-            }
-            className="mt-1 inline-flex w-fit items-center gap-1.5 text-sm font-medium text-gold hover:underline"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {c.addDetail}
-          </button>
-        </div>
-      )}
-
-      {step === 5 && (
         <div className="flex flex-col gap-5">
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            {c.documentLabel}
-            <p className="text-xs font-normal text-slate-400">
-              {c.documentHint}
-            </p>
-            <div className="flex items-center gap-3">
-              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
-                <Upload className="h-4 w-4" />
-                {c.chooseFile}
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={(e) =>
-                    setDocumentName(e.target.files?.[0]?.name ?? null)
-                  }
-                />
-              </label>
-              {documentName && (
-                <span className="text-sm text-slate-600">{documentName}</span>
-              )}
-            </div>
-          </label>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+              {c.monthlyRent}
+              <input
+                type="number"
+                min={0}
+                value={rentAmount}
+                onChange={(e) => setRentAmount(e.target.value)}
+                placeholder={c.monthlyRentPlaceholder}
+                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+              />
+            </label>
 
-          <label className="flex items-start gap-2 text-sm text-slate-700">
+            {showOwnerField && (
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                {c.owner}
+                <select
+                  value={ownerId}
+                  onChange={(e) => setOwnerId(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                >
+                  {owners.length === 0 && <option value="">No landlords yet</option>}
+                  {owners.map((owner) => (
+                    <option key={owner.id} value={owner.id}>
+                      {owner.firstName} {owner.lastName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+            {c.rentConditionsLabel} (optional)
             <input
-              type="checkbox"
-              checked={confirmed}
-              onChange={(e) => setConfirmed(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-gold"
+              type="text"
+              value={rentConditions}
+              onChange={(e) => setRentConditions(e.target.value)}
+              placeholder="e.g. 12-month lease, 2 months deposit"
+              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
             />
-            {c.confirmCheckbox}
           </label>
         </div>
       )}
@@ -468,6 +412,8 @@ export function PropertyForm({
                 {c.next}
                 <ArrowRight className="h-4 w-4" />
               </>
+            ) : isEditing ? (
+              c.saveChanges
             ) : (
               c.submit
             )}

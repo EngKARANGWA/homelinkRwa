@@ -1,64 +1,160 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Eye } from "lucide-react";
-import { PAYMENTS, type Payment } from "@/lib/mock-admin-data";
-import { Modal } from "@/components/admin/Modal";
-import { PaymentReceipt } from "@/components/admin/PaymentReceipt";
-import { Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
+import { AlertCircle, Check, Download, Eye, X } from "lucide-react";
+import { listUsers } from "@/lib/api/admin";
+import { listProperties } from "@/lib/api/properties";
+import { listLeases } from "@/lib/api/leases";
+import {
+  approvePayment,
+  exportPaymentsWorkbook,
+  getPaymentReceipt,
+  listInvoices,
+  listPayments,
+  rejectPayment,
+} from "@/lib/api/payments";
+import { ApiError } from "@/lib/api/client";
+import type { Invoice, Lease, Payment, Property, User } from "@/lib/api/types";
+import { formatStatusLabel, PAYMENT_STATUS_STYLES } from "@/lib/paymentStatus";
+import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import type { Translations } from "@/lib/i18n/translations";
-
-const STATUS_STYLES: Record<Payment["status"], string> = {
-  Paid: "bg-emerald-50 text-emerald-700",
-  Late: "bg-red-50 text-red-700",
-  Pending: "bg-amber-50 text-amber-700",
-  "Pending Approval": "bg-sky-50 text-sky-700",
-};
-
-const STATUS_KEY: Record<Payment["status"], keyof Translations["dashboard"]["status"]> = {
-  Paid: "paid",
-  Late: "late",
-  Pending: "pending",
-  "Pending Approval": "pendingApproval",
-};
-
-const TODAY = "2026-07-08";
 
 export default function PaymentsPage() {
   const { t } = useLanguage();
   const c = t.dashboard.admin.payments;
-  const [payments, setPayments] = useState(PAYMENTS);
-  const [viewingPayment, setViewingPayment] = useState<Payment | null>(null);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [leases, setLeases] = useState<Lease[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [tenants, setTenants] = useState<User[]>([]);
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
-  const totalPages = Math.max(1, Math.ceil(payments.length / DEFAULT_PAGE_SIZE));
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
-  const pagedPayments = payments.slice(
-    (page - 1) * DEFAULT_PAGE_SIZE,
-    page * DEFAULT_PAGE_SIZE,
-  );
+  const leaseById = new Map(leases.map((l) => [l.id, l]));
+  const invoiceById = new Map(invoices.map((i) => [i.id, i]));
+  const propertyById = new Map(properties.map((p) => [p.id, p]));
+  const propertyFor = (payment: Payment) => {
+    const invoice = invoiceById.get(payment.invoiceId);
+    const lease = invoice ? leaseById.get(invoice.leaseId) : undefined;
+    return lease ? propertyById.get(lease.propertyId) : undefined;
+  };
+  const tenantName = (id: string) => {
+    const tenant = tenants.find((t) => t.id === id);
+    return tenant ? `${tenant.firstName} ${tenant.lastName}` : "—";
+  };
 
-  const markAsPaid = (id: string) => {
-    setPayments((prev) =>
-      prev.map((p) =>
-        p.id === id ? { ...p, status: "Paid", paidDate: TODAY } : p,
-      ),
-    );
+  const load = () => {
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      listPayments({ page, limit: DEFAULT_PAGE_SIZE }),
+      listInvoices({ limit: 100 }),
+      listLeases({ limit: 100 }),
+      listProperties({ limit: 100 }),
+      listUsers({ role: "tenant", limit: 100 }),
+    ])
+      .then(([paymentsRes, invoicesRes, leasesRes, propertiesRes, tenantsRes]) => {
+        setPayments(paymentsRes.data);
+        setTotalPages(paymentsRes.meta.totalPages);
+        setTotalItems(paymentsRes.meta.total);
+        setInvoices(invoicesRes.data);
+        setLeases(leasesRes.data);
+        setProperties(propertiesRes.data);
+        setTenants(tenantsRes.data);
+      })
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : "Failed to load payments."),
+      )
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, [page]);
+
+  const resolvePayment = async (id: string, approve: boolean) => {
+    let reason = "";
+    if (!approve) {
+      reason = window.prompt("Reason for rejecting this payment:")?.trim() ?? "";
+      if (!reason) return;
+    }
+    setActionError(null);
+    setProcessingId(id);
+    try {
+      if (approve) {
+        await approvePayment(id);
+      } else {
+        await rejectPayment(id, reason);
+      }
+      load();
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "Failed to resolve the payment.",
+      );
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const viewReceipt = async (payment: Payment) => {
+    setActionError(null);
+    try {
+      const { url } = await getPaymentReceipt(payment.id);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Failed to load receipt.");
+    }
+  };
+
+  const handleExport = async () => {
+    setActionError(null);
+    try {
+      await exportPaymentsWorkbook();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Failed to export payments.");
+    }
   };
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {c.subtitle}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{c.subtitle}</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleExport}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+        >
+          <Download className="h-4 w-4" />
+          Export Excel
+        </button>
       </div>
+
+      {actionError && (
+        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <AlertCircle className="h-4 w-4" />
+          {actionError}
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            {error}
+          </span>
+          <button type="button" onClick={load} className="underline hover:no-underline">
+            Retry
+          </button>
+        </div>
+      )}
 
       <Table variant="standalone">
         <THead>
@@ -67,81 +163,93 @@ export default function PaymentsPage() {
             <Th className="px-6 py-3">{t.dashboard.table.property}</Th>
             <Th className="px-6 py-3">{t.dashboard.table.amountRwf}</Th>
             <Th className="px-6 py-3">{t.dashboard.table.method}</Th>
-            <Th className="px-6 py-3">{t.dashboard.table.dueDate}</Th>
+            <Th className="px-6 py-3">{t.dashboard.table.paidDate}</Th>
             <Th className="px-6 py-3">{t.dashboard.table.status}</Th>
             <Th className="px-6 py-3">{t.dashboard.table.actions}</Th>
           </Tr>
         </THead>
         <TBody>
-          {pagedPayments.map((payment) => (
-            <Tr key={payment.id}>
-              <Td className="px-6 py-3 font-medium text-navy">
-                {payment.tenant}
-              </Td>
-              <Td className="px-6 py-3 text-slate-500">
-                {payment.property}
-              </Td>
-              <Td className="px-6 py-3 text-slate-500">
-                {formatMoney(payment.amount)}
-              </Td>
-              <Td className="px-6 py-3 text-slate-500">
-                {payment.method}
-              </Td>
-              <Td className="px-6 py-3 text-slate-500">
-                {payment.dueDate}
-              </Td>
-              <Td className="px-6 py-3">
-                <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[payment.status]}`}
-                >
-                  {t.dashboard.status[STATUS_KEY[payment.status]]}
-                </span>
-              </Td>
-              <Td className="px-6 py-3">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setViewingPayment(payment)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    {t.dashboard.actions.view}
-                  </button>
-                  {payment.status !== "Paid" && (
-                    <button
-                      type="button"
-                      onClick={() => markAsPaid(payment.id)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+          {isLoading ? (
+            <EmptyRow colSpan={7}>Loading payments...</EmptyRow>
+          ) : payments.length === 0 ? (
+            <EmptyRow colSpan={7}>No payments on the platform yet.</EmptyRow>
+          ) : (
+            payments.map((payment) => {
+              const isProcessing = processingId === payment.id;
+              return (
+                <Tr key={payment.id}>
+                  <Td className="px-6 py-3 font-medium text-navy">
+                    {tenantName(payment.tenantId)}
+                  </Td>
+                  <Td className="px-6 py-3 text-slate-500">
+                    {propertyFor(payment)?.title ?? "—"}
+                  </Td>
+                  <Td className="px-6 py-3 text-slate-500">
+                    {formatMoney(Number(payment.amount))}
+                  </Td>
+                  <Td className="px-6 py-3 text-slate-500">
+                    {formatStatusLabel(payment.method)}
+                  </Td>
+                  <Td className="px-6 py-3 text-slate-500">
+                    {payment.paidAt ?? "—"}
+                  </Td>
+                  <Td className="px-6 py-3">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${PAYMENT_STATUS_STYLES[payment.status]}`}
                     >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      {c.markAsPaid}
-                    </button>
-                  )}
-                </div>
-              </Td>
-            </Tr>
-          ))}
+                      {formatStatusLabel(payment.status)}
+                    </span>
+                  </Td>
+                  <Td className="px-6 py-3">
+                    <div className="flex items-center gap-2">
+                      {payment.status === "success" && (
+                        <button
+                          type="button"
+                          onClick={() => viewReceipt(payment)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          Receipt
+                        </button>
+                      )}
+                      {payment.approvalStatus === "pending" && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => resolvePayment(payment.id, true)}
+                            disabled={isProcessing}
+                            aria-label={`Approve payment from ${tenantName(payment.tenantId)}`}
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => resolvePayment(payment.id, false)}
+                            disabled={isProcessing}
+                            aria-label={`Reject payment from ${tenantName(payment.tenantId)}`}
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </Td>
+                </Tr>
+              );
+            })
+          )}
         </TBody>
       </Table>
 
       <Pagination
         page={page}
         totalPages={totalPages}
-        totalItems={payments.length}
+        totalItems={totalItems}
         pageSize={DEFAULT_PAGE_SIZE}
         onPageChange={setPage}
       />
-
-      {viewingPayment && (
-        <Modal
-          title={viewingPayment.status === "Paid" ? c.receiptTitle : c.invoiceTitle}
-          description={`${viewingPayment.tenant} · ${viewingPayment.property}`}
-          onClose={() => setViewingPayment(null)}
-          maxWidthClassName="max-w-3xl"
-        >
-          <PaymentReceipt payment={viewingPayment} />
-        </Modal>
-      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { AppLink as Link } from "@/components/shared/AppLink";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
@@ -14,8 +14,13 @@ import {
   X,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Translations } from "@/lib/i18n/translations";
 
-const LANDLORD_NAV_ITEMS = [
+type NavItem =
+  | { key: keyof Translations["dashboard"]["nav"]; label?: undefined; href: string; icon: typeof LayoutDashboard }
+  | { key?: undefined; label: string; href: string; icon: typeof LayoutDashboard };
+
+const LANDLORD_NAV_ITEMS: NavItem[] = [
   { key: "dashboard", href: "/landlord", icon: LayoutDashboard },
   { key: "properties", href: "/landlord/properties", icon: Building2 },
   { key: "payments", href: "/landlord/payments", icon: CreditCard },
@@ -23,7 +28,8 @@ const LANDLORD_NAV_ITEMS = [
   { key: "reports", href: "/landlord/reports", icon: BarChart3 },
   { key: "maintenance", href: "/landlord/maintenance", icon: Wrench },
   { key: "documents", href: "/landlord/documents", icon: FolderOpen },
-] as const;
+  { key: "team", href: "/landlord/team", icon: Users },
+];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -31,7 +37,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
-      {LANDLORD_NAV_ITEMS.map(({ key, href, icon: Icon }) => {
+      {LANDLORD_NAV_ITEMS.map(({ key, label, href, icon: Icon }) => {
         // Unit detail pages live under /landlord/properties/[id]/units/[unitId]
         // but represent a tenant, so they should light up "Tenants" instead of
         // "Properties" even though the URL is nested there.
@@ -57,7 +63,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             }`}
           >
             <Icon className="h-4 w-4" strokeWidth={2} />
-            {t.dashboard.nav[key]}
+            {key ? t.dashboard.nav[key] : label}
           </Link>
         );
       })}

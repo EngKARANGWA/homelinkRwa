@@ -12,53 +12,50 @@ import {
   Lock,
   Mail,
 } from "lucide-react";
-import { LANDLORDS, TENANTS } from "@/lib/mock-admin-data";
+import { login } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
+import { ROLE_ROUTES } from "@/lib/api/roleRoute";
+import { useAuth } from "@/components/auth/AuthContext";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 
-const ADMIN_EMAIL = "admin@gmail.com";
-const DEMO_PASSWORD = "password123";
-
 export default function LoginPage() {
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const { t } = useLanguage();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setSubmitting] = useState(false);
 
-  const DEMO_ACCOUNTS = [
-    { role: t.loginPage.roleAdmin, email: ADMIN_EMAIL },
-    { role: t.loginPage.roleLandlord, email: LANDLORDS[0].email },
-    { role: t.loginPage.roleTenant, email: TENANTS[0].email },
-  ];
+  const routeAfterLogin = async () => {
+    const me = await refreshUser();
+    if (!me) {
+      setError("Signed in, but we couldn't load your account. Please try again.");
+      return;
+    }
+    const route = ROLE_ROUTES[me.role];
+    if (!route) {
+      setError(
+        `Signed in as ${me.role}, but this role doesn't have a dashboard here yet.`,
+      );
+      return;
+    }
+    router.push(route);
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const normalized = email.trim().toLowerCase();
-
-    const landlord = LANDLORDS.find(
-      (l) => l.email.toLowerCase() === normalized,
-    );
-    const tenant = TENANTS.find((tn) => tn.email.toLowerCase() === normalized);
-    const isAdmin = normalized === ADMIN_EMAIL;
-
-    if (!isAdmin && !landlord && !tenant) {
-      setError(t.loginPage.errorNoAccount);
-      return;
-    }
-
-    if (password !== DEMO_PASSWORD) {
-      setError(t.loginPage.errorIncorrectPassword);
-      return;
-    }
-
-    if (isAdmin) {
-      router.push("/admin");
-    } else if (landlord) {
-      router.push(`/landlord?id=${landlord.id}`);
-    } else if (tenant) {
-      router.push(`/tenant?id=${tenant.id}`);
+    setError(null);
+    setSubmitting(true);
+    try {
+      await login({ email: email.trim(), password });
+      await routeAfterLogin();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -164,38 +161,19 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="mt-2 rounded-lg bg-gold px-6 py-3 font-semibold text-white transition-colors hover:bg-gold/90"
+            disabled={isSubmitting}
+            className="mt-2 rounded-lg bg-gold px-6 py-3 font-semibold text-white transition-colors hover:bg-gold/90 disabled:opacity-60"
           >
-            {t.loginPage.logIn}
+            {isSubmitting ? "Logging in..." : t.loginPage.logIn}
           </button>
         </form>
 
-        <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            {t.loginPage.demoAccounts}
-          </p>
-          <ul className="mt-2 flex flex-col gap-1 text-sm text-slate-600">
-            {DEMO_ACCOUNTS.map(({ role, email: demoEmail }) => (
-              <li key={role} className="flex justify-between gap-3">
-                <span className="text-slate-400">{role}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail(demoEmail);
-                    setPassword(DEMO_PASSWORD);
-                    setError(null);
-                  }}
-                  className="font-medium text-navy hover:text-gold"
-                >
-                  {demoEmail}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-xs text-slate-400">
-            {t.loginPage.passwordFor} <strong>{DEMO_PASSWORD}</strong>
-          </p>
-        </div>
+        <p className="mt-6 text-center text-sm text-slate-500">
+          Don&apos;t have an account?{" "}
+          <Link href="/get-started" className="font-medium text-gold hover:underline">
+            Get started
+          </Link>
+        </p>
       </div>
     </div>
   );

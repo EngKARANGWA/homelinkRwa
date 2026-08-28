@@ -1,12 +1,13 @@
 "use client";
 
+import type { CreateHouseOwnerInput } from "@/lib/api/admin";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export function LandlordForm({
   onSuccess,
   onCancel,
 }: {
-  onSuccess: () => void;
+  onSuccess: (values: CreateHouseOwnerInput) => void;
   onCancel: () => void;
 }) {
   const { t } = useLanguage();
@@ -16,33 +17,42 @@ export function LandlordForm({
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        onSuccess();
+        const formData = new FormData(e.currentTarget);
+        onSuccess({
+          firstName: String(formData.get("firstName")).trim(),
+          lastName: String(formData.get("lastName")).trim(),
+          email: String(formData.get("email")).trim(),
+          phone: String(formData.get("phone")).trim(),
+        });
       }}
     >
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          {c.fullName}
+          First name
           <input
+            name="firstName"
             type="text"
             required
-            placeholder={c.fullNamePlaceholder}
+            placeholder="e.g. Jean Claude"
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          {c.nationalId}
+          Last name
           <input
+            name="lastName"
             type="text"
             required
-            placeholder={c.nationalIdPlaceholder}
+            placeholder="e.g. Uwimana"
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
           {c.emailAddress}
           <input
+            name="email"
             type="email"
             required
             placeholder={c.emailPlaceholder}
@@ -50,50 +60,13 @@ export function LandlordForm({
           />
         </label>
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
           {c.phoneNumber}
           <input
+            name="phone"
             type="tel"
             required
             placeholder={c.phonePlaceholder}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-          {c.address}
-          <input
-            type="text"
-            required
-            placeholder={c.addressPlaceholder}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          {c.numberOfProperties}
-          <input
-            type="number"
-            min={0}
-            defaultValue={0}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          {c.status}
-          <select className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none">
-            <option>{t.dashboard.status.active}</option>
-            <option>{t.dashboard.status.pending}</option>
-            <option>{t.dashboard.status.suspended}</option>
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-          {c.notes}
-          <textarea
-            rows={3}
-            placeholder={c.notesPlaceholder}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>

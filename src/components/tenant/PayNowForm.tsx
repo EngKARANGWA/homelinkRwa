@@ -1,17 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { Payment } from "@/lib/mock-admin-data";
+import type { PayInvoiceInput, PaymentMethod } from "@/lib/api/types";
 import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-
-const METHODS: Payment["method"][] = [
-  "MTN Mobile Money",
-  "Airtel Money",
-  "Bank Transfer",
-  "Card / PayPal",
-  "Cash",
-];
 
 export function PayNowForm({
   amount,
@@ -19,30 +11,43 @@ export function PayNowForm({
   onCancel,
 }: {
   amount: number;
-  onSuccess: (method: Payment["method"]) => void;
+  onSuccess: (values: PayInvoiceInput) => void;
   onCancel: () => void;
 }) {
   const { t } = useLanguage();
   const c = t.dashboard.tenant.payNowForm;
-  const methodLabel: Record<Payment["method"], string> = {
-    "MTN Mobile Money": t.dashboard.landlord.paymentMethods.mtnMobileMoney,
-    "Airtel Money": t.dashboard.landlord.paymentMethods.airtelMoney,
-    "Bank Transfer": t.dashboard.landlord.paymentMethods.bankTransfer,
-    "Card / PayPal": c.methodCardPaypal,
-    Cash: t.dashboard.landlord.paymentMethods.cash,
+  const METHOD_LABELS: Record<PaymentMethod, string> = {
+    mobile_money: "Mobile Money",
+    bank_transfer: t.dashboard.landlord.paymentMethods.bankTransfer,
+    cash: t.dashboard.landlord.paymentMethods.cash,
   };
-  const [method, setMethod] = useState<Payment["method"]>(METHODS[0]);
-  const isMobileMoney = method === "MTN Mobile Money" || method === "Airtel Money";
-  const isBankTransfer = method === "Bank Transfer";
-  const isCard = method === "Card / PayPal";
-  const isCash = method === "Cash";
-  const needsApproval = isBankTransfer || isCash;
+  const [method, setMethod] = useState<PaymentMethod>("mobile_money");
+  const [payerPhone, setPayerPhone] = useState("");
+  const [payerAccount, setPayerAccount] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const isMobileMoney = method === "mobile_money";
+  const isBankTransfer = method === "bank_transfer";
+  const needsApproval = isBankTransfer || method === "cash";
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        onSuccess(method);
+        if (isMobileMoney && !payerPhone.trim()) {
+          setError("Please enter the phone number to pay from.");
+          return;
+        }
+        if (isBankTransfer && !payerAccount.trim()) {
+          setError("Please enter the account number the transfer was made from.");
+          return;
+        }
+        setError(null);
+        onSuccess({
+          method,
+          payerPhone: isMobileMoney ? payerPhone.trim() : undefined,
+          payerAccount: isBankTransfer ? payerAccount.trim() : undefined,
+        });
       }}
     >
       <div className="flex flex-col gap-5">
@@ -55,16 +60,23 @@ export function PayNowForm({
           </p>
         </div>
 
+        {error && (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
           {c.paymentMethod}
           <select
-            name="method"
             value={method}
-            onChange={(e) => setMethod(e.target.value as Payment["method"])}
+            onChange={(e) => setMethod(e.target.value as PaymentMethod)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            {METHODS.map((m) => (
-              <option key={m} value={m}>{methodLabel[m]}</option>
+            {(Object.keys(METHOD_LABELS) as PaymentMethod[]).map((m) => (
+              <option key={m} value={m}>
+                {METHOD_LABELS[m]}
+              </option>
             ))}
           </select>
         </label>
@@ -74,7 +86,8 @@ export function PayNowForm({
             {c.phoneNumber}
             <input
               type="tel"
-              required
+              value={payerPhone}
+              onChange={(e) => setPayerPhone(e.target.value)}
               placeholder="+250 7XX XXX XXX"
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
             />
@@ -86,58 +99,17 @@ export function PayNowForm({
             {c.accountNumber}
             <input
               type="text"
-              required
+              value={payerAccount}
+              onChange={(e) => setPayerAccount(e.target.value)}
               placeholder={c.accountNumberPlaceholder}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
             />
           </label>
         )}
 
-        {isCard && (
-          <>
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              {c.cardNumber}
-              <input
-                type="text"
-                required
-                inputMode="numeric"
-                maxLength={19}
-                placeholder="1234 5678 9012 3456"
-                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-              />
-            </label>
-
-            <div className="grid grid-cols-2 gap-4">
-              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-                {c.expiryDate}
-                <input
-                  type="text"
-                  required
-                  inputMode="numeric"
-                  maxLength={5}
-                  placeholder="MM/YY"
-                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-                />
-              </label>
-
-              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-                {c.cvv}
-                <input
-                  type="text"
-                  required
-                  inputMode="numeric"
-                  maxLength={4}
-                  placeholder="123"
-                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-                />
-              </label>
-            </div>
-          </>
-        )}
-
         {needsApproval && (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            {isCash ? c.cashHint : c.bankTransferHint}
+            {method === "cash" ? c.cashHint : c.bankTransferHint}
           </p>
         )}
       </div>
