@@ -47,7 +47,7 @@ export async function updateProperty(
   input: UpdatePropertyInput,
 ): Promise<Property> {
   const res = await apiFetch<SuccessResponse<Property>>(`/properties/${id}`, {
-    method: "PUT",
+    method: "PATCH",
     body: input,
   });
   return res.data;
