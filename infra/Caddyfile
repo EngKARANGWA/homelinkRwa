@@ -15,3 +15,10 @@
 	encode gzip
 	reverse_proxy frontend:3000
 }
+
+# www is DNS-aliased to this same box (see homelink-bn's dns.tf) but had no
+# matching site block, so Caddy never got a cert for it — canonicalize to
+# the apex instead of serving it twice.
+www.{$PUBLIC_HOSTNAME} {
+	redir https://{$PUBLIC_HOSTNAME}{uri} permanent
+}
