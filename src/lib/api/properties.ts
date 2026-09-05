@@ -1,7 +1,10 @@
 import { apiFetch } from "./client";
 import type {
+  AvailableUnit,
   CreatePropertyInput,
   CreateUnitInput,
+  GenerateUnitsInput,
+  ListAvailableUnitsParams,
   PaginatedResponse,
   Property,
   PropertyUnit,
@@ -87,5 +90,44 @@ export async function createUnit(
     `/properties/${propertyId}/units`,
     { method: "POST", body: input },
   );
+  return res.data;
+}
+
+export async function generateUnits(
+  propertyId: string,
+  input: GenerateUnitsInput,
+): Promise<PropertyUnit[]> {
+  const res = await apiFetch<SuccessResponse<PropertyUnit[]>>(
+    `/properties/${propertyId}/units/generate`,
+    { method: "POST", body: input },
+  );
+  return res.data;
+}
+
+/**
+ * On success, one unit per data row in the uploaded file. On failure (any
+ * row invalid), the thrown ApiError's `errors` is an
+ * `{ row, message }[]` describing exactly which rows to fix — nothing is
+ * imported in that case.
+ */
+export async function importUnits(
+  propertyId: string,
+  file: File,
+): Promise<PropertyUnit[]> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await apiFetch<SuccessResponse<PropertyUnit[]>>(
+    `/properties/${propertyId}/units/import`,
+    { method: "POST", body: formData },
+  );
+  return res.data;
+}
+
+export async function listAvailableUnits(
+  params: ListAvailableUnitsParams = {},
+): Promise<AvailableUnit[]> {
+  const res = await apiFetch<SuccessResponse<AvailableUnit[]>>("/properties/units", {
+    query: params,
+  });
   return res.data;
 }

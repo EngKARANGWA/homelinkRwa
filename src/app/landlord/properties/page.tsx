@@ -29,6 +29,7 @@ import type {
 import { useAuth } from "@/components/auth/AuthContext";
 import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
+import { UnitSetupForm } from "@/components/admin/UnitSetupForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
@@ -78,6 +79,7 @@ export default function LandlordPropertiesPage() {
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+  const [unitSetupProperty, setUnitSetupProperty] = useState<Property | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -103,10 +105,13 @@ export default function LandlordPropertiesPage() {
   const addProperty = async (values: CreatePropertyInput) => {
     setFormError(null);
     try {
-      await createProperty(values);
+      const created = await createProperty(values);
       setAdding(false);
       setJustSaved(true);
       load();
+      if (created.type === "apartment" || created.type === "commercial") {
+        setUnitSetupProperty(created);
+      }
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Failed to add property.");
     }
@@ -385,6 +390,23 @@ export default function LandlordPropertiesPage() {
             initialProperty={editingProperty}
             onCancel={() => setEditingProperty(null)}
             onSuccess={editProperty}
+          />
+        </Modal>
+      )}
+
+      {unitSetupProperty && (
+        <Modal
+          title={`Set up units — ${unitSetupProperty.title}`}
+          description="This property is an apartment/commercial building, which usually means multiple rentable units."
+          onClose={() => setUnitSetupProperty(null)}
+        >
+          <UnitSetupForm
+            propertyId={unitSetupProperty.id}
+            onSkip={() => setUnitSetupProperty(null)}
+            onDone={() => {
+              setUnitSetupProperty(null);
+              setJustSaved(true);
+            }}
           />
         </Modal>
       )}
