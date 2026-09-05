@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { AppLink as Link } from "@/components/shared/AppLink";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, CheckCircle2, Eye, Plus, Search } from "lucide-react";
-import { PROPERTIES, type Lease } from "@/lib/mock-admin-data";
-import { getUnitsForProperty, type Unit } from "@/lib/units";
-import { useLandlord } from "@/components/landlord/LandlordContext";
+import { ArrowLeft, ArrowRight, CheckCircle2, Plus, Search } from "lucide-react";
+import { getProperty, listUnits } from "@/lib/api/properties";
+import { ApiError } from "@/lib/api/client";
+import type { Property, PropertyUnit } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
@@ -14,49 +14,61 @@ import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboar
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import type { Translations } from "@/lib/i18n/translations";
 
-type StatusFilter = "All" | Unit["currentPaymentStatus"];
-
-const STATUS_STYLES: Record<string, string> = {
-  Paid: "bg-emerald-50 text-emerald-700",
-  Overdue: "bg-amber-50 text-amber-700",
-  Arrears: "bg-red-50 text-red-700",
-  Vacant: "bg-slate-100 text-slate-600",
-};
-
-const STATUS_KEY: Record<string, keyof Translations["dashboard"]["status"]> = {
-  Paid: "paid",
-  Overdue: "overdue",
-  Arrears: "arrears",
-  Vacant: "vacant",
-};
+type StatusFilter = "All" | "available" | "occupied";
 
 export default function PropertyDetailPage() {
   const { t } = useLanguage();
   const c = t.dashboard.landlord.propertyDetail;
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { landlordName, unitOverrides, addTenant } = useLandlord();
+
+  const [property, setProperty] = useState<Property | null>(null);
+  const [units, setUnits] = useState<PropertyUnit[]>([]);
+  const [isLoading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const [isAddingTenant, setAddingTenant] = useState(false);
   const [justAddedTenant, setJustAddedTenant] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [page, setPage] = useState(1);
 
-  const property = PROPERTIES.find((p) => p.id === id && p.owner === landlordName);
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([getProperty(id), listUnits(id)])
+      .then(([propertyResult, unitsResult]) => {
+        if (cancelled) return;
+        setProperty(propertyResult);
+        setUnits(unitsResult);
+        setLoadError(null);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setLoadError(err instanceof ApiError ? err.message : "Failed to load this property.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
-  const units: Unit[] = property ? getUnitsForProperty(property, unitOverrides) : [];
+  const reloadUnits = () => {
+    if (!id) return;
+    listUnits(id).then(setUnits).catch(() => undefined);
+  };
 
   const filteredUnits = units.filter((u) => {
-    const matchesSearch =
-      !search.trim() ||
-      u.unitNumber.toLowerCase().includes(search.toLowerCase()) ||
-      (u.tenant?.toLowerCase().includes(search.toLowerCase()) ?? false);
-    const matchesStatus = statusFilter === "All" || u.currentPaymentStatus === statusFilter;
+    const matchesSearch = !search.trim() || u.label.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === "All" || u.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(filteredUnits.length / DEFAULT_PAGE_SIZE));
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -66,10 +78,18 @@ export default function PropertyDetailPage() {
     page * DEFAULT_PAGE_SIZE,
   );
 
-  if (!property) {
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-24 text-center text-sm text-slate-400">
+        Loading property...
+      </div>
+    );
+  }
+
+  if (loadError || !property) {
     return (
       <div className="flex flex-col items-center gap-3 py-24 text-center">
-        <p className="text-sm text-slate-500">{c.propertyNotFound}</p>
+        <p className="text-sm text-slate-500">{loadError ?? c.propertyNotFound}</p>
         <Link
           href="/landlord/properties"
           className="text-sm font-medium text-gold hover:underline"
@@ -81,25 +101,14 @@ export default function PropertyDetailPage() {
   }
 
   const totalUnits = units.length;
-  const occupied = units.filter((u) => u.occupancyStatus === "Occupied").length;
-  const occupancyPercent = totalUnits
-    ? Math.round((occupied / totalUnits) * 100)
-    : 0;
-  const collected = units
-    .filter((u) => u.currentPaymentStatus === "Paid")
-    .reduce((sum, u) => sum + u.monthlyRent, 0);
-  const outstanding = units
-    .filter((u) => u.currentPaymentStatus === "Overdue" || u.currentPaymentStatus === "Arrears")
-    .reduce((sum, u) => sum + u.monthlyRent, 0);
+  const occupied = units.filter((u) => u.status === "occupied").length;
+  const occupancyPercent = totalUnits ? Math.round((occupied / totalUnits) * 100) : 0;
 
-  const handleAddTenant = (lease: Lease) => {
-    addTenant(lease);
+  const handleAddTenant = () => {
     setAddingTenant(false);
+    reloadUnits();
     setJustAddedTenant(
-      t.dashboard.landlord.properties.addedTenantTemplate
-        .replace("{tenant}", lease.tenant)
-        .replace("{property}", lease.property)
-        .replace("{unit}", lease.unitNumber ?? ""),
+      `Tenant added and assigned to their unit in ${property.title} — they'll receive an email to set up their account.`,
     );
   };
 
@@ -115,8 +124,8 @@ export default function PropertyDetailPage() {
             <ArrowLeft className="h-4 w-4" />
             {c.back}
           </button>
-          <h1 className="mt-2 text-2xl font-bold text-navy">{property.name}</h1>
-          <p className="mt-1 text-sm text-slate-500">{property.address}</p>
+          <h1 className="mt-2 text-2xl font-bold text-navy">{property.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{property.addressLine}</p>
         </div>
         <button
           type="button"
@@ -135,19 +144,9 @@ export default function PropertyDetailPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-5 lg:grid-cols-2">
         <SummaryCard label={c.summaryUnits} value={totalUnits} />
         <SummaryCard label={c.summaryOccupied} value={`${occupancyPercent}%`} />
-        <SummaryCard
-          label={c.summaryCollected}
-          value={`${formatMoney(collected)} RWF`}
-          accent="emerald"
-        />
-        <SummaryCard
-          label={c.summaryOutstanding}
-          value={`${formatMoney(outstanding)} RWF`}
-          accent="red"
-        />
       </div>
 
       <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -159,7 +158,7 @@ export default function PropertyDetailPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={c.searchPlaceholder}
+              placeholder="Search by unit label"
               className="w-full bg-transparent text-sm text-navy placeholder:text-slate-400 focus:outline-none"
             />
           </div>
@@ -173,10 +172,8 @@ export default function PropertyDetailPage() {
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
             <option value="All">{c.statusAll}</option>
-            <option value="Paid">{t.dashboard.status.paid}</option>
-            <option value="Overdue">{t.dashboard.status.overdue}</option>
-            <option value="Arrears">{t.dashboard.status.arrears}</option>
-            <option value="Vacant">{t.dashboard.status.vacant}</option>
+            <option value="available">{t.dashboard.status.available}</option>
+            <option value="occupied">{t.dashboard.status.occupied}</option>
           </select>
         </label>
       </div>
@@ -185,10 +182,9 @@ export default function PropertyDetailPage() {
         <THead>
           <Tr>
             <Th className="max-w-[9rem] px-4 py-3 sm:px-6">{t.dashboard.table.unit}</Th>
-            <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.tenant}</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">Floor</Th>
             <Th className="hidden px-6 py-3 md:table-cell">{c.monthlyAmount}</Th>
             <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
-            <Th className="px-4 py-3 text-right sm:px-6">{t.dashboard.table.actions}</Th>
           </Tr>
         </THead>
         <TBody>
@@ -196,42 +192,34 @@ export default function PropertyDetailPage() {
             <Tr key={unit.id}>
               <Td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
                 <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                  {unit.unitNumber}
-                </p>
-                <p className="truncate text-xs text-slate-400 sm:hidden">
-                  {unit.tenant ?? c.vacant}
+                  {unit.label}
                 </p>
                 <p className="truncate text-xs text-slate-400 md:hidden">
-                  {formatMoney(unit.monthlyRent)} RWF
+                  {formatMoney(Number(unit.rentAmount))} RWF
                 </p>
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                {unit.tenant ?? c.vacant}
+                {unit.floor ?? "—"}
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                {formatMoney(unit.monthlyRent)}
+                {formatMoney(Number(unit.rentAmount))}
               </Td>
               <Td className="px-4 py-3 sm:px-6">
                 <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[unit.currentPaymentStatus]}`}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                    unit.status === "occupied"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-slate-100 text-slate-600"
+                  }`}
                 >
-                  {t.dashboard.status[STATUS_KEY[unit.currentPaymentStatus]]}
+                  {unit.status === "occupied"
+                    ? t.dashboard.status.occupied
+                    : t.dashboard.status.available}
                 </span>
-              </Td>
-              <Td className="px-4 py-3 text-right sm:px-6">
-                <Link
-                  href={`/landlord/properties/${property.id}/units/${unit.id}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  {t.dashboard.actions.view}
-                </Link>
               </Td>
             </Tr>
           ))}
-          {pagedUnits.length === 0 && (
-            <EmptyRow colSpan={5}>{c.noUnitsMatch}</EmptyRow>
-          )}
+          {pagedUnits.length === 0 && <EmptyRow colSpan={4}>{c.noUnitsMatch}</EmptyRow>}
         </TBody>
       </Table>
 
@@ -254,12 +242,12 @@ export default function PropertyDetailPage() {
       {isAddingTenant && (
         <Modal
           title={c.addTenant}
-          description={c.addTenantDescriptionTemplate.replace("{property}", property.name)}
+          description={c.addTenantDescriptionTemplate.replace("{property}", property.title)}
           onClose={() => setAddingTenant(false)}
         >
           <AddTenantForm
-            properties={[property]}
-            unitOverrides={unitOverrides}
+            propertyId={property.id}
+            defaultRentAmount={Number(property.rentAmount)}
             onCancel={() => setAddingTenant(false)}
             onSuccess={handleAddTenant}
           />

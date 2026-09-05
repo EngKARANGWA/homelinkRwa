@@ -154,6 +154,7 @@ export type PropertyUnit = {
   id: string;
   propertyId: string;
   label: string;
+  floor: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
   rentAmount: string;
@@ -162,11 +163,36 @@ export type PropertyUnit = {
   updatedAt: string;
 };
 
+// Returned by GET /properties/units (search across a landlord's whole
+// portfolio) — same fields as PropertyUnit plus the parent property's own
+// title/address, for display in a unit picker.
+export type AvailableUnit = PropertyUnit & {
+  propertyTitle: string;
+  propertyAddressLine: string;
+};
+
 export type CreateUnitInput = {
   label: string;
+  floor?: number;
   bedrooms?: number;
   bathrooms?: number;
   rentAmount: number;
+};
+
+export type GenerateUnitsInput = {
+  count: number;
+  floors?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  rentAmount: number;
+};
+
+export type ImportUnitsRowError = { row: number; message: string };
+
+export type ListAvailableUnitsParams = {
+  search?: string;
+  status?: PropertyStatus;
+  propertyId?: string;
 };
 
 export type LeaseStatus =
@@ -203,15 +229,28 @@ export type Lease = {
   updatedAt: string;
 };
 
+export type NewTenantInput = {
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+};
+
 export type CreateLeaseInput = {
   propertyId: string;
   unitId: string;
-  tenantId: string;
+  // Exactly one of these — assign an existing tenant, or register a
+  // brand-new one (they get a "set your password" email) and assign them
+  // in the same step.
+  tenantId?: string;
+  newTenant?: NewTenantInput;
   startDate: string;
   endDate?: string;
   paymentDate?: string;
   rentAmount: number;
   deposit?: number;
+  momoNumber?: string;
+  leasePeriodNote?: string;
 };
 
 export type LeaseChangeRequest = {
