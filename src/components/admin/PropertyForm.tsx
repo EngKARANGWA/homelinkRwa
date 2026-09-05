@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, X } from "lucide-react";
 import type {
   CreatePropertyInput,
   Property,
+  PropertyAttribute,
   PropertyCategory,
   PropertyType,
   User,
@@ -35,12 +36,18 @@ export function PropertyForm({
   owners: User[];
   initialProperty?: Property;
   showOwnerField?: boolean;
-  onSuccess: (values: CreatePropertyInput) => void;
+  onSuccess: (values: CreatePropertyInput, documentFile: File | null) => void;
   onCancel: () => void;
 }) {
   const { t } = useLanguage();
   const c = t.dashboard.admin.propertyForm;
-  const STEPS = [c.steps.basicInfo, "Type & Details", "Rent & Owner"];
+  const STEPS = [
+    c.steps.basicInfo,
+    c.steps.typeAndRent,
+    c.steps.rentConditions,
+    c.steps.additionalDetails,
+    c.steps.documentsAndConfirm,
+  ];
   const isEditing = !!initialProperty;
   const [step, setStep] = useState(1);
   const [stepError, setStepError] = useState<string | null>(null);
@@ -52,6 +59,8 @@ export function PropertyForm({
   const [state, setState] = useState(initialProperty?.state ?? "");
   const [country, setCountry] = useState(initialProperty?.country ?? "Rwanda");
   const [postalCode, setPostalCode] = useState(initialProperty?.postalCode ?? "");
+  const [upi, setUpi] = useState(initialProperty?.upi ?? "");
+  const [ownerId, setOwnerId] = useState(initialProperty?.ownerId ?? owners[0]?.id ?? "");
 
   const [category, setCategory] = useState<PropertyCategory>(
     initialProperty?.category ?? "residential",
@@ -63,6 +72,11 @@ export function PropertyForm({
   const [unitsCount, setUnitsCount] = useState(
     initialProperty?.unitsCount != null ? String(initialProperty.unitsCount) : "",
   );
+  const [rentAmount, setRentAmount] = useState(initialProperty?.rentAmount ?? "");
+
+  // A single property has its own bedrooms/bathrooms; a multi-unit building
+  // (apartment) or a commercial space doesn't — those are set per unit instead.
+  const needsPropertyLevelRooms = type !== "apartment" && category !== "commercial";
   const [bedrooms, setBedrooms] = useState(
     initialProperty?.bedrooms != null ? String(initialProperty.bedrooms) : "",
   );
@@ -70,11 +84,14 @@ export function PropertyForm({
     initialProperty?.bathrooms != null ? String(initialProperty.bathrooms) : "",
   );
 
-  const [rentAmount, setRentAmount] = useState(initialProperty?.rentAmount ?? "");
-  const [rentConditions, setRentConditions] = useState(
-    initialProperty?.rentConditions ?? "",
+  const [terms, setTerms] = useState<string[]>(initialProperty?.terms ?? []);
+  const [attributes, setAttributes] = useState<PropertyAttribute[]>(
+    initialProperty?.attributes ?? [],
   );
-  const [ownerId, setOwnerId] = useState(initialProperty?.ownerId ?? owners[0]?.id ?? "");
+
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [confirmed, setConfirmed] = useState(isEditing);
+
   const typeOptions = TYPE_OPTIONS[category];
 
   const handleCategoryChange = (next: PropertyCategory) => {
@@ -84,14 +101,41 @@ export function PropertyForm({
     }
   };
 
+  const addTerm = () => setTerms((prev) => [...prev, ""]);
+  const updateTerm = (index: number, value: string) =>
+    setTerms((prev) => prev.map((term, i) => (i === index ? value : term)));
+  const removeTerm = (index: number) =>
+    setTerms((prev) => prev.filter((_, i) => i !== index));
+
+  const addAttribute = () => setAttributes((prev) => [...prev, { label: "", value: "" }]);
+  const updateAttribute = (index: number, field: "label" | "value", value: string) =>
+    setAttributes((prev) =>
+      prev.map((attr, i) => (i === index ? { ...attr, [field]: value } : attr)),
+    );
+  const removeAttribute = (index: number) =>
+    setAttributes((prev) => prev.filter((_, i) => i !== index));
+
   const goNext = () => {
-    if (step === 1 && (!title.trim() || !addressLine.trim() || !city.trim() || !country.trim())) {
-      setStepError("Please fill in title, address, city, and country.");
+    if (
+      step === 1 &&
+      (!title.trim() || !addressLine.trim() || !city.trim() || !country.trim() || !upi.trim())
+    ) {
+      setStepError(c.errorBasicInfo);
       return;
     }
-    if (step === 2 && category === "commercial" && !sizeSqm.trim()) {
-      setStepError("Size (sqm) is required for commercial properties.");
+    if (step === 1 && showOwnerField && !ownerId) {
+      setStepError(c.errorBasicInfo);
       return;
+    }
+    if (step === 2) {
+      if (category === "commercial" && !sizeSqm.trim()) {
+        setStepError("Size (sqm) is required for commercial properties.");
+        return;
+      }
+      if (!rentAmount.toString().trim() || Number(rentAmount) <= 0) {
+        setStepError(c.errorRent);
+        return;
+      }
     }
     setStepError(null);
     setStep((s) => Math.min(s + 1, STEPS.length));
@@ -103,33 +147,36 @@ export function PropertyForm({
   };
 
   const submitForm = () => {
-    if (!rentAmount.toString().trim() || Number(rentAmount) <= 0) {
-      setStepError("Please enter a valid monthly rent.");
-      return;
-    }
-    if (showOwnerField && !ownerId) {
-      setStepError("Please select an owner.");
+    if (!confirmed) {
+      setStepError(c.errorConfirm);
       return;
     }
     setStepError(null);
-    onSuccess({
-      title: title.trim(),
-      description: description.trim() || undefined,
-      addressLine: addressLine.trim(),
-      city: city.trim(),
-      state: state.trim() || undefined,
-      country: country.trim(),
-      postalCode: postalCode.trim() || undefined,
-      category,
-      type,
-      sizeSqm: category === "commercial" ? Number(sizeSqm) : undefined,
-      unitsCount: type === "apartment" && unitsCount.trim() ? Number(unitsCount) : undefined,
-      bedrooms: bedrooms.trim() ? Number(bedrooms) : undefined,
-      bathrooms: bathrooms.trim() ? Number(bathrooms) : undefined,
-      rentAmount: Number(rentAmount),
-      rentConditions: rentConditions.trim() || undefined,
-      ...(showOwnerField ? { ownerId } : {}),
-    });
+    onSuccess(
+      {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        addressLine: addressLine.trim(),
+        city: city.trim(),
+        state: state.trim() || undefined,
+        country: country.trim(),
+        postalCode: postalCode.trim() || undefined,
+        upi: upi.trim() || undefined,
+        category,
+        type,
+        sizeSqm: category === "commercial" ? Number(sizeSqm) : undefined,
+        unitsCount: type === "apartment" && unitsCount.trim() ? Number(unitsCount) : undefined,
+        bedrooms: needsPropertyLevelRooms && bedrooms.trim() ? Number(bedrooms) : undefined,
+        bathrooms: needsPropertyLevelRooms && bathrooms.trim() ? Number(bathrooms) : undefined,
+        rentAmount: Number(rentAmount),
+        terms: terms.map((term) => term.trim()).filter(Boolean),
+        attributes: attributes
+          .map((attr) => ({ label: attr.label.trim(), value: attr.value.trim() }))
+          .filter((attr) => attr.label && attr.value),
+        ...(showOwnerField ? { ownerId } : {}),
+      },
+      documentFile,
+    );
   };
 
   return (
@@ -203,7 +250,7 @@ export function PropertyForm({
               type="text"
               value={addressLine}
               onChange={(e) => setAddressLine(e.target.value)}
-              placeholder="e.g. KG 7 Ave, Nyarutarama"
+              placeholder={c.addressPlaceholder}
               className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
             />
           </label>
@@ -248,13 +295,42 @@ export function PropertyForm({
               />
             </label>
           </div>
+
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+            {c.upi}
+            <input
+              type="text"
+              value={upi}
+              onChange={(e) => setUpi(e.target.value)}
+              placeholder={c.upiPlaceholder}
+              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+            />
+          </label>
+
+          {showOwnerField && (
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+              {c.owner}
+              <select
+                value={ownerId}
+                onChange={(e) => setOwnerId(e.target.value)}
+                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+              >
+                {owners.length === 0 && <option value="">No landlords yet</option>}
+                {owners.map((owner) => (
+                  <option key={owner.id} value={owner.id}>
+                    {owner.firstName} {owner.lastName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
       )}
 
       {step === 2 && (
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Category
+            {c.buildingType}
             <select
               value={category}
               onChange={(e) => handleCategoryChange(e.target.value as PropertyCategory)}
@@ -288,7 +364,7 @@ export function PropertyForm({
                 min={0}
                 value={sizeSqm}
                 onChange={(e) => setSizeSqm(e.target.value)}
-                placeholder="e.g. 85"
+                placeholder={c.sizePlaceholder}
                 className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
               />
             </label>
@@ -309,72 +385,160 @@ export function PropertyForm({
           )}
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Bedrooms (optional)
+            {c.monthlyRent}
             <input
               type="number"
               min={0}
-              value={bedrooms}
-              onChange={(e) => setBedrooms(e.target.value)}
-              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+              value={rentAmount}
+              onChange={(e) => setRentAmount(e.target.value)}
+              placeholder={c.monthlyRentPlaceholder}
+              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
             />
           </label>
 
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Bathrooms (optional)
-            <input
-              type="number"
-              min={0}
-              value={bathrooms}
-              onChange={(e) => setBathrooms(e.target.value)}
-              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-            />
-          </label>
+          {needsPropertyLevelRooms && (
+            <>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Bedrooms (optional)
+                <input
+                  type="number"
+                  min={0}
+                  value={bedrooms}
+                  onChange={(e) => setBedrooms(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                />
+              </label>
+
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Bathrooms (optional)
+                <input
+                  type="number"
+                  min={0}
+                  value={bathrooms}
+                  onChange={(e) => setBathrooms(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                />
+              </label>
+            </>
+          )}
         </div>
       )}
 
       {step === 3 && (
-        <div className="flex flex-col gap-5">
-          <div className="grid gap-5 sm:grid-cols-2">
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              {c.monthlyRent}
-              <input
-                type="number"
-                min={0}
-                value={rentAmount}
-                onChange={(e) => setRentAmount(e.target.value)}
-                placeholder={c.monthlyRentPlaceholder}
-                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-              />
-            </label>
-
-            {showOwnerField && (
-              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-                {c.owner}
-                <select
-                  value={ownerId}
-                  onChange={(e) => setOwnerId(e.target.value)}
-                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-                >
-                  {owners.length === 0 && <option value="">No landlords yet</option>}
-                  {owners.map((owner) => (
-                    <option key={owner.id} value={owner.id}>
-                      {owner.firstName} {owner.lastName}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
+        <div className="flex flex-col gap-4">
+          <div>
+            <p className="text-sm font-medium text-slate-700">{c.rentConditionsLabel}</p>
           </div>
 
+          {terms.length === 0 && (
+            <p className="text-sm text-slate-400">No conditions added yet.</p>
+          )}
+
+          <div className="flex flex-col gap-3">
+            {terms.map((term, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={term}
+                  onChange={(e) => updateTerm(index, e.target.value)}
+                  placeholder={c.rentConditionPlaceholder}
+                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeTerm(index)}
+                  aria-label={c.removeCondition}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-500 hover:bg-slate-50"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={addTerm}
+            className="inline-flex items-center gap-1.5 self-start rounded-lg border border-gold/40 bg-gold/10 px-4 py-2 text-sm font-semibold text-gold transition-colors hover:bg-gold/20"
+          >
+            <Plus className="h-4 w-4" />
+            {c.addCondition}
+          </button>
+        </div>
+      )}
+
+      {step === 4 && (
+        <div className="flex flex-col gap-4">
+          <div>
+            <p className="text-sm font-medium text-slate-700">{c.additionalDetailsLabel}</p>
+            <p className="mt-1 text-xs text-slate-400">{c.additionalDetailsHint}</p>
+          </div>
+
+          {attributes.length === 0 && (
+            <p className="text-sm text-slate-400">No additional details added yet.</p>
+          )}
+
+          <div className="flex flex-col gap-3">
+            {attributes.map((attr, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={attr.label}
+                  onChange={(e) => updateAttribute(index, "label", e.target.value)}
+                  placeholder={c.attributeLabelPlaceholder}
+                  className="w-1/3 rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+                />
+                <input
+                  type="text"
+                  value={attr.value}
+                  onChange={(e) => updateAttribute(index, "value", e.target.value)}
+                  placeholder={c.attributeValuePlaceholder}
+                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeAttribute(index)}
+                  aria-label={c.removeDetail}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-500 hover:bg-slate-50"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={addAttribute}
+            className="inline-flex items-center gap-1.5 self-start rounded-lg border border-gold/40 bg-gold/10 px-4 py-2 text-sm font-semibold text-gold transition-colors hover:bg-gold/20"
+          >
+            <Plus className="h-4 w-4" />
+            {c.addDetail}
+          </button>
+        </div>
+      )}
+
+      {step === 5 && (
+        <div className="flex flex-col gap-5">
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            {c.rentConditionsLabel} (optional)
+            {c.documentLabel}
+            <span className="font-normal text-slate-400">{c.documentHint}</span>
             <input
-              type="text"
-              value={rentConditions}
-              onChange={(e) => setRentConditions(e.target.value)}
-              placeholder="e.g. 12-month lease, 2 months deposit"
-              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) => setDocumentFile(e.target.files?.[0] ?? null)}
+              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy file:mr-3 file:rounded-md file:border-0 file:bg-gold/10 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-gold"
             />
+          </label>
+
+          <label className="flex items-start gap-2.5 text-sm font-medium text-slate-700">
+            <input
+              type="checkbox"
+              checked={confirmed}
+              onChange={(e) => setConfirmed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-gold focus:ring-gold"
+            />
+            {c.confirmCheckbox}
           </label>
         </div>
       )}

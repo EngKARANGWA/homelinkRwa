@@ -80,6 +80,8 @@ export type PropertyType =
   | "commercial"
   | "other";
 
+export type PropertyAttribute = { label: string; value: string };
+
 export type CreatePropertyInput = {
   title: string;
   description?: string;
@@ -87,6 +89,9 @@ export type CreatePropertyInput = {
   category: PropertyCategory;
   sizeSqm?: number;
   unitsCount?: number;
+  upi?: string;
+  terms?: string[];
+  attributes?: PropertyAttribute[];
   addressLine: string;
   city: string;
   state?: string;
@@ -106,6 +111,9 @@ export type UpdatePropertyInput = {
   category?: PropertyCategory;
   sizeSqm?: number;
   unitsCount?: number;
+  upi?: string;
+  terms?: string[];
+  attributes?: PropertyAttribute[];
   addressLine?: string;
   city?: string;
   state?: string;
@@ -131,6 +139,9 @@ export type Property = {
   category: PropertyCategory;
   sizeSqm: number | null;
   unitsCount: number | null;
+  upi: string | null;
+  terms: string[] | null;
+  attributes: PropertyAttribute[] | null;
   addressLine: string;
   city: string;
   state: string | null;
@@ -189,6 +200,11 @@ export type GenerateUnitsInput = {
 
 export type ImportUnitsRowError = { row: number; message: string };
 
+export type ImportUnitsPreview = {
+  values: CreateUnitInput[];
+  errors: ImportUnitsRowError[];
+};
+
 export type ListAvailableUnitsParams = {
   search?: string;
   status?: PropertyStatus;
@@ -227,6 +243,10 @@ export type Lease = {
   terminatedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  // Only present once, on the response to creating this lease with a brand-new
+  // `newTenant` — a one-time temp password the landlord can hand to the
+  // tenant directly. Not yet implemented backend-side; see docs/backend-gaps.md.
+  newTenantCredentials?: { email: string; tempPassword: string };
 };
 
 export type NewTenantInput = {

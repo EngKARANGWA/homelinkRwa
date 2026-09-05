@@ -3,12 +3,19 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, Check, CheckCircle2, Eye, Plus, X } from "lucide-react";
 import { listUsers } from "@/lib/api/admin";
-import { approveProperty, createProperty, listProperties, rejectProperty } from "@/lib/api/properties";
+import {
+  approveProperty,
+  createProperty,
+  listProperties,
+  rejectProperty,
+  uploadPropertyDocument,
+} from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
 import type { ApprovalStatus, CreatePropertyInput, Property, PropertyStatus, User } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
 import { PropertyDetail } from "@/components/admin/PropertyDetail";
+import { UnitSetupForm } from "@/components/admin/UnitSetupForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
@@ -41,6 +48,7 @@ export default function PropertiesPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [viewingProperty, setViewingProperty] = useState<Property | null>(null);
+  const [unitSetupProperty, setUnitSetupProperty] = useState<Property | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -69,13 +77,19 @@ export default function PropertiesPage() {
 
   useEffect(load, [page]);
 
-  const addProperty = async (values: CreatePropertyInput) => {
+  const addProperty = async (values: CreatePropertyInput, documentFile: File | null) => {
     setFormError(null);
     try {
-      await createProperty(values);
+      const created = await createProperty(values);
+      if (documentFile) {
+        await uploadPropertyDocument(created.id, documentFile).catch(() => undefined);
+      }
       setModalOpen(false);
       setJustAdded(true);
       load();
+      if (created.type === "apartment" || created.type === "commercial") {
+        setUnitSetupProperty(created);
+      }
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Failed to add property.");
     }
@@ -260,6 +274,23 @@ export default function PropertiesPage() {
           maxWidthClassName="max-w-2xl"
         >
           <PropertyDetail property={viewingProperty} ownerName={ownerName(viewingProperty.ownerId)} />
+        </Modal>
+      )}
+
+      {unitSetupProperty && (
+        <Modal
+          title={`Set up units — ${unitSetupProperty.title}`}
+          description="This property is an apartment/commercial building, which usually means multiple rentable units."
+          onClose={() => setUnitSetupProperty(null)}
+        >
+          <UnitSetupForm
+            propertyId={unitSetupProperty.id}
+            onSkip={() => setUnitSetupProperty(null)}
+            onDone={() => {
+              setUnitSetupProperty(null);
+              setJustAdded(true);
+            }}
+          />
         </Modal>
       )}
     </div>

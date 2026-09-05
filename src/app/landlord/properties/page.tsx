@@ -17,6 +17,7 @@ import {
   createProperty,
   listProperties,
   updateProperty,
+  uploadPropertyDocument,
 } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
 import type {
@@ -102,10 +103,13 @@ export default function LandlordPropertiesPage() {
 
   useEffect(load, [user, page]);
 
-  const addProperty = async (values: CreatePropertyInput) => {
+  const addProperty = async (values: CreatePropertyInput, documentFile: File | null) => {
     setFormError(null);
     try {
       const created = await createProperty(values);
+      if (documentFile) {
+        await uploadPropertyDocument(created.id, documentFile).catch(() => undefined);
+      }
       setAdding(false);
       setJustSaved(true);
       load();

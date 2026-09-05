@@ -2,22 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { AlertCircle, Check, CheckCircle2, Eye, FileStack, Plus, X } from "lucide-react";
-import { listUsers } from "@/lib/api/admin";
 import { listProperties, listUnits } from "@/lib/api/properties";
 import {
   approveLeaseChangeRequest,
-  createLease,
   getLease,
   listLeaseChangeRequests,
   listLeases,
   rejectLeaseChangeRequest,
 } from "@/lib/api/leases";
 import { ApiError } from "@/lib/api/client";
-import type { CreateLeaseInput, Lease, Property, PropertyUnit, User } from "@/lib/api/types";
+import type { Lease, Property, PropertyUnit } from "@/lib/api/types";
 import { formatLeaseStatus, LEASE_STATUS_STYLES } from "@/lib/leaseStatus";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Modal } from "@/components/admin/Modal";
-import { LeaseForm } from "@/components/admin/LeaseForm";
+import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { LeaseDocumentsPanel } from "@/components/leases/LeaseDocumentsPanel";
 import { LeaseDetail } from "@/components/leases/LeaseDetail";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
@@ -33,13 +31,11 @@ export default function LandlordLeasesPage() {
   const [leases, setLeases] = useState<Lease[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [units, setUnits] = useState<PropertyUnit[]>([]);
-  const [tenants, setTenants] = useState<User[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
   const [justCreated, setJustCreated] = useState(false);
   const [documentsLease, setDocumentsLease] = useState<Lease | null>(null);
   const [viewingLease, setViewingLease] = useState<Lease | null>(null);
@@ -50,10 +46,9 @@ export default function LandlordLeasesPage() {
 
   const propertyFor = (id: string) => properties.find((p) => p.id === id);
   const unitFor = (id: string) => units.find((u) => u.id === id);
-  const tenantName = (id: string) => {
-    const tenant = tenants.find((t) => t.id === id);
-    return tenant ? `${tenant.firstName} ${tenant.lastName}` : "—";
-  };
+  // Owners can't list all tenant users (that's admin-only), so lease rows
+  // show a stable placeholder derived from the tenant's id instead of a name.
+  const tenantName = (id: string) => `Tenant ${id.slice(0, 8).toUpperCase()}`;
 
   const load = () => {
     if (!user) return;
@@ -62,14 +57,12 @@ export default function LandlordLeasesPage() {
     Promise.all([
       listLeases({ page, limit: DEFAULT_PAGE_SIZE }),
       listProperties({ ownerId: user.id, limit: 100 }),
-      listUsers({ role: "tenant", limit: 100 }),
     ])
-      .then(async ([leasesRes, propertiesRes, tenantsRes]) => {
+      .then(async ([leasesRes, propertiesRes]) => {
         setLeases(leasesRes.data);
         setTotalPages(leasesRes.meta.totalPages);
         setTotalItems(leasesRes.meta.total);
         setProperties(propertiesRes.data);
-        setTenants(tenantsRes.data);
         const unitsByProperty = await Promise.all(
           propertiesRes.data.map((p) => listUnits(p.id)),
         );
@@ -83,16 +76,10 @@ export default function LandlordLeasesPage() {
 
   useEffect(load, [user, page]);
 
-  const addLease = async (values: CreateLeaseInput) => {
-    setFormError(null);
-    try {
-      await createLease(values);
-      setModalOpen(false);
-      setJustCreated(true);
-      load();
-    } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Failed to create lease.");
-    }
+  const handleTenantAdded = () => {
+    setModalOpen(false);
+    setJustCreated(true);
+    load();
   };
 
   const viewLease = async (lease: Lease) => {
@@ -291,16 +278,9 @@ export default function LandlordLeasesPage() {
           description={lc.createDescription}
           onClose={() => setModalOpen(false)}
         >
-          {formError && (
-            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {formError}
-            </p>
-          )}
-          <LeaseForm
-            properties={properties}
-            tenants={tenants}
+          <AddTenantForm
             onCancel={() => setModalOpen(false)}
-            onSuccess={addLease}
+            onSuccess={handleTenantAdded}
           />
         </Modal>
       )}
