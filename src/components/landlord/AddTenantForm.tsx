@@ -1,12 +1,54 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Check, CheckCircle2, Copy, MessageCircle, Send } from "lucide-react";
 import { listAvailableUnits } from "@/lib/api/properties";
 import { createLease } from "@/lib/api/leases";
 import { ApiError } from "@/lib/api/client";
 import type { AvailableUnit, Lease } from "@/lib/api/types";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { formatMoney } from "@/lib/money";
+
+function CopyField({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard access can be denied by the browser — the value is still
+      // visible on screen for a manual copy either way.
+    }
+  };
+
+  const isMultiline = value.includes("\n");
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+        <p
+          className={`font-mono text-sm font-medium text-navy ${
+            isMultiline ? "whitespace-pre-line" : "truncate"
+          }`}
+        >
+          {value}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={copy}
+        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+      >
+        {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
+  );
+}
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
@@ -16,7 +58,10 @@ export function AddTenantForm({
   onSuccess,
   onCancel,
 }: {
-  propertyId: string;
+  /** Omit to search available units across the landlord's whole portfolio
+   * instead of one fixed property — each result then shows which property
+   * it belongs to. */
+  propertyId?: string;
   defaultRentAmount?: number;
   onSuccess: (lease: Lease) => void;
   onCancel: () => void;
@@ -39,11 +84,12 @@ export function AddTenantForm({
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [createdLease, setCreatedLease] = useState<Lease | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoadingUnits(true);
-    listAvailableUnits({ propertyId })
+    listAvailableUnits(propertyId ? { propertyId } : {})
       .then((result) => {
         if (cancelled) return;
         setUnits(result);
@@ -87,7 +133,7 @@ export function AddTenantForm({
     setSubmitting(true);
     try {
       const lease = await createLease({
-        propertyId,
+        propertyId: propertyId ?? selectedUnit.propertyId,
         unitId: selectedUnit.id,
         newTenant: {
           email: email.trim(),
@@ -100,13 +146,81 @@ export function AddTenantForm({
         deposit: deposit.trim() ? Number(deposit) : undefined,
         leasePeriodNote: leasePeriodNote.trim() || undefined,
       });
-      onSuccess(lease);
+      setCreatedLease(lease);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to add tenant.");
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (createdLease) {
+    const credentials = createdLease.newTenantCredentials;
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          Tenant added and assigned to their unit.
+        </div>
+
+        {credentials ? (
+          (() => {
+            const message = `Hi ${firstName.trim()}, here are your HomeLink login details:\nEmail: ${credentials.email}\nPassword: ${credentials.tempPassword}\nLog in at: ${typeof window !== "undefined" ? window.location.origin : ""}/login`;
+            const digits = phone.replace(/[^\d+]/g, "");
+            const waDigits = digits.replace(/^\+/, "");
+            const encoded = encodeURIComponent(message);
+            return (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm text-slate-600">
+                  Share these with the tenant so they can log in. This password won&apos;t be
+                  shown again after you close this window.
+                </p>
+                <CopyField label="Email" value={credentials.email} />
+                <CopyField label="Temporary password" value={credentials.tempPassword} />
+                <CopyField label="Email + password (both)" value={message} />
+
+                {digits && (
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={`https://wa.me/${waDigits}?text=${encoded}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Send via WhatsApp
+                    </a>
+                    <a
+                      href={`sms:${digits}?&body=${encoded}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      <Send className="h-4 w-4" />
+                      Send via SMS
+                    </a>
+                  </div>
+                )}
+              </div>
+            );
+          })()
+        ) : (
+          <p className="text-sm text-slate-600">
+            The tenant will receive an email at <strong>{email.trim()}</strong> to set their own
+            password and access their account.
+          </p>
+        )}
+
+        <div className="mt-1 flex justify-end">
+          <button
+            type="button"
+            onClick={() => onSuccess(createdLease)}
+            className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -123,10 +237,14 @@ export function AddTenantForm({
           onChange={handleUnitChange}
           disabled={loadingUnits || units.length === 0}
           placeholder={loadingUnits ? "Loading units..." : units.length === 0 ? c.noVacantUnits : c.selectUnit}
-          options={units.map((unit) => ({
-            value: unit.id,
-            label: unit.floor != null ? `${unit.label} (Floor ${unit.floor})` : unit.label,
-          }))}
+          options={units.map((unit) => {
+            const floorPart = unit.floor != null ? ` (Floor ${unit.floor})` : "";
+            const propertyPart = propertyId ? "" : ` — ${unit.propertyTitle}`;
+            return {
+              value: unit.id,
+              label: `${unit.label}${floorPart}${propertyPart} — ${formatMoney(Number(unit.rentAmount))} RWF`,
+            };
+          })}
         />
       </label>
 

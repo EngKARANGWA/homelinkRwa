@@ -15,6 +15,7 @@ import {
   createProperty,
   listProperties,
   updateProperty,
+  uploadPropertyDocument,
 } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
 import type {
@@ -26,6 +27,7 @@ import type {
 } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
+import { UnitSetupForm } from "@/components/admin/UnitSetupForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
@@ -55,6 +57,7 @@ export default function HouseManagerPropertiesPage() {
   const [error, setError] = useState<string | null>(null);
   const [isAdding, setAdding] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [unitSetupProperty, setUnitSetupProperty] = useState<Property | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
   const [page, setPage] = useState(1);
@@ -87,13 +90,19 @@ export default function HouseManagerPropertiesPage() {
 
   useEffect(load, [page]);
 
-  const addProperty = async (values: CreatePropertyInput) => {
+  const addProperty = async (values: CreatePropertyInput, documentFile: File | null) => {
     setFormError(null);
     try {
-      await createProperty(values);
+      const created = await createProperty(values);
+      if (documentFile) {
+        await uploadPropertyDocument(created.id, documentFile).catch(() => undefined);
+      }
       setAdding(false);
       setJustSaved(true);
       load();
+      if (created.type === "apartment" || created.type === "commercial") {
+        setUnitSetupProperty(created);
+      }
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Failed to add property.");
     }
@@ -363,6 +372,23 @@ export default function HouseManagerPropertiesPage() {
             initialProperty={editingProperty}
             onCancel={() => setEditingProperty(null)}
             onSuccess={editProperty}
+          />
+        </Modal>
+      )}
+
+      {unitSetupProperty && (
+        <Modal
+          title={`Set up units — ${unitSetupProperty.title}`}
+          description="This property is an apartment/commercial building, which usually means multiple rentable units."
+          onClose={() => setUnitSetupProperty(null)}
+        >
+          <UnitSetupForm
+            propertyId={unitSetupProperty.id}
+            onSkip={() => setUnitSetupProperty(null)}
+            onDone={() => {
+              setUnitSetupProperty(null);
+              setJustSaved(true);
+            }}
           />
         </Modal>
       )}

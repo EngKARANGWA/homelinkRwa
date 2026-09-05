@@ -55,7 +55,11 @@ function isFormData(body: unknown): body is FormData {
 }
 
 function buildUrl(path: string, query?: ApiFetchOptions["query"]) {
-  const url = new URL(`${API_BASE_URL}${path}`);
+  // API_BASE_URL may be a relative path (e.g. "/api/v1", proxied by Next.js
+  // rewrites in dev to dodge the backend's CORS allow-list) rather than an
+  // absolute URL — `base` lets `new URL` resolve that case too.
+  const base = typeof window !== "undefined" ? window.location.origin : undefined;
+  const url = new URL(`${API_BASE_URL}${path}`, base);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined) url.searchParams.set(key, String(value));
