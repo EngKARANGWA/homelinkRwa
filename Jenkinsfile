@@ -23,8 +23,11 @@ pipeline {
         REPOSITORY = "ghcr.io/ishkevin/homelinkrwa"
         IMAGE_TAG  = "${env.GIT_COMMIT}"
         // Backend's public URL (homelink-bn's app box). Baked into the
-        // client bundle at build time — see Dockerfile.
-        NEXT_PUBLIC_API_BASE_URL = "https://52-17-7-91.nip.io/api/v1"
+        // client bundle at build time — see Dockerfile. Must be updated
+        // here (and rebuilt) any time the backend's public hostname
+        // changes — it's a build-time constant, not read from SSM at
+        // runtime, so updating homelink-bn's infra alone doesn't fix it.
+        NEXT_PUBLIC_API_BASE_URL = "https://api.homelink.rw/api/v1"
     }
 
     stages {
