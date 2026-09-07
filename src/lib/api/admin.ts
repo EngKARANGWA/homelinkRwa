@@ -63,3 +63,45 @@ export async function updateUserRole(id: string, role: Role): Promise<User> {
   });
   return res.data;
 }
+
+export type ActiveSession = {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userRole: Role;
+  ipAddress: string | null;
+  deviceType: string;
+  browser: string;
+  os: string;
+  lastUsedAt: string;
+  createdAt: string;
+  expiresAt: string;
+};
+
+export async function listActiveSessions(
+  params: { userId?: string; page?: number; limit?: number } = {},
+): Promise<PaginatedResponse<ActiveSession>> {
+  return apiFetch<PaginatedResponse<ActiveSession>>("/admin/sessions", { query: params });
+}
+
+export async function revokeSession(id: string): Promise<void> {
+  await apiFetch(`/admin/sessions/${id}`, { method: "DELETE" });
+}
+
+export type AuditLogEntry = {
+  id: string;
+  userId: string | null;
+  action: string;
+  entity: string;
+  entityId: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  actor?: { id: string; firstName: string; lastName: string; email: string; phone: string };
+};
+
+export async function listAuditLogs(
+  params: { userId?: string; entity?: string; action?: string; page?: number; limit?: number } = {},
+): Promise<PaginatedResponse<AuditLogEntry>> {
+  return apiFetch<PaginatedResponse<AuditLogEntry>>("/admin/audit-logs", { query: params });
+}
