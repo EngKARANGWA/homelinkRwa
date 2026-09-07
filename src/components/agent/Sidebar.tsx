@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, X } from "lucide-react";
-import { ADMIN_NAV_ITEMS } from "./nav-items";
-import { useAuth } from "@/components/auth/AuthContext";
+import { Home, LayoutDashboard, X } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+
+const NAV_ITEMS = [{ key: "dashboard", href: "/agent", icon: LayoutDashboard }] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -13,10 +13,8 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
-      {ADMIN_NAV_ITEMS.map(({ key, href, icon: Icon }) => {
-        const isActive =
-          href === "/admin" ? pathname === href : pathname.startsWith(href);
-
+      {NAV_ITEMS.map(({ key, href, icon: Icon }) => {
+        const isActive = pathname === href;
         return (
           <Link
             key={href}
@@ -37,17 +35,8 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-export function Sidebar({
-  isOpen,
-  onClose,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-}) {
+export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { t } = useLanguage();
-  const { user } = useAuth();
-  const roleLabel =
-    user?.role === "superadmin" ? t.dashboard.roleBadge.admin : t.dashboard.roleBadge.plainAdmin;
 
   return (
     <>
@@ -55,11 +44,9 @@ export function Sidebar({
         <Link href="/" className="flex items-center gap-2 px-6 py-5">
           <Home className="h-7 w-7 text-gold" strokeWidth={2.2} />
           <span className="leading-tight">
-            <span className="block text-lg font-bold text-white">
-              HomeLink
-            </span>
+            <span className="block text-lg font-bold text-white">HomeLink</span>
             <span className="block text-[11px] font-semibold tracking-[0.2em] text-gold">
-              {roleLabel}
+              {t.dashboard.roleBadge.agent}
             </span>
           </span>
         </Link>
@@ -75,32 +62,26 @@ export function Sidebar({
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            aria-label="Close menu"
+            aria-label={t.dashboard.topbar.closeMenu}
             onClick={onClose}
             className="absolute inset-0 bg-navy/70"
           />
 
           <div className="absolute inset-y-0 left-0 flex w-64 flex-col bg-navy text-white shadow-2xl">
             <div className="flex items-center justify-between px-6 py-5">
-              <Link
-                href="/"
-                onClick={onClose}
-                className="flex items-center gap-2"
-              >
+              <Link href="/" onClick={onClose} className="flex items-center gap-2">
                 <Home className="h-7 w-7 text-gold" strokeWidth={2.2} />
                 <span className="leading-tight">
-                  <span className="block text-lg font-bold text-white">
-                    HomeLink
-                  </span>
+                  <span className="block text-lg font-bold text-white">HomeLink</span>
                   <span className="block text-[11px] font-semibold tracking-[0.2em] text-gold">
-                    {roleLabel}
+                    {t.dashboard.roleBadge.agent}
                   </span>
                 </span>
               </Link>
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Close menu"
+                aria-label={t.dashboard.topbar.closeMenu}
                 className="rounded-lg p-2 text-white hover:bg-white/10"
               >
                 <X className="h-5 w-5" />

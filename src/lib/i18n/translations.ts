@@ -409,9 +409,11 @@ const en = {
   dashboard: {
     roleBadge: {
       admin: "SUPER ADMIN",
+      plainAdmin: "ADMIN",
       landlord: "LANDLORD",
       tenant: "TENANT",
       houseManager: "HOUSE MANAGER",
+      agent: "AGENT",
     },
     nav: {
       overview: "Overview",
@@ -440,6 +442,7 @@ const en = {
       tenant: "Tenant",
       superAdmin: "Super Admin",
       houseManager: "House Manager",
+      agent: "Agent",
     },
     status: {
       active: "Active",
@@ -1381,6 +1384,42 @@ const en = {
         completeRequestDescription: "Confirm the work that was done.",
       },
     },
+    agent: {
+      overview: {
+        title: "Overview",
+        subtitle: "A quick look at your listings and invites.",
+        statLabels: {
+          totalProperties: "Total Properties",
+          activeLeases: "Active Leases",
+          assignedToMe: "Assigned to Me",
+          pendingApproval: "Pending Approval",
+        },
+        statSubtitles: {
+          occupancyTemplate: "{occupied} occupied · {available} available",
+          currentlyActive: "Currently active",
+          maintenanceTasks: "Maintenance tasks for you",
+          awaitingAdminReview: "Awaiting admin review",
+        },
+        inviteLandlordTitle: "Invite a Landlord",
+        inviteLandlordDescription:
+          "Send a landlord an invite to join HomeLink. Once they accept, you can list properties on their behalf.",
+        emailPlaceholder: "landlord@example.com",
+        sendInvite: "Send Invite",
+        sending: "Sending...",
+        inviteSentTemplate: "Invite sent to {email}.",
+        notApprovedNotice:
+          "Your agent account is pending admin approval. You'll be able to invite landlords once approved.",
+        recentInvitesTitle: "Recent Invites",
+        noInvites: "No invites sent yet.",
+        loadingInvites: "Loading invites...",
+        inviteStatus: {
+          pending: "Pending",
+          accepted: "Accepted",
+          revoked: "Revoked",
+          expired: "Expired",
+        },
+      },
+    },
     tenant: {
       overview: {
         title: "Overview",
@@ -1478,7 +1517,6 @@ const en = {
         overdueMessage: "This payment is overdue. Please settle it as soon as possible.",
         rentDueTemplate: "Rent for {property} is due on {date}.",
         payNow: "Pay Now",
-        viewInvoice: "View Invoice",
         moreInvoicesDueTemplate: "+{count} more invoice{plural} due — see the Invoices tab.",
         allCaughtUp: "You're all caught up — no pending payments right now.",
         noNumber: "No.#",
@@ -1932,9 +1970,11 @@ const fr: typeof en = {
   dashboard: {
     roleBadge: {
       admin: "SUPER ADMIN",
+      plainAdmin: "ADMIN",
       landlord: "PROPRIÉTAIRE",
       tenant: "LOCATAIRE",
       houseManager: "GESTIONNAIRE",
+      agent: "AGENT",
     },
     nav: {
       overview: "Aperçu",
@@ -1963,6 +2003,7 @@ const fr: typeof en = {
       tenant: "Locataire",
       superAdmin: "Super Admin",
       houseManager: "Gestionnaire",
+      agent: "Agent",
     },
     status: {
       active: "Actif",
@@ -2908,6 +2949,42 @@ const fr: typeof en = {
         completeRequestDescription: "Confirmez le travail effectué.",
       },
     },
+    agent: {
+      overview: {
+        title: "Aperçu",
+        subtitle: "Un aperçu de vos annonces et invitations.",
+        statLabels: {
+          totalProperties: "Total des propriétés",
+          activeLeases: "Baux actifs",
+          assignedToMe: "Qui me sont assignées",
+          pendingApproval: "En attente d'approbation",
+        },
+        statSubtitles: {
+          occupancyTemplate: "{occupied} occupées · {available} disponibles",
+          currentlyActive: "Actuellement actifs",
+          maintenanceTasks: "Tâches de maintenance pour vous",
+          awaitingAdminReview: "En attente de l'examen par l'administrateur",
+        },
+        inviteLandlordTitle: "Inviter un propriétaire",
+        inviteLandlordDescription:
+          "Envoyez à un propriétaire une invitation à rejoindre HomeLink. Une fois qu'il l'aura acceptée, vous pourrez lister ses propriétés en son nom.",
+        emailPlaceholder: "proprietaire@example.com",
+        sendInvite: "Envoyer l'invitation",
+        sending: "Envoi en cours...",
+        inviteSentTemplate: "Invitation envoyée à {email}.",
+        notApprovedNotice:
+          "Votre compte agent est en attente d'approbation par un administrateur. Vous pourrez inviter des propriétaires une fois approuvé.",
+        recentInvitesTitle: "Invitations récentes",
+        noInvites: "Aucune invitation envoyée pour le moment.",
+        loadingInvites: "Chargement des invitations...",
+        inviteStatus: {
+          pending: "En attente",
+          accepted: "Acceptée",
+          revoked: "Révoquée",
+          expired: "Expirée",
+        },
+      },
+    },
     tenant: {
       overview: {
         title: "Aperçu",
@@ -3005,7 +3082,6 @@ const fr: typeof en = {
         overdueMessage: "Ce paiement est en retard. Veuillez le régler dès que possible.",
         rentDueTemplate: "Le loyer de {property} est dû le {date}.",
         payNow: "Payer maintenant",
-        viewInvoice: "Voir la facture",
         moreInvoicesDueTemplate: "+{count} autre{plural} facture{plural} due{plural} — voir l'onglet Factures.",
         allCaughtUp: "Vous êtes à jour — aucun paiement en attente pour le moment.",
         noNumber: "N°",
