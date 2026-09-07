@@ -1,15 +1,31 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, LogOut, Monitor, RefreshCw, ScrollText, Smartphone, Tablet } from "lucide-react";
 import {
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  LogOut,
+  Monitor,
+  RefreshCw,
+  ScrollText,
+  Smartphone,
+  Tablet,
+  UserCog,
+} from "lucide-react";
+import {
+  getUser,
   listActiveSessions,
   listAuditLogs,
   revokeSession,
+  setUserStatus,
+  updateUserRole,
   type ActiveSession,
   type AuditLogEntry,
 } from "@/lib/api/admin";
 import { ApiError } from "@/lib/api/client";
+import type { Role, User } from "@/lib/api/types";
+import { Modal } from "@/components/admin/Modal";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -18,6 +34,13 @@ const DEVICE_ICONS: Record<string, typeof Monitor> = {
   mobile: Smartphone,
   tablet: Tablet,
 };
+
+const ASSIGNABLE_ROLES: Role[] = ["tenant", "owner", "agent", "admin"];
+
+function formatLabel(value: string, unknownLabel: string) {
+  if (value === "unknown") return unknownLabel;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
 
 type Tab = "sessions" | "auditLog";
 
@@ -64,6 +87,64 @@ export default function SettingsPage() {
       setError(err instanceof ApiError ? err.message : "Failed to revoke session.");
     } finally {
       setRevokingId(null);
+    }
+  };
+
+  // Manage user (from a session row)
+  const [manageUserId, setManageUserId] = useState<string | null>(null);
+  const [manageUser, setManageUser] = useState<User | null>(null);
+  const [manageLoading, setManageLoading] = useState(false);
+  const [manageSaving, setManageSaving] = useState(false);
+  const [manageError, setManageError] = useState<string | null>(null);
+
+  const openManage = (session: ActiveSession) => {
+    setManageUserId(session.userId);
+    setManageUser(null);
+    setManageError(null);
+    setManageLoading(true);
+    getUser(session.userId)
+      .then(setManageUser)
+      .catch((err) => setManageError(err instanceof ApiError ? err.message : "Failed to load user."))
+      .finally(() => setManageLoading(false));
+  };
+
+  const closeManage = () => {
+    setManageUserId(null);
+    setManageUser(null);
+    setManageError(null);
+  };
+
+  const handleToggleStatus = async () => {
+    if (!manageUser) return;
+    const nextActive = !manageUser.isActive;
+    if (!window.confirm(nextActive ? c.sessions.confirmActivate : c.sessions.confirmDeactivate)) return;
+    setManageSaving(true);
+    setManageError(null);
+    try {
+      const updated = await setUserStatus(manageUser.id, nextActive);
+      setManageUser(updated);
+      setNotice(c.sessions.statusUpdated);
+      loadSessions();
+    } catch (err) {
+      setManageError(err instanceof ApiError ? err.message : "Failed to update account status.");
+    } finally {
+      setManageSaving(false);
+    }
+  };
+
+  const handleChangeRole = async (role: Role) => {
+    if (!manageUser || role === manageUser.role) return;
+    setManageSaving(true);
+    setManageError(null);
+    try {
+      const updated = await updateUserRole(manageUser.id, role);
+      setManageUser(updated);
+      setNotice(c.sessions.roleUpdated);
+      loadSessions();
+    } catch (err) {
+      setManageError(err instanceof ApiError ? err.message : "Failed to update role.");
+    } finally {
+      setManageSaving(false);
     }
   };
 
@@ -186,27 +267,49 @@ export default function SettingsPage() {
                         <div className="text-xs text-slate-400">{s.userEmail}</div>
                       </Td>
                       <Td className="px-6 py-3 text-slate-500">{s.userRole}</Td>
-                      <Td className="px-6 py-3 text-slate-500">
-                        <span className="inline-flex items-center gap-1.5">
+                      <Td className="px-6 py-3">
+                        <span className="inline-flex items-center gap-1.5 text-slate-500">
                           <DeviceIcon className="h-4 w-4 text-slate-400" />
-                          {s.deviceType}
+                          {formatLabel(s.deviceType, c.sessions.unknown)}
                         </span>
                       </Td>
-                      <Td className="px-6 py-3 text-slate-500">{s.browser}</Td>
-                      <Td className="px-6 py-3 text-slate-500">{s.os}</Td>
+                      <Td className="px-6 py-3">
+                        {s.browser === "unknown" ? (
+                          <span className="italic text-slate-400">{c.sessions.unknown}</span>
+                        ) : (
+                          <span className="text-slate-500">{s.browser}</span>
+                        )}
+                      </Td>
+                      <Td className="px-6 py-3">
+                        {s.os === "unknown" ? (
+                          <span className="italic text-slate-400">{c.sessions.unknown}</span>
+                        ) : (
+                          <span className="text-slate-500">{s.os}</span>
+                        )}
+                      </Td>
                       <Td className="px-6 py-3 text-slate-500">{s.ipAddress ?? "—"}</Td>
                       <Td className="px-6 py-3 text-slate-500">{new Date(s.lastUsedAt).toLocaleString()}</Td>
                       <Td className="px-6 py-3 text-slate-500">{new Date(s.expiresAt).toLocaleString()}</Td>
                       <Td className="px-6 py-3">
-                        <button
-                          type="button"
-                          onClick={() => handleRevoke(s)}
-                          disabled={revokingId === s.id}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <LogOut className="h-3.5 w-3.5" />
-                          {c.sessions.revoke}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openManage(s)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+                          >
+                            <UserCog className="h-3.5 w-3.5" />
+                            {c.sessions.manage}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRevoke(s)}
+                            disabled={revokingId === s.id}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <LogOut className="h-3.5 w-3.5" />
+                            {c.sessions.revoke}
+                          </button>
+                        </div>
                       </Td>
                     </Tr>
                   );
@@ -304,6 +407,94 @@ export default function SettingsPage() {
             />
           </div>
         </>
+      )}
+
+      {manageUserId && (
+        <Modal title={c.sessions.manageTitle} onClose={closeManage} maxWidthClassName="max-w-md">
+          {manageLoading ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {c.sessions.loadingUser}
+            </div>
+          ) : manageUser ? (
+            <div className="flex flex-col gap-5">
+              <div>
+                <div className="font-medium text-navy">
+                  {manageUser.firstName} {manageUser.lastName}
+                </div>
+                <div className="text-sm text-slate-500">{manageUser.email}</div>
+              </div>
+
+              {manageError && (
+                <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {manageError}
+                </div>
+              )}
+
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    {c.sessions.status}
+                  </span>
+                  <span
+                    className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                      manageUser.isActive
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-red-200 bg-red-50 text-red-700"
+                    }`}
+                  >
+                    {manageUser.isActive ? c.sessions.active : c.sessions.inactive}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleStatus}
+                  disabled={manageSaving}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                    manageUser.isActive
+                      ? "border-red-200 text-red-600 hover:bg-red-50"
+                      : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  }`}
+                >
+                  {manageUser.isActive ? c.sessions.deactivateAction : c.sessions.activateAction}
+                </button>
+              </div>
+
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    {c.sessions.role}
+                  </span>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                    {manageUser.role}
+                  </span>
+                </div>
+                {ASSIGNABLE_ROLES.includes(manageUser.role) ? (
+                  <div className="flex flex-wrap gap-2">
+                    {ASSIGNABLE_ROLES.map((role) => (
+                      <button
+                        key={role}
+                        type="button"
+                        onClick={() => handleChangeRole(role)}
+                        disabled={manageSaving || role === manageUser.role}
+                        className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed ${
+                          role === manageUser.role
+                            ? "border-navy bg-navy text-white opacity-100"
+                            : "border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                        }`}
+                      >
+                        {role}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">{c.sessions.roleNotEditable}</p>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </Modal>
       )}
     </div>
   );
