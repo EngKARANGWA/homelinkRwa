@@ -8,7 +8,9 @@ export type ReportId =
   | "payment-history"
   | "occupancy"
   | "maintenance-activity"
-  | "revenue-performance";
+  | "revenue-performance"
+  | "agent-performance"
+  | "landlord-performance";
 
 export type RentalHistoryRow = {
   Property: string;
@@ -51,6 +53,25 @@ export type RevenuePerformanceRow = {
   Revenue: number;
 };
 
+export type AgentPerformanceRow = {
+  Agent: string;
+  PropertiesManaged: number;
+  ApprovedListings: number;
+  RejectedListings: number;
+  PendingListings: number;
+  ActiveLeases: number;
+};
+
+// Current-state directory, not date-ranged — see reports.service.ts.
+export type LandlordPerformanceRow = {
+  Name: string;
+  Email: string;
+  Phone: string;
+  Properties: number;
+  Status: string;
+  Registered: string;
+};
+
 type ReportResponse<Row> = { summary?: Record<string, unknown>; rows: Row[] };
 
 async function getReport<Row>(
@@ -77,6 +98,13 @@ export const getMaintenanceActivityReport = (range: ReportRange = {}) =>
 
 export const getRevenuePerformanceReport = (range: ReportRange = {}) =>
   getReport<RevenuePerformanceRow>("revenue-performance", range);
+
+export const getAgentPerformanceReport = (range: ReportRange = {}) =>
+  getReport<AgentPerformanceRow>("agent-performance", range);
+
+// Takes no date range — the backend ignores it for this report (a current
+// snapshot, not an activity log for a period).
+export const getLandlordPerformanceReport = () => getReport<LandlordPerformanceRow>("landlord-performance", {});
 
 export async function exportReport(reportId: ReportId, range: ReportRange = {}): Promise<void> {
   const blob = await apiFetchBlob(`/reports/${reportId}`, {

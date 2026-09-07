@@ -42,8 +42,12 @@ import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { Translations } from "@/lib/i18n/translations";
 
+// Landlords only ever see these five — agent-performance and
+// landlord-performance are admin-only reports (see admin/reports/page.tsx).
+type LandlordReportId = Exclude<ReportId, "agent-performance" | "landlord-performance">;
+
 const REPORT_TYPES: {
-  id: ReportId;
+  id: LandlordReportId;
   labelKey: keyof Translations["dashboard"]["landlord"]["reports"]["reportTypes"];
   hasDateFilter: boolean;
   hasPropertyFilter: boolean;
@@ -178,13 +182,13 @@ export default function LandlordReportsPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const c = t.dashboard.landlord.reports;
-  const [reportId, setReportId] = useState<ReportId>("rental-history");
+  const [reportId, setReportId] = useState<LandlordReportId>("rental-history");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [propertyFilter, setPropertyFilter] = useState(c.allProperties);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [hiddenColumns, setHiddenColumns] = useState<Record<ReportId, Set<string>>>({
+  const [hiddenColumns, setHiddenColumns] = useState<Record<LandlordReportId, Set<string>>>({
     "rental-history": new Set(),
     "payment-history": new Set(),
     occupancy: new Set(),
@@ -343,7 +347,7 @@ export default function LandlordReportsPage() {
     expensePage * DEFAULT_PAGE_SIZE,
   );
 
-  const COLUMNS_BY_REPORT: Record<ReportId, Column<never>[]> = {
+  const COLUMNS_BY_REPORT: Record<LandlordReportId, Column<never>[]> = {
     "rental-history": getRentalHistoryColumns(t) as Column<never>[],
     "payment-history": getPaymentHistoryColumns(t) as Column<never>[],
     occupancy: getOccupancyColumns(t) as Column<never>[],
@@ -485,7 +489,7 @@ export default function LandlordReportsPage() {
           <select
             value={reportId}
             onChange={(e) => {
-              setReportId(e.target.value as ReportId);
+              setReportId(e.target.value as LandlordReportId);
               setPropertyFilter(c.allProperties);
             }}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
