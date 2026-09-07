@@ -10,12 +10,11 @@ import {
   listLeases,
   rejectLeaseChangeRequest,
 } from "@/lib/api/leases";
-import { inviteTenant } from "@/lib/api/iam";
 import { ApiError } from "@/lib/api/client";
 import type { Lease, Property, PropertyUnit } from "@/lib/api/types";
 import { formatLeaseStatus, LEASE_STATUS_STYLES } from "@/lib/leaseStatus";
 import { Modal } from "@/components/admin/Modal";
-import { InviteTenantForm, type InviteTenantValues } from "@/components/landlord/InviteTenantForm";
+import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { LeaseDocumentsPanel } from "@/components/leases/LeaseDocumentsPanel";
 import { LeaseDetail } from "@/components/leases/LeaseDetail";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
@@ -72,15 +71,10 @@ export default function HouseManagerLeasesPage() {
 
   useEffect(load, [page]);
 
-  const handleInvite = async (values: InviteTenantValues) => {
-    setActionError(null);
-    try {
-      await inviteTenant(values.email, values.propertyId);
-      setInviting(false);
-      setNotice(c.inviteSentTemplate.replace("{email}", values.email));
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Failed to send invite.");
-    }
+  const handleTenantAdded = () => {
+    setInviting(false);
+    setNotice(c.tenantAddedNotice);
+    load();
   };
 
   const viewLease = async (lease: Lease) => {
@@ -277,10 +271,9 @@ export default function HouseManagerLeasesPage() {
           description={c.inviteTenantDescription}
           onClose={() => setInviting(false)}
         >
-          <InviteTenantForm
-            properties={properties}
+          <AddTenantForm
             onCancel={() => setInviting(false)}
-            onSuccess={handleInvite}
+            onSuccess={handleTenantAdded}
           />
         </Modal>
       )}
