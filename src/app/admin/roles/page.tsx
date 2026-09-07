@@ -11,14 +11,26 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthContext";
 import { listUsers, updateUserRole } from "@/lib/api/admin";
 import { ApiError } from "@/lib/api/client";
 import type { Role, User } from "@/lib/api/types";
 
 // ── Types ──────────────────────────────────────────────────────────────────
-type AssignableRole = "tenant" | "owner" | "agent" | "admin";
+type AssignableRole = "tenant" | "owner" | "agent" | "admin" | "superadmin";
 
-const ROLES: AssignableRole[] = ["tenant", "owner", "agent", "admin"];
+// Every role shown in the overview stats and badges. house_manager is
+// intentionally excluded from this whole page — it's assigned via the
+// owner-invites-a-manager flow (which also creates the manager_assignments
+// link this generic role switch has no way to set up), not a bare role flag.
+const DISPLAY_ROLES: AssignableRole[] = ["tenant", "owner", "agent", "admin", "superadmin"];
+
+// What the current viewer is allowed to *assign*. Granting admin-tier access
+// (admin/superadmin) is superadmin-only — the backend enforces this too, this
+// just keeps a plain admin from being offered an option that would 403.
+function assignableRolesFor(viewerRole: Role | undefined): AssignableRole[] {
+  return viewerRole === "superadmin" ? DISPLAY_ROLES : ["tenant", "owner", "agent"];
+}
 
 const ROLE_META: Record<
   AssignableRole,
@@ -43,6 +55,11 @@ const ROLE_META: Record<
     label: "Admin",
     color: "text-rose-700",
     bg: "bg-rose-50 border-rose-200",
+  },
+  superadmin: {
+    label: "Superadmin",
+    color: "text-indigo-700",
+    bg: "bg-indigo-50 border-indigo-200",
   },
 };
 
@@ -96,11 +113,15 @@ function RoleBadge({ role }: { role: Role }) {
 function RoleDropdown({
   userId,
   currentRole,
+  assignableRoles,
+  disabled,
   onRoleChanged,
   onError,
 }: {
   userId: string;
   currentRole: Role;
+  assignableRoles: AssignableRole[];
+  disabled: boolean;
   onRoleChanged: (userId: string, newRole: AssignableRole) => void;
   onError: (message: string) => void;
 }) {
@@ -141,11 +162,13 @@ function RoleDropdown({
       <button
         type="button"
         id={`role-btn-${userId}`}
+        disabled={disabled}
+        title={disabled ? "Only a superadmin can change this user's role" : undefined}
         onClick={() => {
           setOpen((o) => !o);
           setPendingRole(null);
         }}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
       >
         Change role
         <ChevronDown className="h-3 w-3" />
@@ -158,7 +181,7 @@ function RoleDropdown({
               <p className="border-b border-slate-100 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                 Assign role
               </p>
-              {ROLES.map((role) => {
+              {assignableRoles.map((role) => {
                 const meta = ROLE_META[role];
                 const isCurrentRole = role === currentRole;
                 return (
@@ -234,6 +257,8 @@ function RoleDropdown({
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 export default function RoleManagementPage() {
+  const { user: viewer } = useAuth();
+  const assignableRoles = assignableRolesFor(viewer?.role);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -284,7 +309,7 @@ export default function RoleManagementPage() {
     return matchRole && matchSearch;
   });
 
-  const roleCounts = ROLES.reduce(
+  const roleCounts = DISPLAY_ROLES.reduce(
     (acc, r) => {
       acc[r] = users.filter((u) => u.role === r).length;
       return acc;
@@ -323,8 +348,8 @@ export default function RoleManagementPage() {
 
         {/* Stats row */}
         {!isLoading && !error && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {ROLES.map((role) => {
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {DISPLAY_ROLES.map((role) => {
               const meta = ROLE_META[role];
               return (
                 <button
@@ -466,6 +491,11 @@ export default function RoleManagementPage() {
                       <RoleDropdown
                         userId={user.id}
                         currentRole={user.role}
+                        assignableRoles={assignableRoles}
+                        disabled={
+                          (user.role === "admin" || user.role === "superadmin") &&
+                          viewer?.role !== "superadmin"
+                        }
                         onRoleChanged={handleRoleChanged}
                         onError={handleError}
                       />

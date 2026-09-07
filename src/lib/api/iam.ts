@@ -1,6 +1,6 @@
 import { apiFetch } from "./client";
 
-export type InviteRole = "house_manager" | "tenant";
+export type InviteRole = "house_manager" | "tenant" | "owner";
 export type InviteStatus = "pending" | "accepted" | "revoked" | "expired";
 
 export interface Invite {
@@ -35,6 +35,14 @@ export async function inviteTenant(
   const res = await apiFetch<{ data: Invite }>("/iam/tenants/invite", {
     method: "POST",
     body: { email, propertyId },
+  });
+  return res.data;
+}
+
+export async function inviteLandlord(email: string): Promise<Invite> {
+  const res = await apiFetch<{ data: Invite }>("/iam/landlords/invite", {
+    method: "POST",
+    body: { email },
   });
   return res.data;
 }

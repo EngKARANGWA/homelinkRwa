@@ -387,6 +387,13 @@ export type OwnerDashboard = {
   netProfit: { thisMonth: number; thisYear: number };
 };
 
+export type AgentDashboard = {
+  properties: { total: number; available: number; occupied: number; pendingApproval: number };
+  activeLeases: number;
+  maintenanceRequests: { assignedToMe: number; openAcrossManagedProperties: number };
+  unreadNotifications: number;
+};
+
 export type TenantDashboard = {
   activeLease: {
     id: string;

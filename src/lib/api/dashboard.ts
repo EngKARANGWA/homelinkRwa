@@ -1,5 +1,11 @@
 import { apiFetch } from "./client";
-import type { AdminDashboard, OwnerDashboard, SuccessResponse, TenantDashboard } from "./types";
+import type {
+  AdminDashboard,
+  AgentDashboard,
+  OwnerDashboard,
+  SuccessResponse,
+  TenantDashboard,
+} from "./types";
 
 export async function getAdminDashboard(): Promise<AdminDashboard> {
   const res = await apiFetch<SuccessResponse<AdminDashboard>>("/dashboard/admin");
@@ -13,5 +19,10 @@ export async function getOwnerDashboard(): Promise<OwnerDashboard> {
 
 export async function getTenantDashboard(): Promise<TenantDashboard> {
   const res = await apiFetch<SuccessResponse<TenantDashboard>>("/dashboard/tenant");
+  return res.data;
+}
+
+export async function getAgentDashboard(): Promise<AgentDashboard> {
+  const res = await apiFetch<SuccessResponse<AgentDashboard>>("/dashboard/agent");
   return res.data;
 }
