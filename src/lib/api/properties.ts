@@ -1,9 +1,10 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFetchBlob } from "./client";
 import type {
   AvailableUnit,
   CreatePropertyInput,
   CreateUnitInput,
   GenerateUnitsInput,
+  ImportUnitsPreview,
   ListAvailableUnitsParams,
   PaginatedResponse,
   Property,
@@ -130,4 +131,46 @@ export async function listAvailableUnits(
     query: params,
   });
   return res.data;
+}
+
+/**
+ * Parses and validates an uploaded .xlsx file WITHOUT creating anything, so
+ * the caller can show a confirm-before-import preview (valid rows + any
+ * per-row errors) before calling `importUnits`.
+ */
+export async function previewImportUnits(
+  propertyId: string,
+  file: File,
+): Promise<ImportUnitsPreview> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await apiFetch<SuccessResponse<ImportUnitsPreview>>(
+    `/properties/${propertyId}/units/import/preview`,
+    { method: "POST", body: formData },
+  );
+  return res.data;
+}
+
+export async function uploadPropertyDocument(
+  propertyId: string,
+  file: File,
+): Promise<void> {
+  const formData = new FormData();
+  formData.append("document", file);
+  await apiFetch(`/properties/${propertyId}/document`, {
+    method: "PUT",
+    body: formData,
+  });
+}
+
+export async function downloadUnitsImportTemplate(): Promise<void> {
+  const blob = await apiFetchBlob("/properties/units/import-template");
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "units-import-template.xlsx";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }

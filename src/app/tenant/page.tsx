@@ -110,17 +110,10 @@ export default function TenantOverviewPage() {
 
   const payNow = async (values: PayInvoiceInput) => {
     if (!dashboard?.nextDueInvoice) return;
-    setError(null);
-    try {
-      await payInvoice(dashboard.nextDueInvoice.id, values);
-      setPaying(false);
-      setNotice(
-        values.method === "mobile_money" ? c.paymentSuccessful : c.paymentSubmitted,
-      );
-      load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to submit payment.");
-    }
+    await payInvoice(dashboard.nextDueInvoice.id, values);
+    setPaying(false);
+    setNotice(values.method === "mobile_money" ? c.paymentSuccessful : c.paymentSubmitted);
+    load();
   };
 
   const activeLease = dashboard?.activeLease ?? null;
@@ -245,7 +238,21 @@ export default function TenantOverviewPage() {
           onClose={() => setPaying(false)}
         >
           <PayNowForm
+            period={new Date(nextDueInvoice.dueDate).toLocaleDateString("en-US", {
+              month: "long",
+              year: "numeric",
+            })}
+            dueDateLabel={new Date(nextDueInvoice.dueDate).toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+            propertyTitle={activeLease.propertyTitle}
             amount={nextDueInvoice.amountDue}
+            overdueAmount={Math.max(
+              (dashboard?.outstandingBalance ?? 0) - nextDueInvoice.amountDue,
+              0,
+            )}
             onCancel={() => setPaying(false)}
             onSuccess={(values) => payNow(values)}
           />

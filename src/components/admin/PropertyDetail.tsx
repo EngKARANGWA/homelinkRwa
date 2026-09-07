@@ -82,6 +82,7 @@ export function PropertyDetail({
       </div>
 
       <Field label={c.address}>{addressParts.join(", ")}</Field>
+      {property.upi && <Field label="UPI">{property.upi}</Field>}
 
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
         {property.sizeSqm != null && (
@@ -106,6 +107,35 @@ export function PropertyDetail({
           {property.rentConditions ?? "—"}
         </Field>
       </div>
+
+      {property.terms && property.terms.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Rent Conditions
+          </p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm font-medium text-navy">
+            {property.terms.map((term, i) => (
+              <li key={i}>{term}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {property.attributes && property.attributes.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Additional Details
+          </p>
+          <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
+            {property.attributes.map((attr, i) => (
+              <p key={i}>
+                <span className="text-slate-400">{attr.label}:</span>{" "}
+                <span className="font-medium text-navy">{attr.value}</span>
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
 
       {property.description && (
         <Field label="Description">{property.description}</Field>

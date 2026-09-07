@@ -6,12 +6,11 @@ import { AlertCircle, Bell, CheckCircle2, Eye, Plus, Search } from "lucide-react
 import { listProperties, listUnits } from "@/lib/api/properties";
 import { listLeases } from "@/lib/api/leases";
 import { listInvoices } from "@/lib/api/payments";
-import { inviteTenant } from "@/lib/api/iam";
 import { ApiError } from "@/lib/api/client";
 import type { Invoice, Lease, Property, PropertyUnit } from "@/lib/api/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Modal } from "@/components/admin/Modal";
-import { InviteTenantForm, type InviteTenantValues } from "@/components/landlord/InviteTenantForm";
+import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
@@ -146,15 +145,10 @@ export default function LandlordTenantsPage() {
   const paidCount = rows.filter((r) => r.status === "Paid").length;
   const totalMonthlyRent = rows.reduce((sum, r) => sum + r.monthlyRent, 0);
 
-  const handleInvite = async (values: InviteTenantValues) => {
-    setActionError(null);
-    try {
-      await inviteTenant(values.email, values.propertyId);
-      setInviting(false);
-      setNotice(`Invite sent to ${values.email}.`);
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Failed to send invite.");
-    }
+  const handleTenantAdded = () => {
+    setInviting(false);
+    setNotice("Tenant added and assigned to their unit.");
+    load();
   };
 
   const handleSendReminders = () => {
@@ -191,7 +185,7 @@ export default function LandlordTenantsPage() {
             className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
           >
             <Plus className="h-4 w-4" />
-            Invite Tenant
+            Add Tenant
           </button>
         </div>
       </div>
@@ -348,14 +342,13 @@ export default function LandlordTenantsPage() {
 
       {isInviting && (
         <Modal
-          title="Invite Tenant"
-          description="Send a tenant an invite to join HomeLink."
+          title="Add Tenant"
+          description="Register a new tenant and assign them to an available unit."
           onClose={() => setInviting(false)}
         >
-          <InviteTenantForm
-            properties={properties}
+          <AddTenantForm
             onCancel={() => setInviting(false)}
-            onSuccess={handleInvite}
+            onSuccess={handleTenantAdded}
           />
         </Modal>
       )}

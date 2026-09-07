@@ -24,6 +24,7 @@ import type {
 import { formatStatusLabel, INVOICE_STATUS_STYLES, PAYMENT_STATUS_STYLES } from "@/lib/paymentStatus";
 import { Modal } from "@/components/admin/Modal";
 import { PayNowForm } from "@/components/tenant/PayNowForm";
+import { InvoiceDetail } from "@/components/tenant/InvoiceDetail";
 import { AlertBanner } from "@/components/dashboard/AlertBanner";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
@@ -97,6 +98,7 @@ export default function TenantPaymentsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>("invoices");
   const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [invoicePage, setInvoicePage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
@@ -161,18 +163,21 @@ export default function TenantPaymentsPage() {
     invoicePage * DEFAULT_PAGE_SIZE,
   );
 
+  // Overdue invoices from earlier periods than the one being paid — the
+  // payment endpoint only ever settles one invoice at a time, so this is
+  // shown to the tenant for awareness, not folded into what gets submitted.
+  const overdueForInvoice = (invoice: Invoice | null) =>
+    invoice
+      ? outstandingInvoices.filter((inv) => inv.id !== invoice.id && inv.dueDate < invoice.dueDate)
+      : [];
+
   const handlePay = async (values: PayInvoiceInput, invoice: Invoice) => {
-    setActionError(null);
-    try {
-      await payInvoice(invoice.id, values);
-      setPayingInvoice(null);
-      setNotice(
-        values.method === "mobile_money" ? c.paymentSuccessfulNotice : c.paymentSubmittedNotice,
-      );
-      load();
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Failed to submit payment.");
-    }
+    await payInvoice(invoice.id, values);
+    setPayingInvoice(null);
+    setNotice(
+      values.method === "mobile_money" ? c.paymentSuccessfulNotice : c.paymentSubmittedNotice,
+    );
+    load();
   };
 
   const viewReceipt = async (payment: Payment) => {
@@ -330,17 +335,28 @@ export default function TenantPaymentsPage() {
                       </span>
                     </Td>
                     <Td className="px-4 py-3 sm:px-6">
-                      {(invoice.status === "unpaid" || invoice.status === "overdue") && (
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setPayingInvoice(invoice)}
-                          aria-label={`Pay now for ${propertyForInvoice(invoice)?.title ?? "this invoice"}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1 text-xs font-semibold text-white hover:bg-gold/90"
+                          onClick={() => setViewingInvoice(invoice)}
+                          aria-label={`View invoice ${invoiceNumber(invoice)}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                         >
-                          <Wallet className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">{c.payNow}</span>
+                          <Eye className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">{c.viewInvoice}</span>
                         </button>
-                      )}
+                        {(invoice.status === "unpaid" || invoice.status === "overdue") && (
+                          <button
+                            type="button"
+                            onClick={() => setPayingInvoice(invoice)}
+                            aria-label={`Pay now for ${propertyForInvoice(invoice)?.title ?? "this invoice"}`}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1 text-xs font-semibold text-white hover:bg-gold/90"
+                          >
+                            <Wallet className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">{c.payNow}</span>
+                          </button>
+                        )}
+                      </div>
                     </Td>
                   </Tr>
                 ))
@@ -480,9 +496,32 @@ export default function TenantPaymentsPage() {
           onClose={() => setPayingInvoice(null)}
         >
           <PayNowForm
+            invoiceNumber={invoiceNumber(payingInvoice)}
+            period={monthLabel(payingInvoice.dueDate)}
+            dueDateLabel={formatDate(payingInvoice.dueDate)}
+            propertyTitle={propertyForInvoice(payingInvoice)?.title}
             amount={Number(payingInvoice.amountDue)}
+            overdueAmount={overdueForInvoice(payingInvoice).reduce(
+              (sum, inv) => sum + Number(inv.amountDue),
+              0,
+            )}
+            overdueCount={overdueForInvoice(payingInvoice).length}
+            defaultPhone={leaseById.get(payingInvoice.leaseId)?.momoNumber ?? undefined}
             onCancel={() => setPayingInvoice(null)}
             onSuccess={(values) => handlePay(values, payingInvoice)}
+          />
+        </Modal>
+      )}
+
+      {viewingInvoice && (
+        <Modal
+          title={c.invoiceDetailsTitle}
+          description={invoiceNumber(viewingInvoice)}
+          onClose={() => setViewingInvoice(null)}
+        >
+          <InvoiceDetail
+            invoice={viewingInvoice}
+            propertyLabel={propertyForInvoice(viewingInvoice)?.title}
           />
         </Modal>
       )}
