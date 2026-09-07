@@ -9,19 +9,21 @@ export function RequireRole({
   role,
   children,
 }: {
-  role: Role;
+  role: Role | Role[];
   children: React.ReactNode;
 }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const allowedRoles = Array.isArray(role) ? role : [role];
+  const isAllowed = !!user && allowedRoles.includes(user.role);
 
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== role)) {
+    if (!isLoading && !isAllowed) {
       router.replace("/login");
     }
-  }, [isLoading, user, role, router]);
+  }, [isLoading, isAllowed, router]);
 
-  if (isLoading || !user || user.role !== role) {
+  if (isLoading || !isAllowed) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <p className="text-sm text-slate-400">Loading…</p>

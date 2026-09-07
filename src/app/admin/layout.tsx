@@ -15,7 +15,7 @@ export default function AdminLayout({
   useIdleLogout();
 
   return (
-    <RequireRole role="admin">
+    <RequireRole role={["admin", "superadmin"]}>
       <div className="min-h-screen bg-slate-50">
         <Sidebar
           isOpen={isMobileMenuOpen}
