@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Download } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 import { getLeaseDocument } from "@/lib/api/leases";
 import { ApiError } from "@/lib/api/client";
 import type { Lease } from "@/lib/api/types";
 import { formatLeaseStatus, LEASE_STATUS_STYLES } from "@/lib/leaseStatus";
 import { formatMoney } from "@/lib/money";
+import { LeaseStatementModal } from "./LeaseStatementModal";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -32,6 +33,7 @@ export function LeaseDetail({
 }) {
   const [isDownloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showStatement, setShowStatement] = useState(false);
 
   const downloadDocument = async () => {
     setError(null);
@@ -100,15 +102,29 @@ export function LeaseDetail({
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={downloadDocument}
-        disabled={isDownloading}
-        className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-      >
-        <Download className="h-4 w-4" />
-        {isDownloading ? "Loading PDF..." : "Download Lease PDF"}
-      </button>
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={downloadDocument}
+          disabled={isDownloading}
+          className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+        >
+          <Download className="h-4 w-4" />
+          {isDownloading ? "Loading PDF..." : "Download Lease PDF"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowStatement(true)}
+          className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+        >
+          <FileText className="h-4 w-4" />
+          Statement of Account
+        </button>
+      </div>
+
+      {showStatement && (
+        <LeaseStatementModal leaseId={lease.id} onClose={() => setShowStatement(false)} />
+      )}
     </div>
   );
 }

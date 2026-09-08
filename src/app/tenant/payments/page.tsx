@@ -22,13 +22,16 @@ import type {
   Property,
 } from "@/lib/api/types";
 import { formatStatusLabel, INVOICE_STATUS_STYLES, PAYMENT_STATUS_STYLES } from "@/lib/paymentStatus";
+import { useAuth } from "@/components/auth/AuthContext";
 import { Modal } from "@/components/admin/Modal";
 import { PayNowForm } from "@/components/tenant/PayNowForm";
 import { InvoiceDetail } from "@/components/tenant/InvoiceDetail";
+import { LeaseStatementModal } from "@/components/leases/LeaseStatementModal";
 import { AlertBanner } from "@/components/dashboard/AlertBanner";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { downloadCSV } from "@/lib/csv";
+import { downloadTablePdf } from "@/lib/pdfExport";
 import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { Translations } from "@/lib/i18n/translations";
@@ -73,6 +76,12 @@ function monthLabel(dateStr: string) {
   });
 }
 
+/** "2026-09-07" -> "07-09-2026" — compact, matches the statement PDF's date style. */
+function shortDate(dateStr: string) {
+  const [year, month, day] = dateStr.split("-");
+  return `${day}-${month}-${year}`;
+}
+
 function invoiceNumber(invoice: Invoice) {
   return invoice.invoiceNumber;
 }
@@ -87,6 +96,7 @@ function paymentReference(payment: Payment) {
 }
 
 export default function TenantPaymentsPage() {
+  const { user } = useAuth();
   const { t } = useLanguage();
   const c = t.dashboard.tenant.payments;
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -99,6 +109,7 @@ export default function TenantPaymentsPage() {
   const [tab, setTab] = useState<TabId>("invoices");
   const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
+  const [showStatement, setShowStatement] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [invoicePage, setInvoicePage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
@@ -153,6 +164,8 @@ export default function TenantPaymentsPage() {
   const otherPendingCount = Math.max(outstandingInvoices.length - 1, 0);
 
   const primaryProperty = propertyForInvoice(pendingInvoice ?? invoices[0]) ?? properties[0];
+  const primaryLease =
+    leaseById.get((pendingInvoice ?? invoices[0])?.leaseId ?? "") ?? leases[0];
 
   const invoiceTotalPages = Math.max(1, Math.ceil(invoices.length / DEFAULT_PAGE_SIZE));
   useEffect(() => {
@@ -190,19 +203,38 @@ export default function TenantPaymentsPage() {
     }
   };
 
-  const handleDownloadInvoices = () => {
-    downloadCSV(
-      "my-invoices.csv",
-      ["Sn#", "Invoice #", "Month", "Date Due", "Total Amount", "Status"],
-      invoices.map((inv, i) => [
+  const handleDownloadInvoices = async () => {
+    await downloadTablePdf({
+      title: "My Invoices",
+      meta: [
+        ...(primaryProperty
+          ? [
+              {
+                label: "Property",
+                value: `${primaryProperty.title} — ${primaryProperty.addressLine}, ${primaryProperty.city}`,
+              },
+            ]
+          : []),
+        ...(user ? [{ label: "Tenant", value: `${user.firstName} ${user.lastName}` }] : []),
+      ],
+      filename: `my-invoices-${new Date().toISOString().slice(0, 10)}.pdf`,
+      columns: [
+        { header: "Sn#", width: 30, align: "center" },
+        { header: "Invoice #", width: 110 },
+        { header: "Month", width: 95 },
+        { header: "Date Due", width: 75 },
+        { header: "Total Amount", width: 100, align: "right" },
+        { header: "Status", width: 75 },
+      ],
+      rows: invoices.map((inv, i) => [
         i + 1,
         invoiceNumber(inv),
         monthLabel(inv.dueDate),
-        inv.dueDate,
-        Number(inv.amountDue),
+        shortDate(inv.dueDate),
+        `RWF ${Number(inv.amountDue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         formatStatusLabel(inv.status),
       ]),
-    );
+    });
     setNotice(c.invoicesDownloadedNotice);
   };
 
@@ -236,7 +268,13 @@ export default function TenantPaymentsPage() {
         </div>
         <button
           type="button"
-          onClick={tab === "invoices" ? handleDownloadInvoices : handleDownloadPayments}
+          onClick={
+            tab === "invoices"
+              ? handleDownloadInvoices
+              : primaryLease
+                ? () => setShowStatement(true)
+                : handleDownloadPayments
+          }
           className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
           <Download className="h-4 w-4" />
@@ -524,6 +562,10 @@ export default function TenantPaymentsPage() {
             propertyLabel={propertyForInvoice(viewingInvoice)?.title}
           />
         </Modal>
+      )}
+
+      {showStatement && primaryLease && (
+        <LeaseStatementModal leaseId={primaryLease.id} onClose={() => setShowStatement(false)} />
       )}
     </div>
   );

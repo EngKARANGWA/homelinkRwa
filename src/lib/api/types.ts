@@ -247,6 +247,35 @@ export type Lease = {
   // `newTenant` — a one-time temp password the landlord can hand to the
   // tenant directly. Not yet implemented backend-side; see docs/backend-gaps.md.
   newTenantCredentials?: { email: string; tempPassword: string };
+  // Only present on GET /leases/:id (not on list responses) — the backend
+  // resolves these from the tenant/owner user records since the requester
+  // already has proven access to this specific lease.
+  tenantName?: string | null;
+  ownerName?: string | null;
+};
+
+export type LeaseStatementRow = {
+  date: string;
+  reference: string;
+  remarks: string;
+  debit: number;
+  credit: number;
+  balance: number;
+};
+
+export type LeaseStatement = {
+  property: { title: string; addressLine: string; city: string };
+  unit: { label: string };
+  tenant: { firstName: string; lastName: string; email: string };
+  owner: { firstName: string; lastName: string };
+  periodFrom: string;
+  periodTo: string;
+  openingBalance: number;
+  rows: LeaseStatementRow[];
+  totalDebit: number;
+  totalCredit: number;
+  closingBalance: number;
+  generatedAt: string;
 };
 
 export type NewTenantInput = {
