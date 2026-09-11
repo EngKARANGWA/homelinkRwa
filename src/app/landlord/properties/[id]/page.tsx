@@ -3,12 +3,28 @@
 import { useEffect, useState } from "react";
 import { AppLink as Link } from "@/components/shared/AppLink";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, CheckCircle2, Pencil, Plus, Search } from "lucide-react";
-import { getProperty, listUnits, updateProperty } from "@/lib/api/properties";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  LayoutGrid,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
+import {
+  deleteUnit,
+  getProperty,
+  listUnits,
+  updateProperty,
+  uploadPropertyDocument,
+} from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
 import type { Property, PropertyUnit, UpdatePropertyInput } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
+import { UnitSetupForm } from "@/components/admin/UnitSetupForm";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
@@ -30,14 +46,18 @@ export default function PropertyDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [isAddingTenant, setAddingTenant] = useState(false);
+  const [isEditing, setEditing] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isManagingUnits, setManagingUnits] = useState(false);
+  const [unitsNotice, setUnitsNotice] = useState<string | null>(null);
+  const [deletingUnitId, setDeletingUnitId] = useState<string | null>(null);
+  const [deleteUnitError, setDeleteUnitError] = useState<string | null>(null);
   const [justAddedTenant, setJustAddedTenant] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
   const [page, setPage] = useState(1);
-  const [isEditing, setEditing] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
 
-  const load = () => {
+  useEffect(() => {
     if (!id) return;
     let cancelled = false;
     setLoading(true);
@@ -59,25 +79,11 @@ export default function PropertyDetailPage() {
     return () => {
       cancelled = true;
     };
-  };
-
-  useEffect(load, [id]);
+  }, [id]);
 
   const reloadUnits = () => {
     if (!id) return;
     listUnits(id).then(setUnits).catch(() => undefined);
-  };
-
-  const handleUpdateProperty = async (values: UpdatePropertyInput) => {
-    if (!property) return;
-    setEditError(null);
-    try {
-      await updateProperty(property.id, values);
-      setEditing(false);
-      load();
-    } catch (err) {
-      setEditError(err instanceof ApiError ? err.message : "Failed to update property.");
-    }
   };
 
   const filteredUnits = units.filter((u) => {
@@ -129,6 +135,34 @@ export default function PropertyDetailPage() {
     );
   };
 
+  const handleEditProperty = async (values: UpdatePropertyInput, documentFile: File | null) => {
+    setEditError(null);
+    try {
+      const updated = await updateProperty(property.id, values);
+      if (documentFile) {
+        await uploadPropertyDocument(property.id, documentFile).catch(() => undefined);
+      }
+      setProperty(updated);
+      setEditing(false);
+    } catch (err) {
+      setEditError(err instanceof ApiError ? err.message : "Failed to update property.");
+    }
+  };
+
+  const handleDeleteUnit = async (unit: PropertyUnit) => {
+    if (!window.confirm(`Delete unit "${unit.label}"? This can't be undone.`)) return;
+    setDeletingUnitId(unit.id);
+    setDeleteUnitError(null);
+    try {
+      await deleteUnit(property.id, unit.id);
+      reloadUnits();
+    } catch (err) {
+      setDeleteUnitError(err instanceof ApiError ? err.message : "Failed to delete this unit.");
+    } finally {
+      setDeletingUnitId(null);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -144,14 +178,22 @@ export default function PropertyDetailPage() {
           <h1 className="mt-2 text-2xl font-bold text-navy">{property.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{property.addressLine}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
           >
             <Pencil className="h-4 w-4" />
             {c.edit}
+          </button>
+          <button
+            type="button"
+            onClick={() => setManagingUnits(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Manage Units
           </button>
           <button
             type="button"
@@ -171,10 +213,31 @@ export default function PropertyDetailPage() {
         </div>
       )}
 
+      {unitsNotice && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle2 className="h-4 w-4" />
+          {unitsNotice}
+        </div>
+      )}
+
+      {deleteUnitError && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {deleteUnitError}
+        </p>
+      )}
+
       <div className="grid grid-cols-2 gap-5 lg:grid-cols-2">
         <SummaryCard label={c.summaryUnits} value={totalUnits} />
         <SummaryCard label={c.summaryOccupied} value={`${occupancyPercent}%`} />
       </div>
+
+      {property.unitsCount != null && property.unitsCount !== totalUnits && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          This property is set to <strong>{property.unitsCount}</strong> planned units, but has{" "}
+          <strong>{totalUnits}</strong> actual unit record{totalUnits === 1 ? "" : "s"}
+          {" "}below. Use &quot;Manage Units&quot; to add or remove units so the two match.
+        </p>
+      )}
 
       <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <label className="flex min-w-[200px] flex-1 flex-col gap-1.5 text-sm font-medium text-slate-700">
@@ -212,6 +275,9 @@ export default function PropertyDetailPage() {
             <Th className="hidden px-6 py-3 sm:table-cell">Floor</Th>
             <Th className="hidden px-6 py-3 md:table-cell">{c.monthlyAmount}</Th>
             <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+            <Th className="px-4 py-3 text-right sm:px-6">
+              <span className="sr-only">Actions</span>
+            </Th>
           </Tr>
         </THead>
         <TBody>
@@ -244,9 +310,24 @@ export default function PropertyDetailPage() {
                     : t.dashboard.status.available}
                 </span>
               </Td>
+              <Td className="px-4 py-3 text-right sm:px-6">
+                <button
+                  type="button"
+                  disabled={unit.status === "occupied" || deletingUnitId === unit.id}
+                  onClick={() => handleDeleteUnit(unit)}
+                  title={
+                    unit.status === "occupied"
+                      ? "End the lease on this unit before deleting it"
+                      : "Delete this unit"
+                  }
+                  className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </Td>
             </Tr>
           ))}
-          {pagedUnits.length === 0 && <EmptyRow colSpan={4}>{c.noUnitsMatch}</EmptyRow>}
+          {pagedUnits.length === 0 && <EmptyRow colSpan={5}>{c.noUnitsMatch}</EmptyRow>}
         </TBody>
       </Table>
 
@@ -297,7 +378,29 @@ export default function PropertyDetailPage() {
             showOwnerField={false}
             initialProperty={property}
             onCancel={() => setEditing(false)}
-            onSuccess={handleUpdateProperty}
+            onSuccess={handleEditProperty}
+          />
+        </Modal>
+      )}
+
+      {isManagingUnits && (
+        <Modal
+          title={`Manage Units — ${property.title}`}
+          description="Add units to this property, or import/generate several at once."
+          onClose={() => setManagingUnits(false)}
+        >
+          <UnitSetupForm
+            propertyId={property.id}
+            units={units}
+            onSkip={() => setManagingUnits(false)}
+            onDone={({ created, removed }) => {
+              setManagingUnits(false);
+              reloadUnits();
+              const parts: string[] = [];
+              if (created > 0) parts.push(`${created} unit${created === 1 ? "" : "s"} added`);
+              if (removed > 0) parts.push(`${removed} unit${removed === 1 ? "" : "s"} removed`);
+              setUnitsNotice(parts.length > 0 ? `${parts.join(" and ")} for ${property.title}.` : null);
+            }}
           />
         </Modal>
       )}

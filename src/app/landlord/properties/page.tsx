@@ -121,11 +121,14 @@ export default function LandlordPropertiesPage() {
     }
   };
 
-  const editProperty = async (values: UpdatePropertyInput) => {
+  const editProperty = async (values: UpdatePropertyInput, documentFile: File | null) => {
     if (!editingProperty) return;
     setFormError(null);
     try {
       await updateProperty(editingProperty.id, values);
+      if (documentFile) {
+        await uploadPropertyDocument(editingProperty.id, documentFile).catch(() => undefined);
+      }
       setEditingProperty(null);
       setJustSaved(true);
       load();
