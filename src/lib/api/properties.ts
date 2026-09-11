@@ -151,6 +151,14 @@ export async function previewImportUnits(
   return res.data;
 }
 
+/**
+ * Soft-delete (archive) a unit. Blocked by the backend if the unit is
+ * currently occupied — the lease must end first.
+ */
+export async function deleteUnit(propertyId: string, unitId: string): Promise<void> {
+  await apiFetch(`/properties/${propertyId}/units/${unitId}`, { method: "DELETE" });
+}
+
 export async function uploadPropertyDocument(
   propertyId: string,
   file: File,

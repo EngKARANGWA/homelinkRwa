@@ -1,33 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { Download, ListPlus, Plus, UploadCloud, Wand2 } from "lucide-react";
+import { Download, Equal, ListPlus, Plus, UploadCloud, Wand2 } from "lucide-react";
 import {
   createUnit,
+  deleteUnit,
   downloadUnitsImportTemplate,
   generateUnits,
   importUnits,
   previewImportUnits,
 } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
-import type { CreateUnitInput, ImportUnitsRowError } from "@/lib/api/types";
+import type { CreateUnitInput, ImportUnitsRowError, PropertyUnit } from "@/lib/api/types";
 import { formatMoney } from "@/lib/money";
 
-type Mode = "manual" | "generate" | "import";
+type Mode = "manual" | "generate" | "import" | "exact";
 
 /**
- * Shown right after creating an apartment/commercial property — offers a
- * fast way to set up many units at once instead of adding them one by one.
- * Purely optional: onSkip leaves the property with just its single default
- * unit, same as before this existed.
+ * Shown right after creating an apartment/commercial property (and from the
+ * "Manage Units" action on an existing one) — offers a fast way to set up
+ * many units at once instead of adding them one by one. Purely optional:
+ * onSkip leaves the property's units untouched.
  */
 export function UnitSetupForm({
   propertyId,
+  units = [],
   onDone,
   onSkip,
 }: {
   propertyId: string;
-  onDone: (unitsCreated: number) => void;
+  /** Current real unit records, if known — powers the "Set exact total" mode. */
+  units?: PropertyUnit[];
+  onDone: (result: { created: number; removed: number }) => void;
   onSkip: () => void;
 }) {
   const [mode, setMode] = useState<Mode>("generate");
@@ -54,6 +58,16 @@ export function UnitSetupForm({
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<CreateUnitInput[] | null>(null);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
+
+  // Set exact total
+  const [exactTarget, setExactTarget] = useState("");
+  const [exactRentAmount, setExactRentAmount] = useState("");
+  const [exactFloors, setExactFloors] = useState("");
+  const [exactBedrooms, setExactBedrooms] = useState("");
+  const [exactBathrooms, setExactBathrooms] = useState("");
+
+  const vacantUnits = units.filter((u) => u.status !== "occupied");
+  const exactDiff = exactTarget.trim() ? Number(exactTarget) - units.length : null;
 
   const handleAddUnit = async () => {
     if (!label.trim()) {
@@ -100,14 +114,14 @@ export function UnitSetupForm({
     setError(null);
     setRowErrors(null);
     try {
-      const units = await generateUnits(propertyId, {
+      const createdUnits = await generateUnits(propertyId, {
         count: Number(count),
         floors: floors.trim() ? Number(floors) : undefined,
         bedrooms: bedrooms.trim() ? Number(bedrooms) : undefined,
         bathrooms: bathrooms.trim() ? Number(bathrooms) : undefined,
         rentAmount: Number(rentAmount),
       });
-      onDone(units.length);
+      onDone({ created: createdUnits.length, removed: 0 });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to generate units.");
     } finally {
@@ -151,8 +165,8 @@ export function UnitSetupForm({
     setSubmitting(true);
     setError(null);
     try {
-      const units = await importUnits(propertyId, file);
-      onDone(units.length);
+      const importedUnits = await importUnits(propertyId, file);
+      onDone({ created: importedUnits.length, removed: 0 });
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -174,6 +188,71 @@ export function UnitSetupForm({
     setError(null);
   };
 
+  const handleSetExact = async () => {
+    if (!exactTarget.trim() || Number(exactTarget) < 0) {
+      setError("Enter the exact number of units this property should have.");
+      return;
+    }
+    const target = Number(exactTarget);
+    const diff = target - units.length;
+
+    if (diff === 0) {
+      setError("This property already has exactly that many units.");
+      return;
+    }
+
+    if (diff > 0) {
+      if (!exactRentAmount.trim() || Number(exactRentAmount) <= 0) {
+        setError("Enter a monthly rent for the new units.");
+        return;
+      }
+    } else {
+      const removableCount = -diff;
+      if (vacantUnits.length < removableCount) {
+        setError(
+          `Only ${vacantUnits.length} vacant unit${vacantUnits.length === 1 ? "" : "s"} can be removed — ${
+            units.length - vacantUnits.length
+          } ${units.length - vacantUnits.length === 1 ? "is" : "are"} occupied and protected. Lowest reachable total right now is ${vacantUnits.length ? units.length - vacantUnits.length : units.length}.`,
+        );
+        return;
+      }
+      if (
+        !window.confirm(
+          `This will permanently remove ${removableCount} vacant unit${removableCount === 1 ? "" : "s"} (most recently added first). Continue?`,
+        )
+      ) {
+        return;
+      }
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      if (diff > 0) {
+        const createdUnits = await generateUnits(propertyId, {
+          count: diff,
+          floors: exactFloors.trim() ? Number(exactFloors) : undefined,
+          bedrooms: exactBedrooms.trim() ? Number(exactBedrooms) : undefined,
+          bathrooms: exactBathrooms.trim() ? Number(exactBathrooms) : undefined,
+          rentAmount: Number(exactRentAmount),
+        });
+        onDone({ created: createdUnits.length, removed: 0 });
+      } else {
+        const toRemove = [...vacantUnits]
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, -diff);
+        for (const unit of toRemove) {
+          await deleteUnit(propertyId, unit.id);
+        }
+        onDone({ created: 0, removed: toRemove.length });
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to update the unit count.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const switchMode = (next: Mode) => {
     setMode(next);
     setError(null);
@@ -187,11 +266,11 @@ export function UnitSetupForm({
         time later.
       </p>
 
-      <div className="flex gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
+      <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
         <button
           type="button"
           onClick={() => switchMode("manual")}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+          className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
             mode === "manual" ? "bg-white text-navy shadow-sm" : "text-slate-500"
           }`}
         >
@@ -201,7 +280,7 @@ export function UnitSetupForm({
         <button
           type="button"
           onClick={() => switchMode("generate")}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+          className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
             mode === "generate" ? "bg-white text-navy shadow-sm" : "text-slate-500"
           }`}
         >
@@ -211,12 +290,22 @@ export function UnitSetupForm({
         <button
           type="button"
           onClick={() => switchMode("import")}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+          className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
             mode === "import" ? "bg-white text-navy shadow-sm" : "text-slate-500"
           }`}
         >
           <UploadCloud className="h-4 w-4" />
           Import from Excel
+        </button>
+        <button
+          type="button"
+          onClick={() => switchMode("exact")}
+          className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+            mode === "exact" ? "bg-white text-navy shadow-sm" : "text-slate-500"
+          }`}
+        >
+          <Equal className="h-4 w-4" />
+          Set exact total
         </button>
       </div>
 
@@ -453,6 +542,93 @@ export function UnitSetupForm({
         </div>
       )}
 
+      {mode === "exact" && (
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-slate-500">
+            This property currently has <strong>{units.length}</strong> unit
+            {units.length === 1 ? "" : "s"}
+            {vacantUnits.length < units.length && (
+              <> ({units.length - vacantUnits.length} occupied)</>
+            )}
+            . Enter the exact total you want — units are added or removed to match.
+          </p>
+
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+            Set total units to
+            <input
+              type="number"
+              min={0}
+              value={exactTarget}
+              onChange={(e) => setExactTarget(e.target.value)}
+              placeholder={`e.g. ${units.length}`}
+              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+            />
+          </label>
+
+          {exactDiff != null && exactDiff > 0 && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <p className="text-sm text-slate-500 sm:col-span-2">
+                This will create <strong>{exactDiff}</strong> new unit{exactDiff === 1 ? "" : "s"}.
+              </p>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Monthly rent for new units
+                <input
+                  type="number"
+                  min={0}
+                  value={exactRentAmount}
+                  onChange={(e) => setExactRentAmount(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Number of floors (optional)
+                <input
+                  type="number"
+                  min={1}
+                  value={exactFloors}
+                  onChange={(e) => setExactFloors(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Bedrooms (optional)
+                <input
+                  type="number"
+                  min={0}
+                  value={exactBedrooms}
+                  onChange={(e) => setExactBedrooms(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Bathrooms (optional)
+                <input
+                  type="number"
+                  min={0}
+                  value={exactBathrooms}
+                  onChange={(e) => setExactBathrooms(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                />
+              </label>
+            </div>
+          )}
+
+          {exactDiff != null && exactDiff < 0 && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              This will remove <strong>{-exactDiff}</strong> vacant unit{-exactDiff === 1 ? "" : "s"}{" "}
+              (most recently added first). Occupied units are never touched.
+              {vacantUnits.length < -exactDiff && (
+                <>
+                  {" "}
+                  Only {vacantUnits.length} vacant unit{vacantUnits.length === 1 ? "" : "s"}{" "}
+                  {vacantUnits.length === 1 ? "is" : "are"} available to remove right now.
+                </>
+              )}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="mt-2 flex justify-between gap-3">
         <button
           type="button"
@@ -465,7 +641,7 @@ export function UnitSetupForm({
           addedUnits.length > 0 && (
             <button
               type="button"
-              onClick={() => onDone(addedUnits.length)}
+              onClick={() => onDone({ created: addedUnits.length, removed: 0 })}
               className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
             >
               Finish ({addedUnits.length} added)
@@ -479,6 +655,15 @@ export function UnitSetupForm({
             className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:opacity-60"
           >
             {submitting ? "Working..." : "Generate units"}
+          </button>
+        ) : mode === "exact" ? (
+          <button
+            type="button"
+            disabled={submitting || !exactTarget.trim() || exactDiff === 0}
+            onClick={handleSetExact}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:opacity-60"
+          >
+            {submitting ? "Working..." : "Apply"}
           </button>
         ) : !preview ? (
           <button

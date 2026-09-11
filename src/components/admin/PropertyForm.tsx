@@ -69,9 +69,6 @@ export function PropertyForm({
   const [sizeSqm, setSizeSqm] = useState(
     initialProperty?.sizeSqm != null ? String(initialProperty.sizeSqm) : "",
   );
-  const [unitsCount, setUnitsCount] = useState(
-    initialProperty?.unitsCount != null ? String(initialProperty.unitsCount) : "",
-  );
   const [rentAmount, setRentAmount] = useState(initialProperty?.rentAmount ?? "");
 
   // A single property has its own bedrooms/bathrooms; a multi-unit building
@@ -165,7 +162,6 @@ export function PropertyForm({
         category,
         type,
         sizeSqm: category === "commercial" ? Number(sizeSqm) : undefined,
-        unitsCount: type === "apartment" && unitsCount.trim() ? Number(unitsCount) : undefined,
         bedrooms: needsPropertyLevelRooms && bedrooms.trim() ? Number(bedrooms) : undefined,
         bathrooms: needsPropertyLevelRooms && bathrooms.trim() ? Number(bathrooms) : undefined,
         rentAmount: Number(rentAmount),
@@ -365,20 +361,6 @@ export function PropertyForm({
                 value={sizeSqm}
                 onChange={(e) => setSizeSqm(e.target.value)}
                 placeholder={c.sizePlaceholder}
-                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-              />
-            </label>
-          )}
-
-          {type === "apartment" && (
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Units / doors in building
-              <input
-                type="number"
-                min={0}
-                value={unitsCount}
-                onChange={(e) => setUnitsCount(e.target.value)}
-                placeholder="e.g. 12"
                 className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
               />
             </label>
