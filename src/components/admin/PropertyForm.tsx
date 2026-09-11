@@ -118,7 +118,7 @@ export function PropertyForm({
   const goNext = () => {
     if (
       step === 1 &&
-      (!title.trim() || !addressLine.trim() || !city.trim() || !country.trim() || !upi.trim())
+      (!title.trim() || !addressLine.trim() || !city.trim() || !country.trim())
     ) {
       setStepError(c.errorBasicInfo);
       return;
