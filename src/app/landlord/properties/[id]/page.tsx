@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { AppLink as Link } from "@/components/shared/AppLink";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, CheckCircle2, Plus, Search } from "lucide-react";
-import { getProperty, listUnits } from "@/lib/api/properties";
+import { ArrowLeft, ArrowRight, CheckCircle2, Pencil, Plus, Search } from "lucide-react";
+import { getProperty, listUnits, updateProperty } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
-import type { Property, PropertyUnit } from "@/lib/api/types";
+import type { Property, PropertyUnit, UpdatePropertyInput } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
+import { PropertyForm } from "@/components/admin/PropertyForm";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
@@ -33,8 +34,10 @@ export default function PropertyDetailPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
   const [page, setPage] = useState(1);
+  const [isEditing, setEditing] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = () => {
     if (!id) return;
     let cancelled = false;
     setLoading(true);
@@ -56,11 +59,25 @@ export default function PropertyDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  };
+
+  useEffect(load, [id]);
 
   const reloadUnits = () => {
     if (!id) return;
     listUnits(id).then(setUnits).catch(() => undefined);
+  };
+
+  const handleUpdateProperty = async (values: UpdatePropertyInput) => {
+    if (!property) return;
+    setEditError(null);
+    try {
+      await updateProperty(property.id, values);
+      setEditing(false);
+      load();
+    } catch (err) {
+      setEditError(err instanceof ApiError ? err.message : "Failed to update property.");
+    }
   };
 
   const filteredUnits = units.filter((u) => {
@@ -127,14 +144,24 @@ export default function PropertyDetailPage() {
           <h1 className="mt-2 text-2xl font-bold text-navy">{property.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{property.addressLine}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setAddingTenant(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
-        >
-          <Plus className="h-4 w-4" />
-          {c.addTenant}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+          >
+            <Pencil className="h-4 w-4" />
+            {c.edit}
+          </button>
+          <button
+            type="button"
+            onClick={() => setAddingTenant(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+          >
+            <Plus className="h-4 w-4" />
+            {c.addTenant}
+          </button>
+        </div>
       </div>
 
       {justAddedTenant && (
@@ -250,6 +277,27 @@ export default function PropertyDetailPage() {
             defaultRentAmount={Number(property.rentAmount)}
             onCancel={() => setAddingTenant(false)}
             onSuccess={handleAddTenant}
+          />
+        </Modal>
+      )}
+
+      {isEditing && (
+        <Modal
+          title={c.editPropertyTitle}
+          description={c.editPropertyDescription}
+          onClose={() => setEditing(false)}
+        >
+          {editError && (
+            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {editError}
+            </p>
+          )}
+          <PropertyForm
+            owners={[]}
+            showOwnerField={false}
+            initialProperty={property}
+            onCancel={() => setEditing(false)}
+            onSuccess={handleUpdateProperty}
           />
         </Modal>
       )}
