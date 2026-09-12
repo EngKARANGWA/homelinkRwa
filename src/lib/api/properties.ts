@@ -11,6 +11,7 @@ import type {
   PropertyUnit,
   SuccessResponse,
   UpdatePropertyInput,
+  UpdateUnitInput,
 } from "./types";
 
 export type ListPropertiesParams = {
@@ -147,6 +148,23 @@ export async function previewImportUnits(
   const res = await apiFetch<SuccessResponse<ImportUnitsPreview>>(
     `/properties/${propertyId}/units/import/preview`,
     { method: "POST", body: formData },
+  );
+  return res.data;
+}
+
+/**
+ * Edit a single unit's own details. `status` only accepts the manual states
+ * (available/maintenance/inactive) — a unit becomes "occupied" only via a
+ * lease assignment, and the backend rejects a status change while occupied.
+ */
+export async function updateUnit(
+  propertyId: string,
+  unitId: string,
+  input: UpdateUnitInput,
+): Promise<PropertyUnit> {
+  const res = await apiFetch<SuccessResponse<PropertyUnit>>(
+    `/properties/${propertyId}/units/${unitId}`,
+    { method: "PATCH", body: input },
   );
   return res.data;
 }

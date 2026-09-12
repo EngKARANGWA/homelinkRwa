@@ -128,6 +128,10 @@ export type UpdatePropertyInput = {
 
 export type PropertyStatus = "available" | "occupied";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
+// A unit's own status is a separate, wider domain than a property's roll-up
+// status — a unit can be pulled out of service (maintenance) or deliberately
+// not offered (inactive) independent of the property as a whole.
+export type UnitStatus = "available" | "occupied" | "maintenance" | "inactive";
 
 export type Property = {
   id: string;
@@ -169,7 +173,7 @@ export type PropertyUnit = {
   bedrooms: number | null;
   bathrooms: number | null;
   rentAmount: string;
-  status: PropertyStatus;
+  status: UnitStatus;
   createdAt: string;
   updatedAt: string;
 };
@@ -190,6 +194,17 @@ export type CreateUnitInput = {
   rentAmount: number;
 };
 
+export type ManualUnitStatus = Exclude<UnitStatus, "occupied">;
+
+export type UpdateUnitInput = {
+  label?: string;
+  floor?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  rentAmount?: number;
+  status?: ManualUnitStatus;
+};
+
 export type GenerateUnitsInput = {
   count: number;
   floors?: number;
@@ -207,7 +222,7 @@ export type ImportUnitsPreview = {
 
 export type ListAvailableUnitsParams = {
   search?: string;
-  status?: PropertyStatus;
+  status?: UnitStatus;
   propertyId?: string;
 };
 

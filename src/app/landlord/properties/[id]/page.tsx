@@ -21,10 +21,11 @@ import {
   uploadPropertyDocument,
 } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
-import type { Property, PropertyUnit, UpdatePropertyInput } from "@/lib/api/types";
+import type { Property, PropertyUnit, UnitStatus, UpdatePropertyInput } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
 import { UnitSetupForm } from "@/components/admin/UnitSetupForm";
+import { EditUnitForm } from "@/components/admin/EditUnitForm";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
@@ -32,7 +33,14 @@ import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination
 import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
-type StatusFilter = "All" | "available" | "occupied";
+type StatusFilter = "All" | UnitStatus;
+
+const UNIT_STATUS_BADGE_STYLES: Record<UnitStatus, string> = {
+  available: "bg-slate-100 text-slate-600",
+  occupied: "bg-emerald-50 text-emerald-700",
+  maintenance: "bg-amber-50 text-amber-700",
+  inactive: "bg-slate-200 text-slate-500",
+};
 
 export default function PropertyDetailPage() {
   const { t } = useLanguage();
@@ -52,6 +60,7 @@ export default function PropertyDetailPage() {
   const [unitsNotice, setUnitsNotice] = useState<string | null>(null);
   const [deletingUnitId, setDeletingUnitId] = useState<string | null>(null);
   const [deleteUnitError, setDeleteUnitError] = useState<string | null>(null);
+  const [editingUnit, setEditingUnit] = useState<PropertyUnit | null>(null);
   const [justAddedTenant, setJustAddedTenant] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
@@ -264,6 +273,8 @@ export default function PropertyDetailPage() {
             <option value="All">{c.statusAll}</option>
             <option value="available">{t.dashboard.status.available}</option>
             <option value="occupied">{t.dashboard.status.occupied}</option>
+            <option value="maintenance">{t.dashboard.status.maintenance}</option>
+            <option value="inactive">{t.dashboard.status.inactive}</option>
           </select>
         </label>
       </div>
@@ -275,9 +286,7 @@ export default function PropertyDetailPage() {
             <Th className="hidden px-6 py-3 sm:table-cell">Floor</Th>
             <Th className="hidden px-6 py-3 md:table-cell">{c.monthlyAmount}</Th>
             <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
-            <Th className="px-4 py-3 text-right sm:px-6">
-              <span className="sr-only">Actions</span>
-            </Th>
+            <Th className="px-4 py-3 text-right sm:px-6">Action</Th>
           </Tr>
         </THead>
         <TBody>
@@ -299,31 +308,35 @@ export default function PropertyDetailPage() {
               </Td>
               <Td className="px-4 py-3 sm:px-6">
                 <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                    unit.status === "occupied"
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-slate-100 text-slate-600"
-                  }`}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${UNIT_STATUS_BADGE_STYLES[unit.status]}`}
                 >
-                  {unit.status === "occupied"
-                    ? t.dashboard.status.occupied
-                    : t.dashboard.status.available}
+                  {t.dashboard.status[unit.status]}
                 </span>
               </Td>
               <Td className="px-4 py-3 text-right sm:px-6">
-                <button
-                  type="button"
-                  disabled={unit.status === "occupied" || deletingUnitId === unit.id}
-                  onClick={() => handleDeleteUnit(unit)}
-                  title={
-                    unit.status === "occupied"
-                      ? "End the lease on this unit before deleting it"
-                      : "Delete this unit"
-                  }
-                  className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setEditingUnit(unit)}
+                    title="Edit this unit"
+                    className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={unit.status === "occupied" || deletingUnitId === unit.id}
+                    onClick={() => handleDeleteUnit(unit)}
+                    title={
+                      unit.status === "occupied"
+                        ? "End the lease on this unit before deleting it"
+                        : "Delete this unit"
+                    }
+                    className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </Td>
             </Tr>
           ))}
@@ -379,6 +392,25 @@ export default function PropertyDetailPage() {
             initialProperty={property}
             onCancel={() => setEditing(false)}
             onSuccess={handleEditProperty}
+          />
+        </Modal>
+      )}
+
+      {editingUnit && (
+        <Modal
+          title={`Edit Unit — ${editingUnit.label}`}
+          description="Update this unit's own details."
+          onClose={() => setEditingUnit(null)}
+        >
+          <EditUnitForm
+            propertyId={property.id}
+            unit={editingUnit}
+            onCancel={() => setEditingUnit(null)}
+            onSuccess={() => {
+              setEditingUnit(null);
+              reloadUnits();
+              setUnitsNotice(`"${editingUnit.label}" updated.`);
+            }}
           />
         </Modal>
       )}
