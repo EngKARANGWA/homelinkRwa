@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  Eye,
   LayoutGrid,
   Pencil,
   Plus,
@@ -26,12 +27,19 @@ import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
 import { UnitSetupForm } from "@/components/admin/UnitSetupForm";
 import { EditUnitForm } from "@/components/admin/EditUnitForm";
+import { UnitDetail } from "@/components/admin/UnitDetail";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+
+// DELETE /properties/:id/units/:unitId isn't deployed to production yet
+// (still 404s there as of 2026-09-12) — hide the delete action until it is,
+// rather than shipping a button that always fails. Flip back to true once
+// the backend is deployed.
+const DELETE_UNIT_ENABLED = false;
 
 type StatusFilter = "All" | UnitStatus;
 
@@ -61,6 +69,7 @@ export default function PropertyDetailPage() {
   const [deletingUnitId, setDeletingUnitId] = useState<string | null>(null);
   const [deleteUnitError, setDeleteUnitError] = useState<string | null>(null);
   const [editingUnit, setEditingUnit] = useState<PropertyUnit | null>(null);
+  const [viewingUnit, setViewingUnit] = useState<PropertyUnit | null>(null);
   const [justAddedTenant, setJustAddedTenant] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
@@ -317,25 +326,35 @@ export default function PropertyDetailPage() {
                 <div className="flex items-center justify-end gap-1">
                   <button
                     type="button"
+                    onClick={() => setViewingUnit(unit)}
+                    title="View unit details"
+                    className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setEditingUnit(unit)}
                     title="Edit this unit"
                     className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
-                  <button
-                    type="button"
-                    disabled={unit.status === "occupied" || deletingUnitId === unit.id}
-                    onClick={() => handleDeleteUnit(unit)}
-                    title={
-                      unit.status === "occupied"
-                        ? "End the lease on this unit before deleting it"
-                        : "Delete this unit"
-                    }
-                    className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {DELETE_UNIT_ENABLED && (
+                    <button
+                      type="button"
+                      disabled={unit.status === "occupied" || deletingUnitId === unit.id}
+                      onClick={() => handleDeleteUnit(unit)}
+                      title={
+                        unit.status === "occupied"
+                          ? "End the lease on this unit before deleting it"
+                          : "Delete this unit"
+                      }
+                      className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </Td>
             </Tr>
@@ -393,6 +412,16 @@ export default function PropertyDetailPage() {
             onCancel={() => setEditing(false)}
             onSuccess={handleEditProperty}
           />
+        </Modal>
+      )}
+
+      {viewingUnit && (
+        <Modal
+          title={`Unit — ${viewingUnit.label}`}
+          description={`Details for this unit in ${property.title}.`}
+          onClose={() => setViewingUnit(null)}
+        >
+          <UnitDetail unit={viewingUnit} />
         </Modal>
       )}
 

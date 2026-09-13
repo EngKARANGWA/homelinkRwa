@@ -169,10 +169,13 @@ export type PropertyUnit = {
   id: string;
   propertyId: string;
   label: string;
+  unitType: string | null;
+  description: string | null;
   floor: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
   rentAmount: string;
+  deposit: string | null;
   status: UnitStatus;
   createdAt: string;
   updatedAt: string;
