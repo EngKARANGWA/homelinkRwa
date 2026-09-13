@@ -67,6 +67,15 @@ export async function forgotPassword(email: string): Promise<void> {
   });
 }
 
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  await apiFetch("/auth/reset-password", {
+    method: "POST",
+    body: { token, newPassword },
+    auth: false,
+  });
+}
+
+
 export async function getMe(): Promise<User> {
   const res = await apiFetch<SuccessResponse<User>>("/users/me");
   return res.data;

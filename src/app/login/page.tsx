@@ -221,7 +221,7 @@ export default function LoginPage() {
                   />
                   {t.loginPage.rememberMe}
                 </label>
-                <Link href="#" className="font-medium text-gold hover:underline">
+                <Link href="/forgot-password" className="font-medium text-gold hover:underline">
                   {t.loginPage.forgotPassword}
                 </Link>
               </div>

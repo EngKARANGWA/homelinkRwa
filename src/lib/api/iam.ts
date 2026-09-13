@@ -63,3 +63,19 @@ export async function listManagers(): Promise<ManagerAssignment[]> {
   const res = await apiFetch<{ data: ManagerAssignment[] }>("/iam/managers");
   return res.data;
 }
+
+export interface AcceptInviteInput {
+  token: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  password: string;
+}
+
+export async function acceptInvite(input: AcceptInviteInput): Promise<void> {
+  await apiFetch("/iam/invites/accept", {
+    method: "POST",
+    body: input,
+    auth: false,
+  });
+}
