@@ -13,6 +13,7 @@ import { useAuth } from "@/components/auth/AuthContext";
 import { Modal } from "@/components/admin/Modal";
 import { EditUnitForm } from "@/components/admin/EditUnitForm";
 import { LeaseDetail } from "@/components/leases/LeaseDetail";
+import { TenantProfileCard } from "@/components/leases/TenantProfileCard";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { formatMoney } from "@/lib/money";
@@ -38,11 +39,11 @@ function formatDate(dateStr: string | null) {
   });
 }
 
-// Owners can't look up other users' names directly — a lease's tenantName
-// is resolved server-side (GET /leases/:id only) and falls back to a stable
-// id-derived label here if that enrichment isn't available.
+// Owners can't look up other users' names directly — a lease's tenant
+// summary is resolved server-side (GET /leases/:id only) and falls back to
+// a stable id-derived label here if that enrichment isn't available.
 function tenantLabel(lease: Lease) {
-  return lease.tenantName ?? `Tenant ${lease.tenantId.slice(0, 8).toUpperCase()}`;
+  return lease.tenant ? `${lease.tenant.firstName} ${lease.tenant.lastName}` : `Tenant ${lease.tenantId.slice(0, 8).toUpperCase()}`;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -201,19 +202,21 @@ export default function UnitDetailPage() {
 
         {unit.unitType && <p className="mt-1 text-sm text-slate-500">{unit.unitType}</p>}
 
-        <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-4">
-          <Field label="Floor">{unit.floor ?? "—"}</Field>
-          <Field label="Bedrooms">{unit.bedrooms ?? "—"}</Field>
-          <Field label="Bathrooms">{unit.bathrooms ?? "—"}</Field>
+        <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-5">
+          <Field label={c.monthlyRent}>{formatMoney(Number(unit.rentAmount))} RWF</Field>
           <Field label={c.deposit}>
             {unit.deposit != null ? `${formatMoney(Number(unit.deposit))} RWF` : "—"}
           </Field>
+          <Field label="Floor">{unit.floor ?? "—"}</Field>
+          <Field label="Bedrooms">{unit.bedrooms ?? "—"}</Field>
+          <Field label="Bathrooms">{unit.bathrooms ?? "—"}</Field>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-5">
-          <Field label={c.monthlyRent}>{formatMoney(Number(unit.rentAmount))} RWF</Field>
-          {unit.description && <Field label="Description">{unit.description}</Field>}
-        </div>
+        {unit.description && (
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <Field label="Description">{unit.description}</Field>
+          </div>
+        )}
 
         <div className="mt-4 grid grid-cols-2 gap-5 border-t border-slate-100 pt-4">
           <Field label="Created">{formatDate(unit.createdAt)}</Field>
@@ -251,15 +254,18 @@ export default function UnitDetailPage() {
             </button>
           </div>
         ) : (
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="mb-4 font-semibold text-navy">{c.leaseDetails}</p>
-            <LeaseDetail
-              lease={currentLease}
-              propertyLabel={property.title}
-              unitLabel={unit.label}
-              tenantLabel={tenantLabel(currentLease)}
-              ownerLabel={user ? `${user.firstName} ${user.lastName}` : "—"}
-            />
+          <div className="flex flex-col gap-6">
+            <TenantProfileCard lease={currentLease} />
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="mb-4 font-semibold text-navy">{c.leaseDetails}</p>
+              <LeaseDetail
+                lease={currentLease}
+                propertyLabel={property.title}
+                unitLabel={unit.label}
+                tenantLabel={tenantLabel(currentLease)}
+                ownerLabel={user ? `${user.firstName} ${user.lastName}` : "—"}
+              />
+            </div>
           </div>
         ))}
 
@@ -394,13 +400,16 @@ export default function UnitDetailPage() {
           description={`${tenantLabel(viewingLease)} · ${property.title} · ${unit.label}`}
           onClose={() => setViewingLease(null)}
         >
-          <LeaseDetail
-            lease={viewingLease}
-            propertyLabel={property.title}
-            unitLabel={unit.label}
-            tenantLabel={tenantLabel(viewingLease)}
-            ownerLabel={user ? `${user.firstName} ${user.lastName}` : "—"}
-          />
+          <div className="flex flex-col gap-6">
+            <TenantProfileCard lease={viewingLease} />
+            <LeaseDetail
+              lease={viewingLease}
+              propertyLabel={property.title}
+              unitLabel={unit.label}
+              tenantLabel={tenantLabel(viewingLease)}
+              ownerLabel={user ? `${user.firstName} ${user.lastName}` : "—"}
+            />
+          </div>
         </Modal>
       )}
     </div>

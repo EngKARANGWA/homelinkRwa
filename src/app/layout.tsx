@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { AuthProvider } from "@/components/auth/AuthContext";
 import { ServiceWorkerRegistration } from "@/components/shared/ServiceWorkerRegistration";
 import { InstallPrompt } from "@/components/shared/InstallPrompt";
+import { ToastProvider } from "@/components/shared/ToastContext";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import "./globals.css";
 
@@ -36,9 +37,11 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans">
         <LanguageProvider>
-          <AuthProvider>{children}</AuthProvider>
-          <ServiceWorkerRegistration />
-          <InstallPrompt />
+          <ToastProvider>
+            <AuthProvider>{children}</AuthProvider>
+            <ServiceWorkerRegistration />
+            <InstallPrompt />
+          </ToastProvider>
         </LanguageProvider>
       </body>
     </html>

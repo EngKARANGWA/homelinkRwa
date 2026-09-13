@@ -1,24 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AlertCircle, Check, CheckCircle2, Eye, FileSignature, FileStack, Plus, X } from "lucide-react";
-import { listProperties, listUnits } from "@/lib/api/properties";
+import { listProperties } from "@/lib/api/properties";
 import {
   approveLeaseChangeRequest,
-  getLease,
   listLeaseChangeRequests,
   listLeases,
   rejectLeaseChangeRequest,
   signLease,
 } from "@/lib/api/leases";
 import { ApiError } from "@/lib/api/client";
-import type { Lease, Property, PropertyUnit } from "@/lib/api/types";
+import type { Lease, Property } from "@/lib/api/types";
 import { formatLeaseStatus, LEASE_STATUS_STYLES } from "@/lib/leaseStatus";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Modal } from "@/components/admin/Modal";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { LeaseDocumentsPanel } from "@/components/leases/LeaseDocumentsPanel";
-import { LeaseDetail } from "@/components/leases/LeaseDetail";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
@@ -26,12 +25,12 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export default function LandlordLeasesPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const { t } = useLanguage();
   const c = t.dashboard.landlord.leases;
   const lc = t.dashboard.admin.leases;
   const [leases, setLeases] = useState<Lease[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
-  const [units, setUnits] = useState<PropertyUnit[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -40,14 +39,11 @@ export default function LandlordLeasesPage() {
   const [justCreated, setJustCreated] = useState(false);
   const [signNotice, setSignNotice] = useState<string | null>(null);
   const [documentsLease, setDocumentsLease] = useState<Lease | null>(null);
-  const [viewingLease, setViewingLease] = useState<Lease | null>(null);
-  const [isViewLoading, setViewLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
   const propertyFor = (id: string) => properties.find((p) => p.id === id);
-  const unitFor = (id: string) => units.find((u) => u.id === id);
   // Owners can't list all tenant users (that's admin-only), so lease rows
   // show a stable placeholder derived from the tenant's id instead of a name.
   const tenantName = (id: string) => `Tenant ${id.slice(0, 8).toUpperCase()}`;
@@ -60,15 +56,11 @@ export default function LandlordLeasesPage() {
       listLeases({ page, limit: DEFAULT_PAGE_SIZE }),
       listProperties({ ownerId: user.id, limit: 100 }),
     ])
-      .then(async ([leasesRes, propertiesRes]) => {
+      .then(([leasesRes, propertiesRes]) => {
         setLeases(leasesRes.data);
         setTotalPages(leasesRes.meta.totalPages);
         setTotalItems(leasesRes.meta.total);
         setProperties(propertiesRes.data);
-        const unitsByProperty = await Promise.all(
-          propertiesRes.data.map((p) => listUnits(p.id)),
-        );
-        setUnits(unitsByProperty.flat());
       })
       .catch((err) =>
         setError(err instanceof ApiError ? err.message : "Failed to load leases."),
@@ -82,18 +74,6 @@ export default function LandlordLeasesPage() {
     setModalOpen(false);
     setJustCreated(true);
     load();
-  };
-
-  const viewLease = async (lease: Lease) => {
-    setActionError(null);
-    setViewLoading(true);
-    try {
-      setViewingLease(await getLease(lease.id));
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Failed to load lease details.");
-    } finally {
-      setViewLoading(false);
-    }
   };
 
   const resolveRequest = async (lease: Lease, approve: boolean) => {
@@ -242,9 +222,8 @@ export default function LandlordLeasesPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => viewLease(lease)}
-                        disabled={isViewLoading}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                        onClick={() => router.push(`/landlord/leases/${lease.id}`)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                       >
                         <Eye className="h-3.5 w-3.5" />
                         {t.dashboard.actions.view}
@@ -338,21 +317,6 @@ export default function LandlordLeasesPage() {
         </Modal>
       )}
 
-      {viewingLease && (
-        <Modal
-          title={lc.agreementTitle}
-          description={`${tenantName(viewingLease.tenantId)} · ${propertyFor(viewingLease.propertyId)?.title ?? "—"}`}
-          onClose={() => setViewingLease(null)}
-        >
-          <LeaseDetail
-            lease={viewingLease}
-            propertyLabel={propertyFor(viewingLease.propertyId)?.title ?? "—"}
-            unitLabel={unitFor(viewingLease.unitId)?.label ?? "—"}
-            tenantLabel={tenantName(viewingLease.tenantId)}
-            ownerLabel={user ? `${user.firstName} ${user.lastName}` : "—"}
-          />
-        </Modal>
-      )}
     </div>
   );
 }

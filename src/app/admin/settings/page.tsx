@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import {
   AlertCircle,
-  CheckCircle2,
   Loader2,
   LogOut,
   Monitor,
@@ -26,8 +25,10 @@ import {
 import { ApiError } from "@/lib/api/client";
 import type { Role, User } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
+import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
+import { useToast } from "@/components/shared/ToastContext";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const DEVICE_ICONS: Record<string, typeof Monitor> = {
@@ -47,8 +48,8 @@ type Tab = "sessions" | "auditLog";
 export default function SettingsPage() {
   const { t } = useLanguage();
   const c = t.dashboard.admin.settings;
+  const toast = useToast();
   const [tab, setTab] = useState<Tab>("sessions");
-  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Sessions
@@ -56,7 +57,7 @@ export default function SettingsPage() {
   const [sessionsTotal, setSessionsTotal] = useState(0);
   const [sessionsPage, setSessionsPage] = useState(1);
   const [sessionsLoading, setSessionsLoading] = useState(true);
-  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [confirmingRevoke, setConfirmingRevoke] = useState<ActiveSession | null>(null);
 
   const loadSessions = () => {
     setSessionsLoading(true);
@@ -75,19 +76,16 @@ export default function SettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, sessionsPage]);
 
-  const handleRevoke = async (session: ActiveSession) => {
-    if (!window.confirm(c.sessions.confirmRevoke)) return;
-    setRevokingId(session.id);
-    setError(null);
+  const handleRevoke = async () => {
+    if (!confirmingRevoke) return;
     try {
-      await revokeSession(session.id);
-      setNotice(c.sessions.revokedNotice);
-      loadSessions();
+      await revokeSession(confirmingRevoke.id);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to revoke session.");
-    } finally {
-      setRevokingId(null);
+      throw new Error(err instanceof ApiError ? err.message : "Failed to revoke session.");
     }
+    setConfirmingRevoke(null);
+    toast.success(c.sessions.revokedNotice);
+    loadSessions();
   };
 
   // Manage user (from a session row)
@@ -114,22 +112,20 @@ export default function SettingsPage() {
     setManageError(null);
   };
 
+  const [confirmingStatusChange, setConfirmingStatusChange] = useState(false);
+
   const handleToggleStatus = async () => {
     if (!manageUser) return;
     const nextActive = !manageUser.isActive;
-    if (!window.confirm(nextActive ? c.sessions.confirmActivate : c.sessions.confirmDeactivate)) return;
-    setManageSaving(true);
-    setManageError(null);
     try {
       const updated = await setUserStatus(manageUser.id, nextActive);
       setManageUser(updated);
-      setNotice(c.sessions.statusUpdated);
-      loadSessions();
     } catch (err) {
-      setManageError(err instanceof ApiError ? err.message : "Failed to update account status.");
-    } finally {
-      setManageSaving(false);
+      throw new Error(err instanceof ApiError ? err.message : "Failed to update account status.");
     }
+    setConfirmingStatusChange(false);
+    toast.success(c.sessions.statusUpdated);
+    loadSessions();
   };
 
   const handleChangeRole = async (role: Role) => {
@@ -139,7 +135,7 @@ export default function SettingsPage() {
     try {
       const updated = await updateUserRole(manageUser.id, role);
       setManageUser(updated);
-      setNotice(c.sessions.roleUpdated);
+      toast.success(c.sessions.roleUpdated);
       loadSessions();
     } catch (err) {
       setManageError(err instanceof ApiError ? err.message : "Failed to update role.");
@@ -189,13 +185,6 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
         <p className="mt-1 text-sm text-slate-500">{c.subtitle}</p>
       </div>
-
-      {notice && (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-          <CheckCircle2 className="h-4 w-4" />
-          {notice}
-        </div>
-      )}
 
       {error && (
         <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
@@ -302,8 +291,7 @@ export default function SettingsPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleRevoke(s)}
-                            disabled={revokingId === s.id}
+                            onClick={() => setConfirmingRevoke(s)}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <LogOut className="h-3.5 w-3.5" />
@@ -449,7 +437,7 @@ export default function SettingsPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={handleToggleStatus}
+                  onClick={() => setConfirmingStatusChange(true)}
                   disabled={manageSaving}
                   className={`w-full rounded-lg border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                     manageUser.isActive
@@ -495,6 +483,28 @@ export default function SettingsPage() {
             </div>
           ) : null}
         </Modal>
+      )}
+
+      {confirmingRevoke && (
+        <ConfirmModal
+          title={c.sessions.revoke}
+          description={c.sessions.confirmRevoke}
+          confirmLabel={c.sessions.revoke}
+          tone="danger"
+          onCancel={() => setConfirmingRevoke(null)}
+          onConfirm={handleRevoke}
+        />
+      )}
+
+      {confirmingStatusChange && manageUser && (
+        <ConfirmModal
+          title={manageUser.isActive ? c.sessions.deactivateAction : c.sessions.activateAction}
+          description={manageUser.isActive ? c.sessions.confirmDeactivate : c.sessions.confirmActivate}
+          confirmLabel={manageUser.isActive ? c.sessions.deactivateAction : c.sessions.activateAction}
+          tone={manageUser.isActive ? "danger" : "default"}
+          onCancel={() => setConfirmingStatusChange(false)}
+          onConfirm={handleToggleStatus}
+        />
       )}
     </div>
   );

@@ -89,23 +89,18 @@ export async function buildLeaseStatement(
   const totalDebit = rows.reduce((sum, row) => sum + row.debit, 0);
   const totalCredit = rows.reduce((sum, row) => sum + row.credit, 0);
 
-  // GET /leases/:id resolves both parties' real names server-side
-  // (tenantName/ownerName) — use those. Only fall back to "our own name on
-  // whichever side that is, placeholder on the other" if an older backend
-  // build hasn't deployed that enrichment yet.
+  // GET /leases/:id resolves the tenant's real name server-side (lease.tenant)
+  // — use that. There's no equivalent owner enrichment yet, so the owner side
+  // falls back to "our own name on whichever side that is, placeholder on the
+  // other".
   const shortId = (id: string) => id.slice(0, 8).toUpperCase();
-  const splitName = (fullName: string) => {
-    const [firstName, ...rest] = fullName.split(" ");
-    return { firstName: firstName || fullName, lastName: rest.join(" ") };
-  };
-  const tenant = lease.tenantName
-    ? splitName(lease.tenantName)
+  const tenant = lease.tenant
+    ? { firstName: lease.tenant.firstName, lastName: lease.tenant.lastName }
     : viewer.id === lease.tenantId
       ? { firstName: viewer.firstName, lastName: viewer.lastName }
       : { firstName: "Tenant", lastName: shortId(lease.tenantId) };
-  const owner = lease.ownerName
-    ? splitName(lease.ownerName)
-    : viewer.id === lease.ownerId
+  const owner =
+    viewer.id === lease.ownerId
       ? { firstName: viewer.firstName, lastName: viewer.lastName }
       : { firstName: "Landlord", lastName: shortId(lease.ownerId) };
 

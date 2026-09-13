@@ -6,7 +6,6 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
   Eye,
   LayoutGrid,
   Pencil,
@@ -24,6 +23,7 @@ import {
 import { ApiError } from "@/lib/api/client";
 import type { Property, PropertyUnit, UnitStatus, UpdatePropertyInput } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
+import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
 import { UnitSetupForm } from "@/components/admin/UnitSetupForm";
 import { EditUnitForm } from "@/components/admin/EditUnitForm";
@@ -32,6 +32,7 @@ import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
+import { useToast } from "@/components/shared/ToastContext";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 // DELETE /properties/:id/units/:unitId isn't deployed to production yet
@@ -52,6 +53,7 @@ const UNIT_STATUS_BADGE_STYLES: Record<UnitStatus, string> = {
 export default function PropertyDetailPage() {
   const { t } = useLanguage();
   const c = t.dashboard.landlord.propertyDetail;
+  const toast = useToast();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
@@ -64,11 +66,8 @@ export default function PropertyDetailPage() {
   const [isEditing, setEditing] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [isManagingUnits, setManagingUnits] = useState(false);
-  const [unitsNotice, setUnitsNotice] = useState<string | null>(null);
-  const [deletingUnitId, setDeletingUnitId] = useState<string | null>(null);
-  const [deleteUnitError, setDeleteUnitError] = useState<string | null>(null);
+  const [deletingUnit, setDeletingUnit] = useState<PropertyUnit | null>(null);
   const [editingUnit, setEditingUnit] = useState<PropertyUnit | null>(null);
-  const [justAddedTenant, setJustAddedTenant] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
   const [page, setPage] = useState(1);
@@ -146,7 +145,7 @@ export default function PropertyDetailPage() {
   const handleAddTenant = () => {
     setAddingTenant(false);
     reloadUnits();
-    setJustAddedTenant(
+    toast.success(
       `Tenant added and assigned to their unit in ${property.title} — they'll receive an email to set up their account.`,
     );
   };
@@ -165,18 +164,16 @@ export default function PropertyDetailPage() {
     }
   };
 
-  const handleDeleteUnit = async (unit: PropertyUnit) => {
-    if (!window.confirm(`Delete unit "${unit.label}"? This can't be undone.`)) return;
-    setDeletingUnitId(unit.id);
-    setDeleteUnitError(null);
+  const handleDeleteUnit = async () => {
+    if (!deletingUnit) return;
     try {
-      await deleteUnit(property.id, unit.id);
-      reloadUnits();
+      await deleteUnit(property.id, deletingUnit.id);
     } catch (err) {
-      setDeleteUnitError(err instanceof ApiError ? err.message : "Failed to delete this unit.");
-    } finally {
-      setDeletingUnitId(null);
+      throw new Error(err instanceof ApiError ? err.message : "Failed to delete this unit.");
     }
+    toast.success(`"${deletingUnit.label}" deleted.`);
+    setDeletingUnit(null);
+    reloadUnits();
   };
 
   return (
@@ -221,26 +218,6 @@ export default function PropertyDetailPage() {
           </button>
         </div>
       </div>
-
-      {justAddedTenant && (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-          <CheckCircle2 className="h-4 w-4" />
-          {justAddedTenant}
-        </div>
-      )}
-
-      {unitsNotice && (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-          <CheckCircle2 className="h-4 w-4" />
-          {unitsNotice}
-        </div>
-      )}
-
-      {deleteUnitError && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {deleteUnitError}
-        </p>
-      )}
 
       <div className="grid grid-cols-2 gap-5 lg:grid-cols-2">
         <SummaryCard label={c.summaryUnits} value={totalUnits} />
@@ -341,8 +318,8 @@ export default function PropertyDetailPage() {
                   {DELETE_UNIT_ENABLED && (
                     <button
                       type="button"
-                      disabled={unit.status === "occupied" || deletingUnitId === unit.id}
-                      onClick={() => handleDeleteUnit(unit)}
+                      disabled={unit.status === "occupied"}
+                      onClick={() => setDeletingUnit(unit)}
                       title={
                         unit.status === "occupied"
                           ? "End the lease on this unit before deleting it"
@@ -426,7 +403,7 @@ export default function PropertyDetailPage() {
             onSuccess={() => {
               setEditingUnit(null);
               reloadUnits();
-              setUnitsNotice(`"${editingUnit.label}" updated.`);
+              toast.success(`"${editingUnit.label}" updated.`);
             }}
           />
         </Modal>
@@ -448,10 +425,21 @@ export default function PropertyDetailPage() {
               const parts: string[] = [];
               if (created > 0) parts.push(`${created} unit${created === 1 ? "" : "s"} added`);
               if (removed > 0) parts.push(`${removed} unit${removed === 1 ? "" : "s"} removed`);
-              setUnitsNotice(parts.length > 0 ? `${parts.join(" and ")} for ${property.title}.` : null);
+              if (parts.length > 0) toast.success(`${parts.join(" and ")} for ${property.title}.`);
             }}
           />
         </Modal>
+      )}
+
+      {deletingUnit && (
+        <ConfirmModal
+          title="Delete unit"
+          description={`Delete unit "${deletingUnit.label}"? This can't be undone.`}
+          confirmLabel="Delete"
+          tone="danger"
+          onCancel={() => setDeletingUnit(null)}
+          onConfirm={handleDeleteUnit}
+        />
       )}
     </div>
   );

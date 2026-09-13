@@ -266,10 +266,15 @@ export type Lease = {
   // tenant directly. Not yet implemented backend-side; see docs/backend-gaps.md.
   newTenantCredentials?: { email: string; tempPassword: string };
   // Only present on GET /leases/:id (not on list responses) — the backend
-  // resolves these from the tenant/owner user records since the requester
-  // already has proven access to this specific lease.
-  tenantName?: string | null;
-  ownerName?: string | null;
+  // resolves this from the tenant's user record since the requester already
+  // has proven access to this specific lease.
+  tenant?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  };
 };
 
 export type LeaseStatementRow = {

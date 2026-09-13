@@ -13,6 +13,7 @@ import {
 import { ApiError } from "@/lib/api/client";
 import type { CreateUnitInput, ImportUnitsRowError, PropertyUnit } from "@/lib/api/types";
 import { formatMoney } from "@/lib/money";
+import { ConfirmModal } from "@/components/shared/ConfirmModal";
 
 type Mode = "manual" | "generate" | "import" | "exact";
 
@@ -65,6 +66,7 @@ export function UnitSetupForm({
   const [exactFloors, setExactFloors] = useState("");
   const [exactBedrooms, setExactBedrooms] = useState("");
   const [exactBathrooms, setExactBathrooms] = useState("");
+  const [confirmingRemoval, setConfirmingRemoval] = useState(false);
 
   const vacantUnits = units.filter((u) => u.status !== "occupied");
   const exactDiff = exactTarget.trim() ? Number(exactTarget) - units.length : null;
@@ -216,41 +218,39 @@ export function UnitSetupForm({
         );
         return;
       }
-      if (
-        !window.confirm(
-          `This will permanently remove ${removableCount} vacant unit${removableCount === 1 ? "" : "s"} (most recently added first). Continue?`,
-        )
-      ) {
-        return;
-      }
+      setError(null);
+      setConfirmingRemoval(true);
+      return;
     }
 
     setSubmitting(true);
     setError(null);
     try {
-      if (diff > 0) {
-        const createdUnits = await generateUnits(propertyId, {
-          count: diff,
-          floors: exactFloors.trim() ? Number(exactFloors) : undefined,
-          bedrooms: exactBedrooms.trim() ? Number(exactBedrooms) : undefined,
-          bathrooms: exactBathrooms.trim() ? Number(exactBathrooms) : undefined,
-          rentAmount: Number(exactRentAmount),
-        });
-        onDone({ created: createdUnits.length, removed: 0 });
-      } else {
-        const toRemove = [...vacantUnits]
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, -diff);
-        for (const unit of toRemove) {
-          await deleteUnit(propertyId, unit.id);
-        }
-        onDone({ created: 0, removed: toRemove.length });
-      }
+      const createdUnits = await generateUnits(propertyId, {
+        count: diff,
+        floors: exactFloors.trim() ? Number(exactFloors) : undefined,
+        bedrooms: exactBedrooms.trim() ? Number(exactBedrooms) : undefined,
+        bathrooms: exactBathrooms.trim() ? Number(exactBathrooms) : undefined,
+        rentAmount: Number(exactRentAmount),
+      });
+      onDone({ created: createdUnits.length, removed: 0 });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to update the unit count.");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const performRemoval = async () => {
+    const removableCount = units.length - Number(exactTarget);
+    const toRemove = [...vacantUnits]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, removableCount);
+    for (const unit of toRemove) {
+      await deleteUnit(propertyId, unit.id);
+    }
+    setConfirmingRemoval(false);
+    onDone({ created: 0, removed: toRemove.length });
   };
 
   const switchMode = (next: Mode) => {
@@ -259,7 +259,10 @@ export function UnitSetupForm({
     setRowErrors(null);
   };
 
+  const removableCount = exactDiff != null && exactDiff < 0 ? -exactDiff : 0;
+
   return (
+    <>
     <div className="flex flex-col gap-5">
       <p className="text-sm text-slate-500">
         This property has multiple units — set them all up now, or skip and add units one at a
@@ -686,5 +689,17 @@ export function UnitSetupForm({
         )}
       </div>
     </div>
+
+    {confirmingRemoval && (
+      <ConfirmModal
+        title="Remove units"
+        description={`This will permanently remove ${removableCount} vacant unit${removableCount === 1 ? "" : "s"} (most recently added first). Occupied units are never touched. This can't be undone.`}
+        confirmLabel="Remove"
+        tone="danger"
+        onCancel={() => setConfirmingRemoval(false)}
+        onConfirm={performRemoval}
+      />
+    )}
+    </>
   );
 }
