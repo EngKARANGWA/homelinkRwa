@@ -27,7 +27,6 @@ import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
 import { UnitSetupForm } from "@/components/admin/UnitSetupForm";
 import { EditUnitForm } from "@/components/admin/EditUnitForm";
-import { UnitDetail } from "@/components/admin/UnitDetail";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
@@ -69,7 +68,6 @@ export default function PropertyDetailPage() {
   const [deletingUnitId, setDeletingUnitId] = useState<string | null>(null);
   const [deleteUnitError, setDeleteUnitError] = useState<string | null>(null);
   const [editingUnit, setEditingUnit] = useState<PropertyUnit | null>(null);
-  const [viewingUnit, setViewingUnit] = useState<PropertyUnit | null>(null);
   const [justAddedTenant, setJustAddedTenant] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
@@ -326,7 +324,7 @@ export default function PropertyDetailPage() {
                 <div className="flex items-center justify-end gap-1">
                   <button
                     type="button"
-                    onClick={() => setViewingUnit(unit)}
+                    onClick={() => router.push(`/landlord/properties/${property.id}/units/${unit.id}`)}
                     title="View unit details"
                     className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy"
                   >
@@ -412,16 +410,6 @@ export default function PropertyDetailPage() {
             onCancel={() => setEditing(false)}
             onSuccess={handleEditProperty}
           />
-        </Modal>
-      )}
-
-      {viewingUnit && (
-        <Modal
-          title={`Unit — ${viewingUnit.label}`}
-          description={`Details for this unit in ${property.title}.`}
-          onClose={() => setViewingUnit(null)}
-        >
-          <UnitDetail unit={viewingUnit} />
         </Modal>
       )}
 

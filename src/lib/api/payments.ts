@@ -43,6 +43,9 @@ export async function payInvoice(
 export type ListPaymentsParams = {
   status?: PaymentStatus;
   invoiceId?: string;
+  unitId?: string;
+  tenantId?: string;
+  propertyId?: string;
   page?: number;
   limit?: number;
 };
