@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Eye, FileStack } from "lucide-react";
+import { AlertCircle, CheckCircle2, Eye, FileSignature, FileStack } from "lucide-react";
 import { listProperties, listUnits } from "@/lib/api/properties";
 import {
   getLease,
   listLeases,
   requestLeaseRenewal,
   requestLeaseTermination,
+  signLease,
 } from "@/lib/api/leases";
 import { ApiError } from "@/lib/api/client";
 import type { Lease, LeaseStatus, Property, PropertyUnit } from "@/lib/api/types";
@@ -132,6 +133,20 @@ export default function TenantLeasePage() {
     }
   };
 
+  const handleSign = async (lease: Lease) => {
+    setActionError(null);
+    setProcessingId(lease.id);
+    try {
+      const signed = await signLease(lease.id);
+      setNotice(signed.status === "active" ? c.signLeaseActivatedNotice : c.signLeaseNotice);
+      load();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Failed to sign this lease.");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -234,6 +249,17 @@ export default function TenantLeasePage() {
                         <FileStack className="h-3.5 w-3.5" />
                         Documents
                       </button>
+                      {lease.status === "pending_signatures" && !lease.tenantSignedAt && (
+                        <button
+                          type="button"
+                          onClick={() => handleSign(lease)}
+                          disabled={isProcessing}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1 text-xs font-semibold text-white hover:bg-gold/90 disabled:opacity-50"
+                        >
+                          <FileSignature className="h-3.5 w-3.5" />
+                          {c.signLease}
+                        </button>
+                      )}
                       {lease.status === "active" && (
                         <>
                           <button

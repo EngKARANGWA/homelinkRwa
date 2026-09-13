@@ -1580,6 +1580,9 @@ const en = {
         requestRenewal: "Request Renewal",
         requestTermination: "Request Termination",
         noLeases: "No lease agreements on file yet.",
+        signLease: "Sign Lease",
+        signLeaseNotice: "Lease signed. Waiting on your landlord's signature to activate it.",
+        signLeaseActivatedNotice: "Lease signed and now active.",
       },
       maintenance: {
         title: "Maintenance",
@@ -3261,6 +3264,9 @@ const fr: typeof en = {
         requestRenewal: "Demander un renouvellement",
         requestTermination: "Demander une résiliation",
         noLeases: "Aucun contrat de bail enregistré pour le moment.",
+        signLease: "Signer le bail",
+        signLeaseNotice: "Bail signé. En attente de la signature de votre propriétaire pour l'activer.",
+        signLeaseActivatedNotice: "Bail signé et maintenant actif.",
       },
       maintenance: {
         title: "Maintenance",

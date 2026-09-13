@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, Check, CheckCircle2, Eye, FileStack, Plus, X } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, Eye, FileSignature, FileStack, Plus, X } from "lucide-react";
 import { listProperties, listUnits } from "@/lib/api/properties";
 import {
   approveLeaseChangeRequest,
@@ -9,6 +9,7 @@ import {
   listLeaseChangeRequests,
   listLeases,
   rejectLeaseChangeRequest,
+  signLease,
 } from "@/lib/api/leases";
 import { ApiError } from "@/lib/api/client";
 import type { Lease, Property, PropertyUnit } from "@/lib/api/types";
@@ -37,6 +38,7 @@ export default function LandlordLeasesPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
   const [justCreated, setJustCreated] = useState(false);
+  const [signNotice, setSignNotice] = useState<string | null>(null);
   const [documentsLease, setDocumentsLease] = useState<Lease | null>(null);
   const [viewingLease, setViewingLease] = useState<Lease | null>(null);
   const [isViewLoading, setViewLoading] = useState(false);
@@ -124,6 +126,24 @@ export default function LandlordLeasesPage() {
     }
   };
 
+  const handleSign = async (lease: Lease) => {
+    setActionError(null);
+    setProcessingId(lease.id);
+    try {
+      const signed = await signLease(lease.id);
+      setSignNotice(
+        signed.status === "active"
+          ? "Lease signed and now active."
+          : "Lease signed. Waiting on your tenant's signature to activate it.",
+      );
+      load();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Failed to sign this lease.");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -147,6 +167,13 @@ export default function LandlordLeasesPage() {
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
           <CheckCircle2 className="h-4 w-4" />
           {lc.successNotice}
+        </div>
+      )}
+
+      {signNotice && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle2 className="h-4 w-4" />
+          {signNotice}
         </div>
       )}
 
@@ -231,6 +258,18 @@ export default function LandlordLeasesPage() {
                         <FileStack className="h-3.5 w-3.5" />
                         Documents
                       </button>
+
+                      {lease.status === "pending_signatures" && !lease.ownerSignedAt && (
+                        <button
+                          type="button"
+                          onClick={() => handleSign(lease)}
+                          disabled={isProcessing}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1 text-xs font-semibold text-white hover:bg-gold/90 disabled:opacity-50"
+                        >
+                          <FileSignature className="h-3.5 w-3.5" />
+                          Sign Lease
+                        </button>
+                      )}
 
                       {(lease.status === "pending_renewal" ||
                         lease.status === "pending_termination") && (

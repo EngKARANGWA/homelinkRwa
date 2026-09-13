@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppLink as Link } from "@/components/shared/AppLink";
-import { ArrowLeft, CheckCircle2, Pencil, Plus } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Eye, Pencil, Plus } from "lucide-react";
 import { getProperty, listUnits } from "@/lib/api/properties";
 import { getLease, listLeases } from "@/lib/api/leases";
 import { listPayments } from "@/lib/api/payments";
@@ -17,6 +17,7 @@ import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { formatMoney } from "@/lib/money";
 import { PAYMENT_STATUS_STYLES, formatStatusLabel } from "@/lib/paymentStatus";
+import { LEASE_STATUS_STYLES, formatLeaseStatus } from "@/lib/leaseStatus";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const UNIT_STATUS_BADGE_STYLES: Record<UnitStatus, string> = {
@@ -26,6 +27,8 @@ const UNIT_STATUS_BADGE_STYLES: Record<UnitStatus, string> = {
   inactive: "bg-slate-200 text-slate-500",
 };
 
+type Tab = "tenant" | "history" | "payments";
+
 function formatDate(dateStr: string | null) {
   if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("en-GB", {
@@ -33,6 +36,13 @@ function formatDate(dateStr: string | null) {
     month: "long",
     year: "numeric",
   });
+}
+
+// Owners can't look up other users' names directly — a lease's tenantName
+// is resolved server-side (GET /leases/:id only) and falls back to a stable
+// id-derived label here if that enrichment isn't available.
+function tenantLabel(lease: Lease) {
+  return lease.tenantName ?? `Tenant ${lease.tenantId.slice(0, 8).toUpperCase()}`;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -53,37 +63,44 @@ export default function UnitDetailPage() {
 
   const [property, setProperty] = useState<Property | null>(null);
   const [unit, setUnit] = useState<PropertyUnit | null>(null);
-  const [lease, setLease] = useState<Lease | null>(null);
+  const [unitLeases, setUnitLeases] = useState<Lease[]>([]);
+  const [currentLease, setCurrentLease] = useState<Lease | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [tab, setTab] = useState<Tab>("tenant");
   const [isEditing, setEditing] = useState(false);
   const [editNotice, setEditNotice] = useState<string | null>(null);
   const [isAddingTenant, setAddingTenant] = useState(false);
+  const [viewingLease, setViewingLease] = useState<Lease | null>(null);
+  const [viewLeaseError, setViewLeaseError] = useState<string | null>(null);
 
   const load = () => {
     if (!id || !unitId) return;
     let cancelled = false;
     setLoading(true);
-    Promise.all([getProperty(id), listUnits(id), listPayments({ unitId, limit: 50 })])
-      .then(async ([propertyResult, unitsResult, paymentsResult]) => {
+    Promise.all([
+      getProperty(id),
+      listUnits(id),
+      listPayments({ unitId, limit: 50 }),
+      listLeases({ propertyId: id, limit: 100 }),
+    ])
+      .then(async ([propertyResult, unitsResult, paymentsResult, leasesResult]) => {
         if (cancelled) return;
         const unitResult = unitsResult.find((u) => u.id === unitId) ?? null;
+        const thisUnitLeases = leasesResult.data
+          .filter((l) => l.unitId === unitId)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
         setProperty(propertyResult);
         setUnit(unitResult);
         setPayments(paymentsResult.data);
+        setUnitLeases(thisUnitLeases);
 
-        if (unitResult?.status === "occupied") {
-          const leasesRes = await listLeases({ propertyId: id, limit: 100 });
-          const match = [...leasesRes.data]
-            .filter((l) => l.unitId === unitId)
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-          const full = match ? await getLease(match.id) : null;
-          if (!cancelled) setLease(full);
-        } else if (!cancelled) {
-          setLease(null);
-        }
+        const activeLease = thisUnitLeases.find((l) => l.status === "active") ?? thisUnitLeases[0] ?? null;
+        const full = activeLease ? await getLease(activeLease.id) : null;
+        if (!cancelled) setCurrentLease(full);
         setLoadError(null);
       })
       .catch((err) => {
@@ -100,6 +117,15 @@ export default function UnitDetailPage() {
   };
 
   useEffect(load, [id, unitId]);
+
+  const viewLeaseHistory = async (lease: Lease) => {
+    setViewLeaseError(null);
+    try {
+      setViewingLease(await getLease(lease.id));
+    } catch (err) {
+      setViewLeaseError(err instanceof ApiError ? err.message : "Failed to load lease details.");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -122,6 +148,12 @@ export default function UnitDetailPage() {
       </div>
     );
   }
+
+  const TABS: { key: Tab; label: string }[] = [
+    { key: "tenant", label: "Current Tenant" },
+    { key: "history", label: `Tenant History (${unitLeases.length})` },
+    { key: "payments", label: `Payments (${payments.length})` },
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -189,62 +221,135 @@ export default function UnitDetailPage() {
         </div>
       </div>
 
-      {unit.status !== "occupied" || !lease ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white py-24 text-center">
-          <h2 className="text-lg font-bold text-navy">{c.vacantTitle}</h2>
-          <p className="max-w-sm text-sm text-slate-500">{c.vacantDescription}</p>
+      <div className="flex gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
+        {TABS.map((tabDef) => (
           <button
+            key={tabDef.key}
             type="button"
-            onClick={() => setAddingTenant(true)}
-            className="mt-2 inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+            onClick={() => setTab(tabDef.key)}
+            className={`flex flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              tab === tabDef.key ? "bg-white text-navy shadow-sm" : "text-slate-500"
+            }`}
           >
-            <Plus className="h-4 w-4" />
-            {c.addTenant}
+            {tabDef.label}
           </button>
-        </div>
-      ) : (
+        ))}
+      </div>
+
+      {tab === "tenant" &&
+        (unit.status !== "occupied" || !currentLease ? (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white py-24 text-center">
+            <h2 className="text-lg font-bold text-navy">{c.vacantTitle}</h2>
+            <p className="max-w-sm text-sm text-slate-500">{c.vacantDescription}</p>
+            <button
+              type="button"
+              onClick={() => setAddingTenant(true)}
+              className="mt-2 inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+            >
+              <Plus className="h-4 w-4" />
+              {c.addTenant}
+            </button>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="mb-4 font-semibold text-navy">{c.leaseDetails}</p>
+            <LeaseDetail
+              lease={currentLease}
+              propertyLabel={property.title}
+              unitLabel={unit.label}
+              tenantLabel={tenantLabel(currentLease)}
+              ownerLabel={user ? `${user.firstName} ${user.lastName}` : "—"}
+            />
+          </div>
+        ))}
+
+      {tab === "history" && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="mb-4 font-semibold text-navy">{c.leaseDetails}</p>
-          <LeaseDetail
-            lease={lease}
-            propertyLabel={property.title}
-            unitLabel={unit.label}
-            tenantLabel={lease.tenantName ?? "Tenant"}
-            ownerLabel={user ? `${user.firstName} ${user.lastName}` : "—"}
-          />
+          <p className="mb-4 font-semibold text-navy">Tenants in this unit</p>
+          {viewLeaseError && (
+            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {viewLeaseError}
+            </p>
+          )}
+          <Table variant="plain">
+            <THead>
+              <Tr>
+                <Th className="py-2">Tenant</Th>
+                <Th className="py-2">Term</Th>
+                <Th className="py-2">Rent</Th>
+                <Th className="py-2">Status</Th>
+                <Th className="py-2 text-right">
+                  <span className="sr-only">View</span>
+                </Th>
+              </Tr>
+            </THead>
+            <TBody>
+              {unitLeases.map((l) => (
+                <Tr key={l.id}>
+                  <Td className="py-2.5 font-medium text-navy">{tenantLabel(l)}</Td>
+                  <Td className="py-2.5 text-slate-500">
+                    {l.startDate} → {l.endDate ?? "Open-ended"}
+                  </Td>
+                  <Td className="py-2.5 text-slate-500">{formatMoney(l.rentAmount)} RWF</Td>
+                  <Td className="py-2.5">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${LEASE_STATUS_STYLES[l.status]}`}
+                    >
+                      {formatLeaseStatus(l.status)}
+                    </span>
+                  </Td>
+                  <Td className="py-2.5 text-right">
+                    <button
+                      type="button"
+                      onClick={() => viewLeaseHistory(l)}
+                      title="View lease details"
+                      className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  </Td>
+                </Tr>
+              ))}
+              {unitLeases.length === 0 && (
+                <EmptyRow colSpan={5}>No tenant has ever been assigned to this unit.</EmptyRow>
+              )}
+            </TBody>
+          </Table>
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="font-semibold text-navy">{c.paymentHistory}</p>
-        <Table variant="plain" className="mt-4">
-          <THead>
-            <Tr>
-              <Th className="py-2">{c.amount}</Th>
-              <Th className="py-2">Method</Th>
-              <Th className="py-2">{c.status}</Th>
-              <Th className="py-2">Date</Th>
-            </Tr>
-          </THead>
-          <TBody>
-            {payments.map((p) => (
-              <Tr key={p.id}>
-                <Td className="py-2.5 text-slate-500">{formatMoney(p.amount)} RWF</Td>
-                <Td className="py-2.5 text-slate-500">{formatStatusLabel(p.method)}</Td>
-                <Td className="py-2.5">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${PAYMENT_STATUS_STYLES[p.status]}`}
-                  >
-                    {formatStatusLabel(p.status)}
-                  </span>
-                </Td>
-                <Td className="py-2.5 text-slate-500">{formatDate(p.paidAt ?? p.createdAt)}</Td>
+      {tab === "payments" && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="mb-4 font-semibold text-navy">{c.paymentHistory}</p>
+          <Table variant="plain">
+            <THead>
+              <Tr>
+                <Th className="py-2">{c.amount}</Th>
+                <Th className="py-2">Method</Th>
+                <Th className="py-2">{c.status}</Th>
+                <Th className="py-2">Date</Th>
               </Tr>
-            ))}
-            {payments.length === 0 && <EmptyRow colSpan={4}>{c.noPaymentHistory}</EmptyRow>}
-          </TBody>
-        </Table>
-      </div>
+            </THead>
+            <TBody>
+              {payments.map((p) => (
+                <Tr key={p.id}>
+                  <Td className="py-2.5 text-slate-500">{formatMoney(p.amount)} RWF</Td>
+                  <Td className="py-2.5 text-slate-500">{formatStatusLabel(p.method)}</Td>
+                  <Td className="py-2.5">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${PAYMENT_STATUS_STYLES[p.status]}`}
+                    >
+                      {formatStatusLabel(p.status)}
+                    </span>
+                  </Td>
+                  <Td className="py-2.5 text-slate-500">{formatDate(p.paidAt ?? p.createdAt)}</Td>
+                </Tr>
+              ))}
+              {payments.length === 0 && <EmptyRow colSpan={4}>{c.noPaymentHistory}</EmptyRow>}
+            </TBody>
+          </Table>
+        </div>
+      )}
 
       {isEditing && (
         <Modal
@@ -279,6 +384,22 @@ export default function UnitDetailPage() {
               setAddingTenant(false);
               load();
             }}
+          />
+        </Modal>
+      )}
+
+      {viewingLease && (
+        <Modal
+          title="Lease"
+          description={`${tenantLabel(viewingLease)} · ${property.title} · ${unit.label}`}
+          onClose={() => setViewingLease(null)}
+        >
+          <LeaseDetail
+            lease={viewingLease}
+            propertyLabel={property.title}
+            unitLabel={unit.label}
+            tenantLabel={tenantLabel(viewingLease)}
+            ownerLabel={user ? `${user.firstName} ${user.lastName}` : "—"}
           />
         </Modal>
       )}
