@@ -55,7 +55,7 @@ pipeline {
                     set -euo pipefail
                     . /etc/homelink/deploy.env
 
-                    DEPLOY_SCRIPT="set -euo pipefail; cd /opt/homelink-frontend; git pull; render-env.sh; export IMAGE_TAG=$IMAGE_TAG; docker compose -f infra/docker-compose.prod.yml --env-file .env pull frontend; docker compose -f infra/docker-compose.prod.yml --env-file .env up -d"
+                    DEPLOY_SCRIPT="set -euo pipefail; cd /opt/homelink-frontend; git fetch origin main; git reset --hard origin/main; render-env.sh; export IMAGE_TAG=$IMAGE_TAG; docker compose -f infra/docker-compose.prod.yml --env-file .env pull frontend; docker compose -f infra/docker-compose.prod.yml --env-file .env up -d"
 
                     COMMAND_ID=$(aws ssm send-command \
                       --instance-ids "$FRONTEND_INSTANCE_ID" \

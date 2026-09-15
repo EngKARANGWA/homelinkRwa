@@ -263,18 +263,21 @@ export type Lease = {
   updatedAt: string;
   // Only present once, on the response to creating this lease with a brand-new
   // `newTenant` — a one-time temp password the landlord can hand to the
-  // tenant directly. Not yet implemented backend-side; see docs/backend-gaps.md.
-  newTenantCredentials?: { email: string; tempPassword: string };
-  // Only present on GET /leases/:id (not on list responses) — the backend
-  // resolves this from the tenant's user record since the requester already
-  // has proven access to this specific lease.
-  tenant?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-  };
+  // tenant directly (they're forced to change it on first login).
+  temporaryPassword?: string;
+  // Present on GET /leases/:id and on the response to createLease — the
+  // backend resolves this from the tenant's user record since the requester
+  // already has proven access to this specific lease. Absent on list
+  // responses (those only ever show a placeholder tenant label).
+  tenant?: TenantSummary;
+};
+
+export type TenantSummary = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
 };
 
 export type LeaseStatementRow = {

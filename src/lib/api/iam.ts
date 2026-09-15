@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import type { TenantSummary } from "./types";
 
 export type InviteRole = "house_manager" | "tenant" | "owner";
 export type InviteStatus = "pending" | "accepted" | "revoked" | "expired";
@@ -35,6 +36,19 @@ export async function inviteTenant(
   const res = await apiFetch<{ data: Invite }>("/iam/tenants/invite", {
     method: "POST",
     body: { email, propertyId },
+  });
+  return res.data;
+}
+
+/**
+ * Owners/house managers can't hit the admin-only user list — this is the
+ * narrow, tenant-only search they use to find an existing tenant account to
+ * assign directly to a unit instead of always registering a new one.
+ */
+export async function searchTenants(search: string): Promise<TenantSummary[]> {
+  if (search.trim().length < 2) return [];
+  const res = await apiFetch<{ data: TenantSummary[] }>("/iam/tenants/search", {
+    query: { search: search.trim() },
   });
   return res.data;
 }
