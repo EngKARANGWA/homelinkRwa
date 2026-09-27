@@ -36,7 +36,7 @@ export function PropertyForm({
   owners: User[];
   initialProperty?: Property;
   showOwnerField?: boolean;
-  onSuccess: (values: CreatePropertyInput, documentFile: File | null) => void;
+  onSuccess: (values: CreatePropertyInput, documentFile: File | null) => void | Promise<void>;
   onCancel: () => void;
 }) {
   const { t } = useLanguage();
@@ -51,6 +51,7 @@ export function PropertyForm({
   const isEditing = !!initialProperty;
   const [step, setStep] = useState(1);
   const [stepError, setStepError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const [title, setTitle] = useState(initialProperty?.title ?? "");
   const [description, setDescription] = useState(initialProperty?.description ?? "");
@@ -143,36 +144,45 @@ export function PropertyForm({
     setStep((s) => Math.max(s - 1, 1));
   };
 
-  const submitForm = () => {
+  const submitForm = async () => {
+    // Guards against the double-submit that happens when a slow network makes
+    // someone click "Add Property" more than once — each click used to fire
+    // its own independent create request, creating real duplicate properties.
+    if (submitting) return;
     if (!confirmed) {
       setStepError(c.errorConfirm);
       return;
     }
     setStepError(null);
-    onSuccess(
-      {
-        title: title.trim(),
-        description: description.trim() || undefined,
-        addressLine: addressLine.trim(),
-        city: city.trim(),
-        state: state.trim() || undefined,
-        country: country.trim(),
-        postalCode: postalCode.trim() || undefined,
-        upi: upi.trim() || undefined,
-        category,
-        type,
-        sizeSqm: category === "commercial" ? Number(sizeSqm) : undefined,
-        bedrooms: needsPropertyLevelRooms && bedrooms.trim() ? Number(bedrooms) : undefined,
-        bathrooms: needsPropertyLevelRooms && bathrooms.trim() ? Number(bathrooms) : undefined,
-        rentAmount: Number(rentAmount),
-        terms: terms.map((term) => term.trim()).filter(Boolean),
-        attributes: attributes
-          .map((attr) => ({ label: attr.label.trim(), value: attr.value.trim() }))
-          .filter((attr) => attr.label && attr.value),
-        ...(showOwnerField ? { ownerId } : {}),
-      },
-      documentFile,
-    );
+    setSubmitting(true);
+    try {
+      await onSuccess(
+        {
+          title: title.trim(),
+          description: description.trim() || undefined,
+          addressLine: addressLine.trim(),
+          city: city.trim(),
+          state: state.trim() || undefined,
+          country: country.trim(),
+          postalCode: postalCode.trim() || undefined,
+          upi: upi.trim() || undefined,
+          category,
+          type,
+          sizeSqm: category === "commercial" ? Number(sizeSqm) : undefined,
+          bedrooms: needsPropertyLevelRooms && bedrooms.trim() ? Number(bedrooms) : undefined,
+          bathrooms: needsPropertyLevelRooms && bathrooms.trim() ? Number(bathrooms) : undefined,
+          rentAmount: Number(rentAmount),
+          terms: terms.map((term) => term.trim()).filter(Boolean),
+          attributes: attributes
+            .map((attr) => ({ label: attr.label.trim(), value: attr.value.trim() }))
+            .filter((attr) => attr.label && attr.value),
+          ...(showOwnerField ? { ownerId } : {}),
+        },
+        documentFile,
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -550,14 +560,17 @@ export function PropertyForm({
           )}
           <button
             type="button"
+            disabled={submitting}
             onClick={step < STEPS.length ? goNext : submitForm}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {step < STEPS.length ? (
               <>
                 {c.next}
                 <ArrowRight className="h-4 w-4" />
               </>
+            ) : submitting ? (
+              isEditing ? "Saving..." : "Adding..."
             ) : isEditing ? (
               c.saveChanges
             ) : (
