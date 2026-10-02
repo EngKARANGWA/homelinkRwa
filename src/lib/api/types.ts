@@ -270,6 +270,9 @@ export type Lease = {
   // already has proven access to this specific lease. Absent on list
   // responses (those only ever show a placeholder tenant label).
   tenant?: TenantSummary;
+  // Present on GET /leases/:id only (not on createLease's response, and not
+  // on list responses).
+  owner?: TenantSummary;
 };
 
 export type TenantSummary = {

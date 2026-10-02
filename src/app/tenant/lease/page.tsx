@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertCircle, CheckCircle2, Eye, FileSignature, FileStack } from "lucide-react";
-import { listProperties, listUnits } from "@/lib/api/properties";
+import { getProperty, listUnits } from "@/lib/api/properties";
 import {
   getLease,
   listLeases,
@@ -52,7 +52,10 @@ export default function TenantLeasePage() {
 
   const propertyFor = (id: string) => properties.find((p) => p.id === id);
   const unitFor = (id: string) => units.find((u) => u.id === id);
-  const ownerName = (id: string) => `Owner ${id.slice(0, 8).toUpperCase()}`;
+  // `owner` is only resolved on a single GET /leases/:id fetch (viewingLease),
+  // never on the list — list rows fall back to a stable placeholder.
+  const ownerName = (lease: Lease) =>
+    lease.owner ? `${lease.owner.firstName} ${lease.owner.lastName}` : `Owner ${lease.ownerId.slice(0, 8).toUpperCase()}`;
   const leaseStatusLabel = (status: LeaseStatus) => {
     const key = STATUS_KEY[status];
     return key ? t.dashboard.status[key] : formatLeaseStatus(status);
@@ -61,17 +64,25 @@ export default function TenantLeasePage() {
   const load = () => {
     setLoading(true);
     setError(null);
-    Promise.all([
-      listLeases({ page, limit: DEFAULT_PAGE_SIZE }),
-      listProperties({ limit: 100 }),
-    ])
-      .then(async ([leasesRes, propertiesRes]) => {
+    listLeases({ page, limit: DEFAULT_PAGE_SIZE })
+      .then(async (leasesRes) => {
         setLeases(leasesRes.data);
         setTotalPages(leasesRes.meta.totalPages);
         setTotalItems(leasesRes.meta.total);
-        setProperties(propertiesRes.data);
+
+        // Resolve each lease's own property directly rather than hoping it
+        // turns up in a generic "browse available properties" page — a
+        // tenant's own leased property may not be publicly approved/active,
+        // and with enough properties on the platform it might not even be
+        // on the first page of a size-capped list either way.
+        const propertyIds = [...new Set(leasesRes.data.map((l) => l.propertyId))];
+        const fetchedProperties = await Promise.all(
+          propertyIds.map((id) => getProperty(id).catch(() => null)),
+        );
+        const resolvedProperties = fetchedProperties.filter((p): p is Property => p !== null);
+        setProperties(resolvedProperties);
         const unitsByProperty = await Promise.all(
-          propertiesRes.data.map((p) => listUnits(p.id)),
+          resolvedProperties.map((p) => listUnits(p.id).catch(() => [])),
         );
         setUnits(unitsByProperty.flat());
       })
@@ -207,14 +218,14 @@ export default function TenantLeasePage() {
                     </p>
                     <p className="truncate text-xs text-slate-400 md:hidden">
                       {unit ? c.unitTemplate.replace("{unit}", unit.label) : ""}
-                      {ownerName(lease.ownerId)} · {formatMoney(Number(lease.rentAmount))} RWF
+                      {ownerName(lease)} · {formatMoney(Number(lease.rentAmount))} RWF
                     </p>
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
                     {unit?.label ?? "—"}
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                    {ownerName(lease.ownerId)}
+                    {ownerName(lease)}
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
                     {formatMoney(Number(lease.rentAmount))}
@@ -322,7 +333,7 @@ export default function TenantLeasePage() {
             propertyLabel={propertyFor(viewingLease.propertyId)?.title ?? "—"}
             unitLabel={unitFor(viewingLease.unitId)?.label ?? "—"}
             tenantLabel={user ? `${user.firstName} ${user.lastName}` : "—"}
-            ownerLabel={ownerName(viewingLease.ownerId)}
+            ownerLabel={ownerName(viewingLease)}
           />
         </Modal>
       )}
