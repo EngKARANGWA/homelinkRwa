@@ -1,7 +1,7 @@
 "use client";
 
 import type { ApprovalStatus, Property, PropertyStatus } from "@/lib/api/types";
-import { formatMoney } from "@/lib/money";
+import { formatPropertyType } from "@/lib/propertyType";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const APPROVAL_STYLES: Record<ApprovalStatus, string> = {
@@ -14,10 +14,6 @@ const STATUS_STYLES: Record<PropertyStatus, string> = {
   available: "bg-emerald-50 text-emerald-700",
   occupied: "bg-slate-100 text-slate-600",
 };
-
-function capitalize(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return "—";
@@ -48,13 +44,6 @@ export function PropertyDetail({
 }) {
   const { t } = useLanguage();
   const c = t.dashboard.admin.propertyDetail;
-  const addressParts = [
-    property.addressLine,
-    property.city,
-    property.state,
-    property.postalCode,
-    property.country,
-  ].filter(Boolean);
 
   return (
     <div className="flex flex-col gap-5">
@@ -62,8 +51,8 @@ export function PropertyDetail({
         <Field label={c.property}>{property.title}</Field>
         <Field label={c.owner}>{ownerName}</Field>
 
-        <Field label="Category">{t.dashboard.status[property.category]}</Field>
-        <Field label={c.type}>{capitalize(property.type)}</Field>
+        <Field label={c.type}>{formatPropertyType(property.type)}</Field>
+        <Field label="Floors">{property.numberOfFloors}</Field>
 
         <Field label={c.availability}>
           <span
@@ -81,64 +70,15 @@ export function PropertyDetail({
         </Field>
       </div>
 
-      <Field label={c.address}>{addressParts.join(", ")}</Field>
-      {property.upi && <Field label="UPI">{property.upi}</Field>}
+      <Field label={c.address}>{property.location}</Field>
 
-      <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
-        {property.sizeSqm != null && (
-          <Field label="Size">{property.sizeSqm} sqm</Field>
-        )}
-        {property.unitsCount != null && (
-          <Field label="Units / Doors">{property.unitsCount}</Field>
-        )}
-        {property.bedrooms != null && (
-          <Field label="Bedrooms">{property.bedrooms}</Field>
-        )}
-        {property.bathrooms != null && (
-          <Field label="Bathrooms">{property.bathrooms}</Field>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-5">
-        <Field label={c.monthlyRent}>
-          {formatMoney(Number(property.rentAmount))} RWF
-        </Field>
-        <Field label={c.rentConditions}>
-          {property.rentConditions ?? "—"}
-        </Field>
-      </div>
-
-      {property.terms && property.terms.length > 0 && (
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Rent Conditions
-          </p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm font-medium text-navy">
-            {property.terms.map((term, i) => (
-              <li key={i}>{term}</li>
-            ))}
-          </ul>
+      {property.totalUnits != null && (
+        <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+          <Field label="Units">{property.totalUnits}</Field>
+          <Field label="Occupied">{property.occupiedUnits}</Field>
+          <Field label="Available">{property.availableUnits}</Field>
+          <Field label="Maintenance">{property.maintenanceUnits}</Field>
         </div>
-      )}
-
-      {property.attributes && property.attributes.length > 0 && (
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Additional Details
-          </p>
-          <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
-            {property.attributes.map((attr, i) => (
-              <p key={i}>
-                <span className="text-slate-400">{attr.label}:</span>{" "}
-                <span className="font-medium text-navy">{attr.value}</span>
-              </p>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {property.description && (
-        <Field label="Description">{property.description}</Field>
       )}
 
       {property.approvalStatus === "rejected" && property.rejectionReason && (

@@ -3,6 +3,7 @@ import type {
   AvailableUnit,
   CreatePropertyInput,
   CreateUnitInput,
+  Floor,
   GenerateUnitsInput,
   ImportUnitsPreview,
   ListAvailableUnitsParams,
@@ -10,17 +11,18 @@ import type {
   Property,
   PropertyUnit,
   SuccessResponse,
+  UnitDetail,
+  UpdateFloorInput,
   UpdatePropertyInput,
   UpdateUnitInput,
 } from "./types";
 
 export type ListPropertiesParams = {
   status?: string;
+  approvalStatus?: string;
   type?: string;
-  category?: string;
-  city?: string;
-  minRent?: number;
-  maxRent?: number;
+  // Matches title or location.
+  search?: string;
   ownerId?: string;
   page?: number;
   limit?: number;
@@ -77,9 +79,43 @@ export async function rejectProperty(
   return res.data;
 }
 
+export async function listFloors(propertyId: string): Promise<Floor[]> {
+  const res = await apiFetch<SuccessResponse<Floor[]>>(`/properties/${propertyId}/floors`);
+  return res.data;
+}
+
+export async function updateFloor(
+  propertyId: string,
+  floorId: string,
+  input: UpdateFloorInput,
+): Promise<Floor> {
+  const res = await apiFetch<SuccessResponse<Floor>>(
+    `/properties/${propertyId}/floors/${floorId}`,
+    { method: "PATCH", body: input },
+  );
+  return res.data;
+}
+
+export async function listUnitsByFloor(
+  propertyId: string,
+  floorId: string,
+): Promise<PropertyUnit[]> {
+  const res = await apiFetch<SuccessResponse<PropertyUnit[]>>(
+    `/properties/${propertyId}/floors/${floorId}/units`,
+  );
+  return res.data;
+}
+
 export async function listUnits(propertyId: string): Promise<PropertyUnit[]> {
   const res = await apiFetch<SuccessResponse<PropertyUnit[]>>(
     `/properties/${propertyId}/units`,
+  );
+  return res.data;
+}
+
+export async function getUnit(propertyId: string, unitId: string): Promise<UnitDetail> {
+  const res = await apiFetch<SuccessResponse<UnitDetail>>(
+    `/properties/${propertyId}/units/${unitId}`,
   );
   return res.data;
 }

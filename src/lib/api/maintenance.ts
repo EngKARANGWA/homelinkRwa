@@ -7,6 +7,7 @@ export type MaintenanceStatus = "submitted" | "assigned" | "in_progress" | "comp
 export type MaintenanceRequest = {
   id: string;
   propertyId: string;
+  unitId: string | null;
   tenantId: string;
   title: string;
   description: string;
@@ -32,12 +33,14 @@ export type MaintenanceFeedback = {
 export type ListMaintenanceParams = {
   status?: MaintenanceStatus;
   propertyId?: string;
+  unitId?: string;
   page?: number;
   limit?: number;
 };
 
 export type CreateMaintenanceRequestInput = {
   propertyId: string;
+  unitId?: string;
   title: string;
   description: string;
   priority?: MaintenancePriority;

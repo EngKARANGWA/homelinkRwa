@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { updateUnit } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
-import type { ManualUnitStatus, PropertyUnit } from "@/lib/api/types";
+import type { Floor, ManualUnitStatus, PropertyUnit } from "@/lib/api/types";
 
 /**
  * Edits one unit's own fields via PATCH /properties/:id/units/:unitId.
@@ -13,16 +13,18 @@ import type { ManualUnitStatus, PropertyUnit } from "@/lib/api/types";
 export function EditUnitForm({
   propertyId,
   unit,
+  floors,
   onCancel,
   onSuccess,
 }: {
   propertyId: string;
   unit: PropertyUnit;
+  floors: Floor[];
   onCancel: () => void;
   onSuccess: (updated: PropertyUnit) => void;
 }) {
   const [label, setLabel] = useState(unit.label);
-  const [floor, setFloor] = useState(unit.floor != null ? String(unit.floor) : "");
+  const [floorId, setFloorId] = useState(unit.floorId);
   const [bedrooms, setBedrooms] = useState(unit.bedrooms != null ? String(unit.bedrooms) : "");
   const [bathrooms, setBathrooms] = useState(unit.bathrooms != null ? String(unit.bathrooms) : "");
   const [rentAmount, setRentAmount] = useState(unit.rentAmount);
@@ -46,7 +48,7 @@ export function EditUnitForm({
     try {
       const updated = await updateUnit(propertyId, unit.id, {
         label: label.trim(),
-        floor: floor.trim() ? Number(floor) : undefined,
+        floorId,
         bedrooms: bedrooms.trim() ? Number(bedrooms) : undefined,
         bathrooms: bathrooms.trim() ? Number(bathrooms) : undefined,
         rentAmount: Number(rentAmount),
@@ -89,14 +91,18 @@ export function EditUnitForm({
           />
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Floor (optional)
-          <input
-            type="number"
-            min={0}
-            value={floor}
-            onChange={(e) => setFloor(e.target.value)}
+          Floor
+          <select
+            value={floorId}
+            onChange={(e) => setFloorId(e.target.value)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-          />
+          >
+            {floors.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
         </label>
         <div className="grid grid-cols-2 gap-4">
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">

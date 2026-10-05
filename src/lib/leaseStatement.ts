@@ -105,7 +105,7 @@ export async function buildLeaseStatement(
       : { firstName: "Landlord", lastName: shortId(lease.ownerId) };
 
   return {
-    property: { title: property.title, addressLine: property.addressLine, city: property.city },
+    property: { title: property.title, location: property.location },
     unit: { label: unit?.label ?? "—" },
     tenant: { ...tenant, email: viewer.id === lease.tenantId ? viewer.email : "" },
     owner,
@@ -192,7 +192,7 @@ export async function downloadStatementPdf(statement: LeaseStatement): Promise<v
   const rightX = pageWidth / 2 + 10;
   metaLine(
     "Property:",
-    `${statement.property.title} — ${statement.property.addressLine}, ${statement.property.city}`,
+    `${statement.property.title} — ${statement.property.location}`,
     leftX,
     y + 20,
   );

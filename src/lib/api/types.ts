@@ -70,60 +70,38 @@ export type LoginVerifyInput = {
   code: string;
 };
 
-export type PropertyCategory = "residential" | "commercial";
-
+// "house" | "studio" | "condo" | "other" are legacy values still readable on
+// existing properties (the backend keeps them in its enum for that reason)
+// but are no longer selectable when creating or editing a property — new
+// properties are restricted to apartment/commercial/mixed_use.
 export type PropertyType =
   | "apartment"
   | "house"
   | "studio"
   | "condo"
   | "commercial"
+  | "mixed_use"
   | "other";
 
-export type PropertyAttribute = { label: string; value: string };
+export const SELECTABLE_PROPERTY_TYPES: PropertyType[] = ["apartment", "commercial", "mixed_use"];
 
 export type CreatePropertyInput = {
   title: string;
-  description?: string;
   type: PropertyType;
-  category: PropertyCategory;
-  sizeSqm?: number;
-  unitsCount?: number;
-  upi?: string;
-  terms?: string[];
-  attributes?: PropertyAttribute[];
-  addressLine: string;
-  city: string;
-  state?: string;
-  country: string;
-  postalCode?: string;
-  bedrooms?: number;
-  bathrooms?: number;
-  rentAmount: number;
-  rentConditions?: string;
+  location: string;
+  numberOfFloors: number;
+  // Not yet recognized by the backend — harmless to send (createPropertySchema
+  // isn't .strict(), so an unknown field is just ignored) until basement
+  // support lands there. 0 or undefined means no basement.
+  numberOfBasementFloors?: number;
   ownerId?: string;
 };
 
 export type UpdatePropertyInput = {
   title?: string;
-  description?: string;
   type?: PropertyType;
-  category?: PropertyCategory;
-  sizeSqm?: number;
-  unitsCount?: number;
-  upi?: string;
-  terms?: string[];
-  attributes?: PropertyAttribute[];
-  addressLine?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  postalCode?: string;
-  bedrooms?: number;
-  bathrooms?: number;
-  rentAmount?: number;
-  rentConditions?: string;
-  ownerId?: string;
+  location?: string;
+  status?: PropertyStatus;
 };
 
 export type PropertyStatus = "available" | "occupied";
@@ -138,23 +116,11 @@ export type Property = {
   ownerId: string;
   agentId: string | null;
   title: string;
-  description: string | null;
   type: PropertyType;
-  category: PropertyCategory;
-  sizeSqm: number | null;
-  unitsCount: number | null;
-  upi: string | null;
-  terms: string[] | null;
-  attributes: PropertyAttribute[] | null;
-  addressLine: string;
-  city: string;
-  state: string | null;
-  country: string;
-  postalCode: string | null;
-  bedrooms: number | null;
-  bathrooms: number | null;
-  rentAmount: string;
-  rentConditions: string | null;
+  location: string;
+  numberOfFloors: number;
+  // Undefined until the backend adds basement support (see CreatePropertyInput).
+  numberOfBasementFloors?: number | null;
   status: PropertyStatus;
   approvalStatus: ApprovalStatus;
   isActive: boolean;
@@ -163,6 +129,32 @@ export type Property = {
   rejectionReason: string | null;
   createdAt: string;
   updatedAt: string;
+  // Present only on GET /properties/:id, not on list rows.
+  units?: PropertyUnit[];
+  totalUnits?: number;
+  occupiedUnits?: number;
+  availableUnits?: number;
+  maintenanceUnits?: number;
+  inactiveUnits?: number;
+};
+
+// A property's floors are auto-created from numberOfFloors at registration
+// (Ground, Floor 1, Floor 2, ...) — fetched separately via GET
+// /properties/:id/floors, not embedded on Property.
+export type Floor = {
+  id: string;
+  propertyId: string;
+  name: string;
+  scale: number | null;
+  index: number;
+  unitsCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UpdateFloorInput = {
+  name?: string;
+  scale?: number;
 };
 
 export type PropertyUnit = {
@@ -171,7 +163,7 @@ export type PropertyUnit = {
   label: string;
   unitType: string | null;
   description: string | null;
-  floor: number | null;
+  floorId: string;
   bedrooms: number | null;
   bathrooms: number | null;
   rentAmount: string;
@@ -181,39 +173,59 @@ export type PropertyUnit = {
   updatedAt: string;
 };
 
+// Returned by GET /properties/:id/units/:unitId only.
+export type UnitDetail = PropertyUnit & {
+  floor: Floor | undefined;
+  currentLease: {
+    id: string;
+    tenantId: string;
+    status: LeaseStatus;
+    startDate: string;
+    endDate: string | null;
+  } | null;
+};
+
 // Returned by GET /properties/units (search across a landlord's whole
 // portfolio) — same fields as PropertyUnit plus the parent property's own
-// title/address, for display in a unit picker.
+// title/location, for display in a unit picker.
 export type AvailableUnit = PropertyUnit & {
   propertyTitle: string;
-  propertyAddressLine: string;
+  propertyLocation: string;
 };
 
 export type CreateUnitInput = {
   label: string;
-  floor?: number;
+  floorId: string;
+  unitType?: string;
+  description?: string;
   bedrooms?: number;
   bathrooms?: number;
   rentAmount: number;
+  deposit?: number;
 };
 
 export type ManualUnitStatus = Exclude<UnitStatus, "occupied">;
 
 export type UpdateUnitInput = {
   label?: string;
-  floor?: number;
+  floorId?: string;
+  unitType?: string;
+  description?: string;
   bedrooms?: number;
   bathrooms?: number;
   rentAmount?: number;
+  deposit?: number;
   status?: ManualUnitStatus;
 };
 
 export type GenerateUnitsInput = {
+  floorId: string;
   count: number;
-  floors?: number;
+  unitType?: string;
   bedrooms?: number;
   bathrooms?: number;
   rentAmount: number;
+  deposit?: number;
 };
 
 export type ImportUnitsRowError = { row: number; message: string };
@@ -293,7 +305,7 @@ export type LeaseStatementRow = {
 };
 
 export type LeaseStatement = {
-  property: { title: string; addressLine: string; city: string };
+  property: { title: string; location: string };
   unit: { label: string };
   tenant: { firstName: string; lastName: string; email: string };
   owner: { firstName: string; lastName: string };
@@ -456,8 +468,7 @@ export type TenantDashboard = {
   activeLease: {
     id: string;
     propertyTitle: string;
-    addressLine: string;
-    city: string;
+    location: string;
     rentAmount: number;
     startDate: string;
     endDate: string | null;
@@ -475,6 +486,9 @@ export type PayInvoiceInput = {
   carrier?: PaymentCarrier;
   payerPhone?: string;
   payerAccount?: string;
+};
+export type RecordPaymentInput = {
+  method: Extract<PaymentMethod, "cash" | "bank_transfer">;
 };
 export type PaginationMeta = {
   page: number;

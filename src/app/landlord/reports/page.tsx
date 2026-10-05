@@ -305,11 +305,7 @@ export default function LandlordReportsPage() {
   const totalCollected = dashboard?.revenue.thisYear ?? 0;
   const totalOutstanding = dashboard?.outstandingRent ?? 0;
   const occupancyRate = dashboard?.occupancy.occupancyRatePercent ?? 0;
-  const averageRent = properties.length
-    ? Math.round(
-        properties.reduce((sum, p) => sum + Number(p.rentAmount), 0) / properties.length,
-      )
-    : 0;
+  const totalFloors = properties.reduce((sum, p) => sum + p.numberOfFloors, 0);
 
   const occupancyData = [
     { name: t.dashboard.status.available, value: properties.filter((p) => p.status === "available").length },
@@ -417,7 +413,7 @@ export default function LandlordReportsPage() {
           accent="red"
         />
         <SummaryCard label={c.occupancyRate} value={`${occupancyRate}%`} />
-        <SummaryCard label={c.averageRent} value={`${formatMoney(averageRent)} RWF`} />
+        <SummaryCard label="Total Floors" value={totalFloors} />
       </div>
 
       {revenueByMonth.length > 0 && (

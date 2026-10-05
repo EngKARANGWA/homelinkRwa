@@ -124,9 +124,7 @@ export default function PropertyDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-navy">{property.title}</h1>
-              <p className="mt-1 text-sm text-slate-500">
-                {property.addressLine}, {property.city}
-              </p>
+              <p className="mt-1 text-sm text-slate-500">{property.location}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -181,6 +179,7 @@ export default function PropertyDetailPage() {
           title="Edit Property"
           description="Update this property's details."
           onClose={() => setEditing(false)}
+          maxWidthClassName="max-w-3xl"
         >
           {editError && (
             <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

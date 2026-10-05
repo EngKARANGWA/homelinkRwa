@@ -15,10 +15,9 @@ import type { ApprovalStatus, CreatePropertyInput, Property, PropertyStatus, Use
 import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
 import { PropertyDetail } from "@/components/admin/PropertyDetail";
-import { UnitSetupForm } from "@/components/admin/UnitSetupForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
-import { formatMoney } from "@/lib/money";
+import { formatPropertyType } from "@/lib/propertyType";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const APPROVAL_STYLES: Record<ApprovalStatus, string> = {
@@ -32,10 +31,6 @@ const STATUS_STYLES: Record<PropertyStatus, string> = {
   occupied: "bg-slate-100 text-slate-600",
 };
 
-function capitalize(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
 export default function PropertiesPage() {
   const { t } = useLanguage();
   const c = t.dashboard.admin.properties;
@@ -48,7 +43,6 @@ export default function PropertiesPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [viewingProperty, setViewingProperty] = useState<Property | null>(null);
-  const [unitSetupProperty, setUnitSetupProperty] = useState<Property | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -87,9 +81,6 @@ export default function PropertiesPage() {
       setModalOpen(false);
       setJustAdded(true);
       load();
-      if (created.type === "apartment" || created.type === "commercial") {
-        setUnitSetupProperty(created);
-      }
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Failed to add property.");
     }
@@ -161,7 +152,7 @@ export default function PropertiesPage() {
             <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.property}</Th>
             <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.owner}</Th>
             <Th className="hidden px-6 py-3 lg:table-cell">{t.dashboard.table.type}</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">{t.dashboard.table.rentRwf}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Floors</Th>
             <Th className="hidden px-6 py-3 sm:table-cell">{t.dashboard.table.availability}</Th>
             <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.approval}</Th>
             <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
@@ -180,20 +171,20 @@ export default function PropertiesPage() {
                     {property.title}
                   </p>
                   <p className="hidden text-xs text-slate-400 sm:block">
-                    {property.addressLine}, {property.city}
+                    {property.location}
                   </p>
                   <p className="truncate text-xs text-slate-400 md:hidden">
-                    {ownerName(property.ownerId)} · {capitalize(property.type)}
+                    {ownerName(property.ownerId)} · {formatPropertyType(property.type)}
                   </p>
                 </Td>
                 <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                   {ownerName(property.ownerId)}
                 </Td>
                 <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                  {capitalize(property.category)} · {capitalize(property.type)}
+                  {formatPropertyType(property.type)}
                 </Td>
                 <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                  {formatMoney(Number(property.rentAmount))}
+                  {property.numberOfFloors}
                 </Td>
                 <Td className="hidden px-6 py-3 sm:table-cell">
                   <span
@@ -256,7 +247,12 @@ export default function PropertiesPage() {
       />
 
       {isModalOpen && (
-        <Modal title={c.addTitle} description={c.addDescription} onClose={() => setModalOpen(false)}>
+        <Modal
+          title={c.addTitle}
+          description={c.addDescription}
+          onClose={() => setModalOpen(false)}
+          maxWidthClassName="max-w-3xl"
+        >
           {formError && (
             <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {formError}
@@ -274,23 +270,6 @@ export default function PropertiesPage() {
           maxWidthClassName="max-w-2xl"
         >
           <PropertyDetail property={viewingProperty} ownerName={ownerName(viewingProperty.ownerId)} />
-        </Modal>
-      )}
-
-      {unitSetupProperty && (
-        <Modal
-          title={`Set up units — ${unitSetupProperty.title}`}
-          description="This property is an apartment/commercial building, which usually means multiple rentable units."
-          onClose={() => setUnitSetupProperty(null)}
-        >
-          <UnitSetupForm
-            propertyId={unitSetupProperty.id}
-            onSkip={() => setUnitSetupProperty(null)}
-            onDone={() => {
-              setUnitSetupProperty(null);
-              setJustAdded(true);
-            }}
-          />
         </Modal>
       )}
     </div>

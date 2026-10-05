@@ -3,52 +3,26 @@
 import { useEffect, useState } from "react";
 import { AppLink as Link } from "@/components/shared/AppLink";
 import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, ArrowRight, Eye, Pencil, Plus, UploadCloud } from "lucide-react";
 import {
-  ArrowLeft,
-  ArrowRight,
-  Eye,
-  LayoutGrid,
-  Pencil,
-  Plus,
-  Search,
-  Trash2,
-} from "lucide-react";
-import {
-  deleteUnit,
   getProperty,
-  listUnits,
+  listFloors,
+  listUnitsByFloor,
+  updateFloor,
   updateProperty,
   uploadPropertyDocument,
 } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
-import type { Property, PropertyUnit, UnitStatus, UpdatePropertyInput } from "@/lib/api/types";
+import type { Floor, Property, PropertyUnit, UpdatePropertyInput } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
-import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
 import { UnitSetupForm } from "@/components/admin/UnitSetupForm";
-import { EditUnitForm } from "@/components/admin/EditUnitForm";
+import { ImportUnitsForm } from "@/components/admin/ImportUnitsForm";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
-import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
-import { formatMoney } from "@/lib/money";
 import { useToast } from "@/components/shared/ToastContext";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-
-// DELETE /properties/:id/units/:unitId isn't deployed to production yet
-// (still 404s there as of 2026-09-12) — hide the delete action until it is,
-// rather than shipping a button that always fails. Flip back to true once
-// the backend is deployed.
-const DELETE_UNIT_ENABLED = false;
-
-type StatusFilter = "All" | UnitStatus;
-
-const UNIT_STATUS_BADGE_STYLES: Record<UnitStatus, string> = {
-  available: "bg-slate-100 text-slate-600",
-  occupied: "bg-emerald-50 text-emerald-700",
-  maintenance: "bg-amber-50 text-amber-700",
-  inactive: "bg-slate-200 text-slate-500",
-};
 
 export default function PropertyDetailPage() {
   const { t } = useLanguage();
@@ -58,63 +32,48 @@ export default function PropertyDetailPage() {
   const router = useRouter();
 
   const [property, setProperty] = useState<Property | null>(null);
-  const [units, setUnits] = useState<PropertyUnit[]>([]);
+  const [floors, setFloors] = useState<Floor[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [isAddingTenant, setAddingTenant] = useState(false);
   const [isEditing, setEditing] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const [isManagingUnits, setManagingUnits] = useState(false);
-  const [deletingUnit, setDeletingUnit] = useState<PropertyUnit | null>(null);
-  const [editingUnit, setEditingUnit] = useState<PropertyUnit | null>(null);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
-  const [page, setPage] = useState(1);
+  const [isImporting, setImporting] = useState(false);
+  const [managingFloor, setManagingFloor] = useState<Floor | null>(null);
+  const [editingFloor, setEditingFloor] = useState<Floor | null>(null);
+  const [floorError, setFloorError] = useState<string | null>(null);
+  const [floorName, setFloorName] = useState("");
+  const [floorScale, setFloorScale] = useState("");
+  const [floorUnits, setFloorUnits] = useState<PropertyUnit[]>([]);
+  const [loadingFloorUnits, setLoadingFloorUnits] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
     if (!id) return;
-    let cancelled = false;
     setLoading(true);
-    Promise.all([getProperty(id), listUnits(id)])
-      .then(([propertyResult, unitsResult]) => {
-        if (cancelled) return;
+    Promise.all([getProperty(id), listFloors(id)])
+      .then(([propertyResult, floorsResult]) => {
         setProperty(propertyResult);
-        setUnits(unitsResult);
+        setFloors(floorsResult);
         setLoadError(null);
       })
       .catch((err) => {
-        if (!cancelled) {
-          setLoadError(err instanceof ApiError ? err.message : "Failed to load this property.");
-        }
+        setLoadError(err instanceof ApiError ? err.message : "Failed to load this property.");
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  const reloadUnits = () => {
-    if (!id) return;
-    listUnits(id).then(setUnits).catch(() => undefined);
+      .finally(() => setLoading(false));
   };
 
-  const filteredUnits = units.filter((u) => {
-    const matchesSearch = !search.trim() || u.label.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "All" || u.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  useEffect(load, [id]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredUnits.length / DEFAULT_PAGE_SIZE));
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
-  const pagedUnits = filteredUnits.slice(
-    (page - 1) * DEFAULT_PAGE_SIZE,
-    page * DEFAULT_PAGE_SIZE,
-  );
+  const reload = () => {
+    if (!id) return;
+    Promise.all([getProperty(id), listFloors(id)])
+      .then(([propertyResult, floorsResult]) => {
+        setProperty(propertyResult);
+        setFloors(floorsResult);
+      })
+      .catch(() => undefined);
+  };
 
   if (isLoading) {
     return (
@@ -138,13 +97,11 @@ export default function PropertyDetailPage() {
     );
   }
 
-  const totalUnits = units.length;
-  const occupied = units.filter((u) => u.status === "occupied").length;
-  const occupancyPercent = totalUnits ? Math.round((occupied / totalUnits) * 100) : 0;
+  const totalUnits = floors.reduce((sum, f) => sum + f.unitsCount, 0);
 
   const handleAddTenant = () => {
     setAddingTenant(false);
-    reloadUnits();
+    reload();
     toast.success(
       `Tenant added and assigned to their unit in ${property.title} — they'll receive an email to set up their account.`,
     );
@@ -164,16 +121,40 @@ export default function PropertyDetailPage() {
     }
   };
 
-  const handleDeleteUnit = async () => {
-    if (!deletingUnit) return;
-    try {
-      await deleteUnit(property.id, deletingUnit.id);
-    } catch (err) {
-      throw new Error(err instanceof ApiError ? err.message : "Failed to delete this unit.");
+  const openEditFloor = (floor: Floor) => {
+    setFloorError(null);
+    setFloorName(floor.name);
+    setFloorScale(floor.scale != null ? String(floor.scale) : "");
+    setEditingFloor(floor);
+  };
+
+  const openManageFloor = (floor: Floor) => {
+    setManagingFloor(floor);
+    setLoadingFloorUnits(true);
+    listUnitsByFloor(property.id, floor.id)
+      .then(setFloorUnits)
+      .catch(() => setFloorUnits([]))
+      .finally(() => setLoadingFloorUnits(false));
+  };
+
+  const handleSaveFloor = async () => {
+    if (!editingFloor) return;
+    if (!floorName.trim()) {
+      setFloorError("Enter a name for this floor.");
+      return;
     }
-    toast.success(`"${deletingUnit.label}" deleted.`);
-    setDeletingUnit(null);
-    reloadUnits();
+    setFloorError(null);
+    try {
+      await updateFloor(property.id, editingFloor.id, {
+        name: floorName.trim(),
+        scale: floorScale.trim() ? Number(floorScale) : undefined,
+      });
+      setEditingFloor(null);
+      reload();
+      toast.success(`"${floorName.trim()}" updated.`);
+    } catch (err) {
+      setFloorError(err instanceof ApiError ? err.message : "Failed to update this floor.");
+    }
   };
 
   return (
@@ -189,7 +170,7 @@ export default function PropertyDetailPage() {
             {c.back}
           </button>
           <h1 className="mt-2 text-2xl font-bold text-navy">{property.title}</h1>
-          <p className="mt-1 text-sm text-slate-500">{property.addressLine}</p>
+          <p className="mt-1 text-sm text-slate-500">{property.location}</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -202,11 +183,11 @@ export default function PropertyDetailPage() {
           </button>
           <button
             type="button"
-            onClick={() => setManagingUnits(true)}
+            onClick={() => setImporting(true)}
             className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
           >
-            <LayoutGrid className="h-4 w-4" />
-            Manage Units
+            <UploadCloud className="h-4 w-4" />
+            Import from Excel
           </button>
           <button
             type="button"
@@ -219,132 +200,72 @@ export default function PropertyDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-2 gap-5 lg:grid-cols-3">
+        <SummaryCard label="Floors" value={property.numberOfFloors} />
         <SummaryCard label={c.summaryUnits} value={totalUnits} />
-        <SummaryCard label={c.summaryOccupied} value={`${occupancyPercent}%`} />
-      </div>
-
-      {property.unitsCount != null && property.unitsCount !== totalUnits && (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          This property is set to <strong>{property.unitsCount}</strong> planned units, but has{" "}
-          <strong>{totalUnits}</strong> actual unit record{totalUnits === 1 ? "" : "s"}
-          {" "}below. Use &quot;Manage Units&quot; to add or remove units so the two match.
-        </p>
-      )}
-
-      <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <label className="flex min-w-[200px] flex-1 flex-col gap-1.5 text-sm font-medium text-slate-700">
-          {c.search}
-          <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 focus-within:border-gold">
-            <Search className="h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by unit label"
-              className="w-full bg-transparent text-sm text-navy placeholder:text-slate-400 focus:outline-none"
-            />
-          </div>
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          {c.status}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-          >
-            <option value="All">{c.statusAll}</option>
-            <option value="available">{t.dashboard.status.available}</option>
-            <option value="occupied">{t.dashboard.status.occupied}</option>
-            <option value="maintenance">{t.dashboard.status.maintenance}</option>
-            <option value="inactive">{t.dashboard.status.inactive}</option>
-          </select>
-        </label>
+        <SummaryCard label={c.summaryOccupied} value={property.occupiedUnits ?? 0} />
       </div>
 
       <Table variant="standalone">
         <THead>
           <Tr>
-            <Th className="max-w-[9rem] px-4 py-3 sm:px-6">{t.dashboard.table.unit}</Th>
-            <Th className="hidden px-6 py-3 sm:table-cell">Floor</Th>
-            <Th className="hidden px-6 py-3 md:table-cell">{c.monthlyAmount}</Th>
-            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+            <Th className="max-w-[9rem] px-4 py-3 sm:px-6">Floor</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">Units</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">Scale</Th>
             <Th className="px-4 py-3 text-right sm:px-6">Action</Th>
           </Tr>
         </THead>
         <TBody>
-          {pagedUnits.map((unit) => (
-            <Tr key={unit.id}>
+          {floors.map((floor) => (
+            <Tr key={floor.id}>
               <Td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
                 <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                  {unit.label}
+                  {floor.name}
                 </p>
-                <p className="truncate text-xs text-slate-400 md:hidden">
-                  {formatMoney(Number(unit.rentAmount))} RWF
+                <p className="truncate text-xs text-slate-400 sm:hidden">
+                  {floor.unitsCount} unit{floor.unitsCount === 1 ? "" : "s"}
                 </p>
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                {unit.floor ?? "—"}
+                {floor.unitsCount}
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                {formatMoney(Number(unit.rentAmount))}
-              </Td>
-              <Td className="px-4 py-3 sm:px-6">
-                <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${UNIT_STATUS_BADGE_STYLES[unit.status]}`}
-                >
-                  {t.dashboard.status[unit.status]}
-                </span>
+                {floor.scale != null ? floor.scale : "—"}
               </Td>
               <Td className="px-4 py-3 text-right sm:px-6">
                 <div className="flex items-center justify-end gap-1">
                   <button
                     type="button"
-                    onClick={() => router.push(`/landlord/properties/${property.id}/units/${unit.id}`)}
-                    title="View unit details"
+                    onClick={() =>
+                      router.push(`/landlord/properties/${property.id}/floors/${floor.id}`)
+                    }
+                    title="View this floor's units"
                     className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy"
                   >
                     <Eye className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditingUnit(unit)}
-                    title="Edit this unit"
+                    onClick={() => openEditFloor(floor)}
+                    title="Edit this floor"
                     className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
-                  {DELETE_UNIT_ENABLED && (
-                    <button
-                      type="button"
-                      disabled={unit.status === "occupied"}
-                      onClick={() => setDeletingUnit(unit)}
-                      title={
-                        unit.status === "occupied"
-                          ? "End the lease on this unit before deleting it"
-                          : "Delete this unit"
-                      }
-                      className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => openManageFloor(floor)}
+                    className="ml-1 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    Manage Floor
+                  </button>
                 </div>
               </Td>
             </Tr>
           ))}
-          {pagedUnits.length === 0 && <EmptyRow colSpan={5}>{c.noUnitsMatch}</EmptyRow>}
+          {floors.length === 0 && <EmptyRow colSpan={4}>No floors on this property yet.</EmptyRow>}
         </TBody>
       </Table>
-
-      <Pagination
-        page={page}
-        totalPages={totalPages}
-        totalItems={filteredUnits.length}
-        pageSize={DEFAULT_PAGE_SIZE}
-        onPageChange={setPage}
-      />
 
       <Link
         href="/landlord/leases"
@@ -362,7 +283,6 @@ export default function PropertyDetailPage() {
         >
           <AddTenantForm
             propertyId={property.id}
-            defaultRentAmount={Number(property.rentAmount)}
             onCancel={() => setAddingTenant(false)}
             onSuccess={handleAddTenant}
           />
@@ -374,6 +294,7 @@ export default function PropertyDetailPage() {
           title={c.editPropertyTitle}
           description={c.editPropertyDescription}
           onClose={() => setEditing(false)}
+          maxWidthClassName="max-w-3xl"
         >
           {editError && (
             <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -390,56 +311,104 @@ export default function PropertyDetailPage() {
         </Modal>
       )}
 
-      {editingUnit && (
+      {isImporting && (
         <Modal
-          title={`Edit Unit — ${editingUnit.label}`}
-          description="Update this unit's own details."
-          onClose={() => setEditingUnit(null)}
+          title="Import units from Excel"
+          description={`Bulk-create units across ${property.title}'s floors from a spreadsheet.`}
+          onClose={() => setImporting(false)}
         >
-          <EditUnitForm
+          <ImportUnitsForm
             propertyId={property.id}
-            unit={editingUnit}
-            onCancel={() => setEditingUnit(null)}
-            onSuccess={() => {
-              setEditingUnit(null);
-              reloadUnits();
-              toast.success(`"${editingUnit.label}" updated.`);
+            floors={floors}
+            onCancel={() => setImporting(false)}
+            onDone={(createdCount) => {
+              setImporting(false);
+              reload();
+              toast.success(`${createdCount} unit${createdCount === 1 ? "" : "s"} imported.`);
             }}
           />
         </Modal>
       )}
 
-      {isManagingUnits && (
+      {editingFloor && (
         <Modal
-          title={`Manage Units — ${property.title}`}
-          description="Add units to this property, or import/generate several at once."
-          onClose={() => setManagingUnits(false)}
+          title={`Edit Floor — ${editingFloor.name}`}
+          description="Update this floor's name or scale (size/area)."
+          onClose={() => setEditingFloor(null)}
+        >
+          {floorError && (
+            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {floorError}
+            </p>
+          )}
+          <div className="flex flex-col gap-4">
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+              Floor name
+              <input
+                type="text"
+                value={floorName}
+                onChange={(e) => setFloorName(e.target.value)}
+                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+              Scale (size/area)
+              <input
+                type="number"
+                min={0}
+                value={floorScale}
+                onChange={(e) => setFloorScale(e.target.value)}
+                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+              />
+            </label>
+            <div className="mt-2 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setEditingFloor(null)}
+                className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                {t.dashboard.actions.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveFloor}
+                className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white hover:bg-gold/90"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {managingFloor && (
+        <Modal
+          title={`Manage Floor — ${managingFloor.name}`}
+          description={
+            loadingFloorUnits
+              ? "Loading this floor's current units..."
+              : `Add units to ${managingFloor.name} in ${property.title}.`
+          }
+          onClose={() => setManagingFloor(null)}
         >
           <UnitSetupForm
             propertyId={property.id}
-            units={units}
-            onSkip={() => setManagingUnits(false)}
+            floorId={managingFloor.id}
+            floorName={managingFloor.name}
+            units={floorUnits ?? []}
+            onSkip={() => setManagingFloor(null)}
             onDone={({ created, removed }) => {
-              setManagingUnits(false);
-              reloadUnits();
+              setManagingFloor(null);
+              reload();
               const parts: string[] = [];
               if (created > 0) parts.push(`${created} unit${created === 1 ? "" : "s"} added`);
               if (removed > 0) parts.push(`${removed} unit${removed === 1 ? "" : "s"} removed`);
-              if (parts.length > 0) toast.success(`${parts.join(" and ")} for ${property.title}.`);
+              if (parts.length > 0) {
+                toast.success(`${parts.join(" and ")} on ${managingFloor.name}.`);
+              }
             }}
           />
         </Modal>
-      )}
-
-      {deletingUnit && (
-        <ConfirmModal
-          title="Delete unit"
-          description={`Delete unit "${deletingUnit.label}"? This can't be undone.`}
-          confirmLabel="Delete"
-          tone="danger"
-          onCancel={() => setDeletingUnit(null)}
-          onConfirm={handleDeleteUnit}
-        />
       )}
     </div>
   );

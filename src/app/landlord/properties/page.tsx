@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
-  Building2,
   CheckCircle2,
   Eye,
   Home,
@@ -30,10 +29,9 @@ import type {
 import { useAuth } from "@/components/auth/AuthContext";
 import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
-import { UnitSetupForm } from "@/components/admin/UnitSetupForm";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
-import { formatMoney } from "@/lib/money";
+import { formatPropertyType } from "@/lib/propertyType";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { Translations } from "@/lib/i18n/translations";
 
@@ -59,15 +57,6 @@ const APPROVAL_KEY: Record<ApprovalStatus, keyof Translations["dashboard"]["stat
   rejected: "rejected",
 };
 
-const CATEGORY_KEY: Record<Property["category"], keyof Translations["dashboard"]["status"]> = {
-  residential: "residential",
-  commercial: "commercial",
-};
-
-function capitalize(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
 export default function LandlordPropertiesPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -80,7 +69,6 @@ export default function LandlordPropertiesPage() {
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
-  const [unitSetupProperty, setUnitSetupProperty] = useState<Property | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -113,9 +101,6 @@ export default function LandlordPropertiesPage() {
       setAdding(false);
       setJustSaved(true);
       load();
-      if (created.type === "apartment" || created.type === "commercial") {
-        setUnitSetupProperty(created);
-      }
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Failed to add property.");
     }
@@ -216,62 +201,57 @@ export default function LandlordPropertiesPage() {
               {c.noProperties}
             </div>
           ) : (
-            properties.map((property) => {
-              const Icon = property.category === "commercial" ? Building2 : Home;
-              return (
-                <div
-                  key={property.id}
-                  className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+            properties.map((property) => (
+              <div
+                key={property.id}
+                className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <button
+                  type="button"
+                  onClick={() => setEditingProperty(property)}
+                  aria-label={c.editAriaTemplate.replace("{name}", property.title)}
+                  className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-sm hover:bg-slate-100"
                 >
-                  <button
-                    type="button"
-                    onClick={() => setEditingProperty(property)}
-                    aria-label={c.editAriaTemplate.replace("{name}", property.title)}
-                    className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-sm hover:bg-slate-100"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <Link href={`/landlord/properties/${property.id}`} className="block p-5">
-                    <div className="flex items-start gap-3 pr-8">
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold/10 text-gold">
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-navy">
-                          {property.title}
-                        </p>
-                        <p className="truncate text-xs text-slate-500">
-                          {property.addressLine}, {property.city}
-                        </p>
-                      </div>
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <Link href={`/landlord/properties/${property.id}`} className="block p-5">
+                  <div className="flex items-start gap-3 pr-8">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold/10 text-gold">
+                      <Home className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-navy">
+                        {property.title}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">{property.location}</p>
                     </div>
+                  </div>
 
-                    <div className="mt-5 grid grid-cols-3 gap-3 border-t border-slate-100 pt-4">
-                      <div>
-                        <p className="text-xs text-slate-400">{t.dashboard.table.type}</p>
-                        <p className="mt-0.5 truncate font-semibold text-navy">
-                          {capitalize(property.type)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-400">{t.dashboard.table.rentRwf}</p>
-                        <p className="mt-0.5 truncate font-semibold text-navy">
-                          {formatMoney(Number(property.rentAmount))} RWF
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-400">{t.dashboard.table.status}</p>
-                        <span
-                          className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[property.status]}`}
-                        >
-                          {t.dashboard.status[STATUS_KEY[property.status]]}
-                        </span>
-                      </div>
+                  <div className="mt-5 grid grid-cols-3 gap-3 border-t border-slate-100 pt-4">
+                    <div>
+                      <p className="text-xs text-slate-400">{t.dashboard.table.type}</p>
+                      <p className="mt-0.5 truncate font-semibold text-navy">
+                        {formatPropertyType(property.type)}
+                      </p>
                     </div>
-                  </Link>
-                </div>
-              );
-            })
+                    <div>
+                      <p className="text-xs text-slate-400">Floors</p>
+                      <p className="mt-0.5 truncate font-semibold text-navy">
+                        {property.numberOfFloors}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400">{t.dashboard.table.status}</p>
+                      <span
+                        className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[property.status]}`}
+                      >
+                        {t.dashboard.status[STATUS_KEY[property.status]]}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            ))
           )}
         </div>
       ) : (
@@ -299,17 +279,18 @@ export default function LandlordPropertiesPage() {
                       {property.title}
                     </p>
                     <p className="hidden text-xs text-slate-400 sm:block">
-                      {property.addressLine}, {property.city}
+                      {property.location}
                     </p>
                     <p className="truncate text-xs text-slate-400 md:hidden">
-                      {capitalize(property.type)} · {formatMoney(Number(property.rentAmount))} RWF
+                      {formatPropertyType(property.type)} · {property.numberOfFloors} floor
+                      {property.numberOfFloors === 1 ? "" : "s"}
                     </p>
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                    {t.dashboard.status[CATEGORY_KEY[property.category]]} · {capitalize(property.type)}
+                    {formatPropertyType(property.type)}
                   </Td>
                   <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                    {formatMoney(Number(property.rentAmount))}
+                    {property.numberOfFloors} floor{property.numberOfFloors === 1 ? "" : "s"}
                   </Td>
                   <Td className="hidden px-6 py-3 sm:table-cell">
                     <span
@@ -365,6 +346,7 @@ export default function LandlordPropertiesPage() {
           title={c.addPropertyTitle}
           description={c.addPropertyDescription}
           onClose={() => setAdding(false)}
+          maxWidthClassName="max-w-3xl"
         >
           {formError && (
             <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -385,6 +367,7 @@ export default function LandlordPropertiesPage() {
           title={c.editPropertyTitle}
           description={c.editPropertyDescription}
           onClose={() => setEditingProperty(null)}
+          maxWidthClassName="max-w-3xl"
         >
           {formError && (
             <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -397,23 +380,6 @@ export default function LandlordPropertiesPage() {
             initialProperty={editingProperty}
             onCancel={() => setEditingProperty(null)}
             onSuccess={editProperty}
-          />
-        </Modal>
-      )}
-
-      {unitSetupProperty && (
-        <Modal
-          title={`Set up units — ${unitSetupProperty.title}`}
-          description="This property is an apartment/commercial building, which usually means multiple rentable units."
-          onClose={() => setUnitSetupProperty(null)}
-        >
-          <UnitSetupForm
-            propertyId={unitSetupProperty.id}
-            onSkip={() => setUnitSetupProperty(null)}
-            onDone={() => {
-              setUnitSetupProperty(null);
-              setJustSaved(true);
-            }}
           />
         </Modal>
       )}

@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppLink as Link } from "@/components/shared/AppLink";
 import { ArrowLeft, CheckCircle2, Eye, Pencil, Plus } from "lucide-react";
-import { getProperty, listUnits } from "@/lib/api/properties";
+import { getProperty, getUnit, listFloors } from "@/lib/api/properties";
 import { getLease, listLeases } from "@/lib/api/leases";
 import { listPayments } from "@/lib/api/payments";
+import { listMaintenanceRequests } from "@/lib/api/maintenance";
+import type { MaintenanceRequest } from "@/lib/api/maintenance";
 import { ApiError } from "@/lib/api/client";
-import type { Lease, Payment, Property, PropertyUnit, UnitStatus } from "@/lib/api/types";
+import type { Floor, Lease, Payment, Property, UnitDetail, UnitStatus } from "@/lib/api/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Modal } from "@/components/admin/Modal";
 import { EditUnitForm } from "@/components/admin/EditUnitForm";
@@ -28,7 +30,14 @@ const UNIT_STATUS_BADGE_STYLES: Record<UnitStatus, string> = {
   inactive: "bg-slate-200 text-slate-500",
 };
 
-type Tab = "tenant" | "history" | "payments";
+const MAINTENANCE_STATUS_STYLES: Record<MaintenanceRequest["status"], string> = {
+  submitted: "bg-slate-100 text-slate-600",
+  assigned: "bg-amber-50 text-amber-700",
+  in_progress: "bg-amber-50 text-amber-700",
+  completed: "bg-emerald-50 text-emerald-700",
+};
+
+type Tab = "tenant" | "history" | "payments" | "maintenance";
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return "—";
@@ -63,10 +72,12 @@ export default function UnitDetailPage() {
   const router = useRouter();
 
   const [property, setProperty] = useState<Property | null>(null);
-  const [unit, setUnit] = useState<PropertyUnit | null>(null);
+  const [floors, setFloors] = useState<Floor[]>([]);
+  const [unit, setUnit] = useState<UnitDetail | null>(null);
   const [unitLeases, setUnitLeases] = useState<Lease[]>([]);
   const [currentLease, setCurrentLease] = useState<Lease | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -83,21 +94,24 @@ export default function UnitDetailPage() {
     setLoading(true);
     Promise.all([
       getProperty(id),
-      listUnits(id),
+      listFloors(id),
+      getUnit(id, unitId),
       listPayments({ unitId, limit: 50 }),
-      listLeases({ propertyId: id, limit: 100 }),
+      listLeases({ unitId, limit: 100 }),
+      listMaintenanceRequests({ unitId, limit: 50 }),
     ])
-      .then(async ([propertyResult, unitsResult, paymentsResult, leasesResult]) => {
+      .then(async ([propertyResult, floorsResult, unitResult, paymentsResult, leasesResult, maintenanceResult]) => {
         if (cancelled) return;
-        const unitResult = unitsResult.find((u) => u.id === unitId) ?? null;
-        const thisUnitLeases = leasesResult.data
-          .filter((l) => l.unitId === unitId)
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const thisUnitLeases = leasesResult.data.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
 
         setProperty(propertyResult);
+        setFloors(floorsResult);
         setUnit(unitResult);
         setPayments(paymentsResult.data);
         setUnitLeases(thisUnitLeases);
+        setMaintenanceRequests(maintenanceResult.data);
 
         const activeLease = thisUnitLeases.find((l) => l.status === "active") ?? thisUnitLeases[0] ?? null;
         const full = activeLease ? await getLease(activeLease.id) : null;
@@ -150,10 +164,16 @@ export default function UnitDetailPage() {
     );
   }
 
+  const totalExpenses = maintenanceRequests.reduce(
+    (sum, r) => sum + Number(r.itemsCost ?? 0) + Number(r.laborCost ?? 0),
+    0,
+  );
+
   const TABS: { key: Tab; label: string }[] = [
     { key: "tenant", label: "Current Tenant" },
     { key: "history", label: `Tenant History (${unitLeases.length})` },
     { key: "payments", label: `Payments (${payments.length})` },
+    { key: "maintenance", label: `Maintenance & Expenses (${maintenanceRequests.length})` },
   ];
 
   return (
@@ -170,7 +190,7 @@ export default function UnitDetailPage() {
           </button>
           <h1 className="mt-2 text-2xl font-bold text-navy">{unit.label}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {property.title} · {property.addressLine}
+            {property.title} · {property.location}
           </p>
         </div>
         <button
@@ -207,7 +227,7 @@ export default function UnitDetailPage() {
           <Field label={c.deposit}>
             {unit.deposit != null ? `${formatMoney(Number(unit.deposit))} RWF` : "—"}
           </Field>
-          <Field label="Floor">{unit.floor ?? "—"}</Field>
+          <Field label="Floor">{unit.floor?.name ?? "—"}</Field>
           <Field label="Bedrooms">{unit.bedrooms ?? "—"}</Field>
           <Field label="Bathrooms">{unit.bathrooms ?? "—"}</Field>
         </div>
@@ -224,13 +244,13 @@ export default function UnitDetailPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
+      <div className="flex gap-2 overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-1">
         {TABS.map((tabDef) => (
           <button
             key={tabDef.key}
             type="button"
             onClick={() => setTab(tabDef.key)}
-            className={`flex flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+            className={`flex flex-1 shrink-0 items-center justify-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
               tab === tabDef.key ? "bg-white text-navy shadow-sm" : "text-slate-500"
             }`}
           >
@@ -357,6 +377,48 @@ export default function UnitDetailPage() {
         </div>
       )}
 
+      {tab === "maintenance" && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <p className="font-semibold text-navy">Maintenance requests</p>
+            <p className="text-sm text-slate-500">
+              Total expenses: <strong className="text-navy">{formatMoney(totalExpenses)} RWF</strong>
+            </p>
+          </div>
+          <Table variant="plain">
+            <THead>
+              <Tr>
+                <Th className="py-2">Title</Th>
+                <Th className="py-2">Status</Th>
+                <Th className="py-2">Cost</Th>
+                <Th className="py-2">Date</Th>
+              </Tr>
+            </THead>
+            <TBody>
+              {maintenanceRequests.map((r) => (
+                <Tr key={r.id}>
+                  <Td className="py-2.5 font-medium text-navy">{r.title}</Td>
+                  <Td className="py-2.5">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${MAINTENANCE_STATUS_STYLES[r.status]}`}
+                    >
+                      {r.status.replace("_", " ")}
+                    </span>
+                  </Td>
+                  <Td className="py-2.5 text-slate-500">
+                    {formatMoney(Number(r.itemsCost ?? 0) + Number(r.laborCost ?? 0))} RWF
+                  </Td>
+                  <Td className="py-2.5 text-slate-500">{formatDate(r.createdAt)}</Td>
+                </Tr>
+              ))}
+              {maintenanceRequests.length === 0 && (
+                <EmptyRow colSpan={4}>No maintenance requests for this unit yet.</EmptyRow>
+              )}
+            </TBody>
+          </Table>
+        </div>
+      )}
+
       {isEditing && (
         <Modal
           title={`Edit Unit — ${unit.label}`}
@@ -366,6 +428,7 @@ export default function UnitDetailPage() {
           <EditUnitForm
             propertyId={property.id}
             unit={unit}
+            floors={floors}
             onCancel={() => setEditing(false)}
             onSuccess={() => {
               setEditing(false);

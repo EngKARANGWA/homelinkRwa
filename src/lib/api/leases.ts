@@ -16,6 +16,7 @@ import type {
 export type ListLeasesParams = {
   status?: string;
   propertyId?: string;
+  unitId?: string;
   page?: number;
   limit?: number;
 };

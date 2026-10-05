@@ -7,6 +7,7 @@ import type {
   Payment,
   PaymentReceiptUrl,
   PaymentStatus,
+  RecordPaymentInput,
   SuccessResponse,
 } from "./types";
 
@@ -37,6 +38,17 @@ export async function payInvoice(
     method: "POST",
     body: input,
   });
+  return res.data;
+}
+
+export async function recordPayment(
+  id: string,
+  input: RecordPaymentInput,
+): Promise<Payment> {
+  const res = await apiFetch<SuccessResponse<Payment>>(
+    `/invoices/${id}/record-payment`,
+    { method: "POST", body: input },
+  );
   return res.data;
 }
 

@@ -22,6 +22,7 @@ import {
   getPaymentReceipt,
   listInvoices,
   listPayments,
+  recordPayment,
   rejectPayment,
 } from "@/lib/api/payments";
 import { ApiError } from "@/lib/api/client";
@@ -32,6 +33,7 @@ import type {
   Payment,
   PaymentStatus,
   Property,
+  RecordPaymentInput,
 } from "@/lib/api/types";
 import {
   formatStatusLabel,
@@ -46,6 +48,7 @@ import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboar
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { Modal } from "@/components/admin/Modal";
 
 type RowStatus = InvoiceStatus | PaymentStatus;
 
@@ -109,6 +112,12 @@ function LandlordPaymentsPageContent() {
   );
   const [methodFilter, setMethodFilter] = useState<"All" | Payment["method"]>("All");
   const [page, setPage] = useState(1);
+  const [showRecordModal, setShowRecordModal] = useState(false);
+  const [recordInvoiceId, setRecordInvoiceId] = useState("");
+  const [recordMethod, setRecordMethod] =
+    useState<RecordPaymentInput["method"]>("cash");
+  const [recordSubmitting, setRecordSubmitting] = useState(false);
+  const [recordError, setRecordError] = useState<string | null>(null);
 
   const TABS: { key: "All" | "pending" | "overdue"; label: string }[] = [
     { key: "All", label: t.dashboard.actions.all },
@@ -288,6 +297,42 @@ function LandlordPaymentsPageContent() {
     }
   };
 
+  const recordableInvoices = invoices.filter((inv) => inv.status !== "paid");
+
+  const openRecordModal = () => {
+    setRecordError(null);
+    setRecordMethod("cash");
+    setRecordInvoiceId(recordableInvoices[0]?.id ?? "");
+    setShowRecordModal(true);
+  };
+
+  const submitRecordPayment = async () => {
+    if (!recordInvoiceId) {
+      setRecordError(t.dashboard.landlord.recordPaymentForm.errorNoTenants);
+      return;
+    }
+    const invoice = invoiceById.get(recordInvoiceId);
+    const lease = invoice ? leaseById.get(invoice.leaseId) : undefined;
+    setRecordSubmitting(true);
+    setRecordError(null);
+    try {
+      const payment = await recordPayment(recordInvoiceId, { method: recordMethod });
+      setShowRecordModal(false);
+      setNotice(
+        c.recordedPaymentTemplate
+          .replace("{amount}", formatMoney(Number(payment.amount)))
+          .replace("{tenant}", lease ? tenantName(lease.tenantId) : "the tenant"),
+      );
+      load();
+    } catch (err) {
+      setRecordError(
+        err instanceof ApiError ? err.message : "Failed to record the payment.",
+      );
+    } finally {
+      setRecordSubmitting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -298,6 +343,14 @@ function LandlordPaymentsPageContent() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={openRecordModal}
+            className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+          >
+            <Wallet className="h-4 w-4" />
+            {c.recordPaymentCash}
+          </button>
           <button
             type="button"
             onClick={handleExport}
@@ -559,6 +612,80 @@ function LandlordPaymentsPageContent() {
           onPageChange={setPage}
         />
       </Card>
+
+      {showRecordModal && (
+        <Modal
+          title={c.recordPaymentTitle}
+          description={c.recordPaymentDescription}
+          onClose={() => setShowRecordModal(false)}
+        >
+          <div className="flex flex-col gap-4">
+            {recordError && (
+              <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                <AlertCircle className="h-4 w-4" />
+                {recordError}
+              </div>
+            )}
+            {recordableInvoices.length === 0 ? (
+              <p className="text-sm text-slate-500">{t.dashboard.landlord.recordPaymentForm.errorNoTenants}</p>
+            ) : (
+              <>
+                <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                  {t.dashboard.landlord.recordPaymentForm.tenantUnit}
+                  <select
+                    value={recordInvoiceId}
+                    onChange={(e) => setRecordInvoiceId(e.target.value)}
+                    className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                  >
+                    {recordableInvoices.map((inv) => {
+                      const lease = leaseById.get(inv.leaseId);
+                      const property = propertyForInvoice(inv);
+                      return (
+                        <option key={inv.id} value={inv.id}>
+                          {lease ? tenantName(lease.tenantId) : "—"} — {property?.title ?? "—"} —{" "}
+                          {inv.period} — {formatMoney(Number(inv.amountDue))} RWF
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                  {t.dashboard.landlord.recordPaymentForm.paymentMethod}
+                  <select
+                    value={recordMethod}
+                    onChange={(e) =>
+                      setRecordMethod(e.target.value as RecordPaymentInput["method"])
+                    }
+                    className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                  >
+                    <option value="cash">{t.dashboard.landlord.paymentMethods.cash}</option>
+                    <option value="bank_transfer">
+                      {t.dashboard.landlord.paymentMethods.bankTransfer}
+                    </option>
+                  </select>
+                </label>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowRecordModal(false)}
+                    className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                  >
+                    {t.dashboard.actions.cancel}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitRecordPayment}
+                    disabled={recordSubmitting}
+                    className="rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:opacity-50"
+                  >
+                    {recordSubmitting ? "..." : t.dashboard.landlord.recordPaymentForm.submit}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

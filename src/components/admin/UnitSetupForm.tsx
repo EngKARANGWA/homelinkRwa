@@ -1,48 +1,43 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Equal, ListPlus, Plus, UploadCloud, Wand2 } from "lucide-react";
-import {
-  createUnit,
-  deleteUnit,
-  downloadUnitsImportTemplate,
-  generateUnits,
-  importUnits,
-  previewImportUnits,
-} from "@/lib/api/properties";
+import { Equal, ListPlus, Plus, Wand2 } from "lucide-react";
+import { createUnit, deleteUnit, generateUnits } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
-import type { CreateUnitInput, ImportUnitsRowError, PropertyUnit } from "@/lib/api/types";
+import type { PropertyUnit } from "@/lib/api/types";
 import { formatMoney } from "@/lib/money";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
 
-type Mode = "manual" | "generate" | "import" | "exact";
+type Mode = "manual" | "generate" | "exact";
 
 /**
- * Shown right after creating an apartment/commercial property (and from the
- * "Manage Units" action on an existing one) — offers a fast way to set up
- * many units at once instead of adding them one by one. Purely optional:
- * onSkip leaves the property's units untouched.
+ * Adds units to ONE floor of a property — invoked from that floor's "Manage
+ * Floor" action. Each floor already exists (auto-created from the
+ * property's numberOfFloors at registration); this only ever adds units
+ * onto the given floorId, never creates/distributes floors itself.
  */
 export function UnitSetupForm({
   propertyId,
-  units = [],
+  floorId,
+  floorName,
+  units,
   onDone,
   onSkip,
 }: {
   propertyId: string;
-  /** Current real unit records, if known — powers the "Set exact total" mode. */
-  units?: PropertyUnit[];
+  floorId: string;
+  floorName: string;
+  /** This floor's current real unit records — powers the "Set exact total" mode. */
+  units: PropertyUnit[];
   onDone: (result: { created: number; removed: number }) => void;
   onSkip: () => void;
 }) {
   const [mode, setMode] = useState<Mode>("generate");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [rowErrors, setRowErrors] = useState<ImportUnitsRowError[] | null>(null);
 
   // Manual, one-at-a-time
   const [label, setLabel] = useState("");
-  const [floor, setFloor] = useState("");
   const [unitBedrooms, setUnitBedrooms] = useState("");
   const [unitBathrooms, setUnitBathrooms] = useState("");
   const [unitRent, setUnitRent] = useState("");
@@ -50,20 +45,13 @@ export function UnitSetupForm({
 
   // Bulk generate
   const [count, setCount] = useState("10");
-  const [floors, setFloors] = useState("");
   const [rentAmount, setRentAmount] = useState("");
   const [bedrooms, setBedrooms] = useState("");
   const [bathrooms, setBathrooms] = useState("");
 
-  // Excel import
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<CreateUnitInput[] | null>(null);
-  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
-
   // Set exact total
   const [exactTarget, setExactTarget] = useState("");
   const [exactRentAmount, setExactRentAmount] = useState("");
-  const [exactFloors, setExactFloors] = useState("");
   const [exactBedrooms, setExactBedrooms] = useState("");
   const [exactBathrooms, setExactBathrooms] = useState("");
   const [confirmingRemoval, setConfirmingRemoval] = useState(false);
@@ -85,14 +73,13 @@ export function UnitSetupForm({
     try {
       const unit = await createUnit(propertyId, {
         label: label.trim(),
-        floor: floor.trim() ? Number(floor) : undefined,
+        floorId,
         bedrooms: unitBedrooms.trim() ? Number(unitBedrooms) : undefined,
         bathrooms: unitBathrooms.trim() ? Number(unitBathrooms) : undefined,
         rentAmount: Number(unitRent),
       });
       setAddedUnits((prev) => [...prev, { label: unit.label, rentAmount: Number(unit.rentAmount) }]);
       setLabel("");
-      setFloor("");
       setUnitBedrooms("");
       setUnitBathrooms("");
       setUnitRent("");
@@ -114,11 +101,10 @@ export function UnitSetupForm({
     }
     setSubmitting(true);
     setError(null);
-    setRowErrors(null);
     try {
       const createdUnits = await generateUnits(propertyId, {
+        floorId,
         count: Number(count),
-        floors: floors.trim() ? Number(floors) : undefined,
         bedrooms: bedrooms.trim() ? Number(bedrooms) : undefined,
         bathrooms: bathrooms.trim() ? Number(bathrooms) : undefined,
         rentAmount: Number(rentAmount),
@@ -131,75 +117,16 @@ export function UnitSetupForm({
     }
   };
 
-  const handleDownloadTemplate = async () => {
-    setDownloadingTemplate(true);
-    setError(null);
-    try {
-      await downloadUnitsImportTemplate();
-    } catch {
-      setError("Failed to download the template. Please try again.");
-    } finally {
-      setDownloadingTemplate(false);
-    }
-  };
-
-  const handlePreview = async () => {
-    if (!file) {
-      setError("Choose a .xlsx file first.");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    setRowErrors(null);
-    try {
-      const result = await previewImportUnits(propertyId, file);
-      setPreview(result.values);
-      setRowErrors(result.errors);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to read this file.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleConfirmImport = async () => {
-    if (!file) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const importedUnits = await importUnits(propertyId, file);
-      onDone({ created: importedUnits.length, removed: 0 });
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-        if (Array.isArray(err.errors)) {
-          setRowErrors(err.errors as ImportUnitsRowError[]);
-        }
-      } else {
-        setError("Failed to import units.");
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const resetImport = () => {
-    setFile(null);
-    setPreview(null);
-    setRowErrors(null);
-    setError(null);
-  };
-
   const handleSetExact = async () => {
     if (!exactTarget.trim() || Number(exactTarget) < 0) {
-      setError("Enter the exact number of units this property should have.");
+      setError("Enter the exact number of units this floor should have.");
       return;
     }
     const target = Number(exactTarget);
     const diff = target - units.length;
 
     if (diff === 0) {
-      setError("This property already has exactly that many units.");
+      setError("This floor already has exactly that many units.");
       return;
     }
 
@@ -227,8 +154,8 @@ export function UnitSetupForm({
     setError(null);
     try {
       const createdUnits = await generateUnits(propertyId, {
+        floorId,
         count: diff,
-        floors: exactFloors.trim() ? Number(exactFloors) : undefined,
         bedrooms: exactBedrooms.trim() ? Number(exactBedrooms) : undefined,
         bathrooms: exactBathrooms.trim() ? Number(exactBathrooms) : undefined,
         rentAmount: Number(exactRentAmount),
@@ -256,7 +183,6 @@ export function UnitSetupForm({
   const switchMode = (next: Mode) => {
     setMode(next);
     setError(null);
-    setRowErrors(null);
   };
 
   const removableCount = exactDiff != null && exactDiff < 0 ? -exactDiff : 0;
@@ -265,8 +191,8 @@ export function UnitSetupForm({
     <>
     <div className="flex flex-col gap-5">
       <p className="text-sm text-slate-500">
-        This property has multiple units — set them all up now, or skip and add units one at a
-        time later.
+        Add units to <strong>{floorName}</strong> — one at a time, generated in bulk with a shared
+        default price, or by setting the exact total you want this floor to have.
       </p>
 
       <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
@@ -292,16 +218,6 @@ export function UnitSetupForm({
         </button>
         <button
           type="button"
-          onClick={() => switchMode("import")}
-          className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-            mode === "import" ? "bg-white text-navy shadow-sm" : "text-slate-500"
-          }`}
-        >
-          <UploadCloud className="h-4 w-4" />
-          Import from Excel
-        </button>
-        <button
-          type="button"
           onClick={() => switchMode("exact")}
           className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
             mode === "exact" ? "bg-white text-navy shadow-sm" : "text-slate-500"
@@ -316,19 +232,6 @@ export function UnitSetupForm({
         <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
-      )}
-
-      {rowErrors && rowErrors.length > 0 && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          <p className="mb-1 font-semibold">Fix these rows and re-upload:</p>
-          <ul className="list-inside list-disc">
-            {rowErrors.map((e) => (
-              <li key={e.row}>
-                Row {e.row}: {e.message}
-              </li>
-            ))}
-          </ul>
-        </div>
       )}
 
       {mode === "manual" && (
@@ -355,17 +258,7 @@ export function UnitSetupForm({
                 className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
               />
             </label>
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Floor (optional)
-              <input
-                type="number"
-                min={0}
-                value={floor}
-                onChange={(e) => setFloor(e.target.value)}
-                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-              />
-            </label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 sm:col-span-2">
               <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
                 Bedrooms
                 <input
@@ -430,17 +323,6 @@ export function UnitSetupForm({
             />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Number of floors (optional)
-            <input
-              type="number"
-              min={1}
-              value={floors}
-              onChange={(e) => setFloors(e.target.value)}
-              placeholder="Units are distributed evenly across floors"
-              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
             Default rent per unit
             <input
               type="number"
@@ -474,81 +356,10 @@ export function UnitSetupForm({
         </div>
       )}
 
-      {mode === "import" && (
-        <div className="flex flex-col gap-4">
-          <button
-            type="button"
-            onClick={handleDownloadTemplate}
-            disabled={downloadingTemplate}
-            className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-gold hover:underline disabled:opacity-60"
-          >
-            <Download className="h-3.5 w-3.5" />
-            {downloadingTemplate ? "Downloading..." : "Download Excel template"}
-          </button>
-
-          {!preview ? (
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Units spreadsheet (.xlsx)
-              <span className="font-normal text-slate-400">
-                Columns: label, floor, bedrooms, bathrooms, rentAmount — one row per unit, each
-                with its own price.
-              </span>
-              <input
-                type="file"
-                accept=".xlsx"
-                onChange={(e) => {
-                  setFile(e.target.files?.[0] ?? null);
-                  setPreview(null);
-                  setRowErrors(null);
-                }}
-                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy file:mr-3 file:rounded-md file:border-0 file:bg-gold/10 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-gold"
-              />
-            </label>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium text-slate-700">
-                Preview — {preview.length} unit{preview.length === 1 ? "" : "s"} will be created
-              </p>
-              <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
-                    <tr>
-                      <th className="px-3 py-2 font-medium">Label</th>
-                      <th className="px-3 py-2 font-medium">Floor</th>
-                      <th className="px-3 py-2 font-medium">Bed</th>
-                      <th className="px-3 py-2 font-medium">Bath</th>
-                      <th className="px-3 py-2 font-medium">Rent</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.map((row, i) => (
-                      <tr key={i} className="border-t border-slate-100">
-                        <td className="px-3 py-2 font-medium text-navy">{row.label}</td>
-                        <td className="px-3 py-2 text-slate-500">{row.floor ?? "—"}</td>
-                        <td className="px-3 py-2 text-slate-500">{row.bedrooms ?? "—"}</td>
-                        <td className="px-3 py-2 text-slate-500">{row.bathrooms ?? "—"}</td>
-                        <td className="px-3 py-2 text-slate-500">{formatMoney(row.rentAmount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <button
-                type="button"
-                onClick={resetImport}
-                className="self-start text-sm font-medium text-slate-500 hover:text-navy"
-              >
-                Choose a different file
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
       {mode === "exact" && (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-slate-500">
-            This property currently has <strong>{units.length}</strong> unit
+            {floorName} currently has <strong>{units.length}</strong> unit
             {units.length === 1 ? "" : "s"}
             {vacantUnits.length < units.length && (
               <> ({units.length - vacantUnits.length} occupied)</>
@@ -580,16 +391,6 @@ export function UnitSetupForm({
                   min={0}
                   value={exactRentAmount}
                   onChange={(e) => setExactRentAmount(e.target.value)}
-                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-                Number of floors (optional)
-                <input
-                  type="number"
-                  min={1}
-                  value={exactFloors}
-                  onChange={(e) => setExactFloors(e.target.value)}
                   className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
                 />
               </label>
@@ -659,7 +460,7 @@ export function UnitSetupForm({
           >
             {submitting ? "Working..." : "Generate units"}
           </button>
-        ) : mode === "exact" ? (
+        ) : (
           <button
             type="button"
             disabled={submitting || !exactTarget.trim() || exactDiff === 0}
@@ -667,24 +468,6 @@ export function UnitSetupForm({
             className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:opacity-60"
           >
             {submitting ? "Working..." : "Apply"}
-          </button>
-        ) : !preview ? (
-          <button
-            type="button"
-            disabled={submitting || !file}
-            onClick={handlePreview}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:opacity-60"
-          >
-            {submitting ? "Reading..." : "Preview import"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            disabled={submitting || (rowErrors?.length ?? 0) > 0}
-            onClick={handleConfirmImport}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:opacity-60"
-          >
-            {submitting ? "Importing..." : `Confirm import (${preview.length})`}
           </button>
         )}
       </div>

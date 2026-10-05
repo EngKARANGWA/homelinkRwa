@@ -211,7 +211,7 @@ export default function TenantPaymentsPage() {
           ? [
               {
                 label: "Property",
-                value: `${primaryProperty.title} — ${primaryProperty.addressLine}, ${primaryProperty.city}`,
+                value: `${primaryProperty.title} — ${primaryProperty.location}`,
               },
             ]
           : []),
@@ -262,7 +262,7 @@ export default function TenantPaymentsPage() {
           <h1 className="text-2xl font-bold text-navy">{c.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {primaryProperty
-              ? `${primaryProperty.title} · ${primaryProperty.addressLine}, ${primaryProperty.city}`
+              ? `${primaryProperty.title} · ${primaryProperty.location}`
               : c.subtitleFallback}
           </p>
         </div>

@@ -293,11 +293,10 @@ export function AddTenantForm({
           disabled={loadingUnits || units.length === 0}
           placeholder={loadingUnits ? "Loading units..." : units.length === 0 ? c.noVacantUnits : c.selectUnit}
           options={units.map((unit) => {
-            const floorPart = unit.floor != null ? ` (Floor ${unit.floor})` : "";
             const propertyPart = propertyId ? "" : ` — ${unit.propertyTitle}`;
             return {
               value: unit.id,
-              label: `${unit.label}${floorPart}${propertyPart} — ${formatMoney(Number(unit.rentAmount))} RWF`,
+              label: `${unit.label}${propertyPart} — ${formatMoney(Number(unit.rentAmount))} RWF`,
             };
           })}
         />

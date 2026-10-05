@@ -161,7 +161,7 @@ export function LeaseStatementModal({
               <div>
                 <p>
                   <span className="font-semibold text-navy">Property:</span> {statement.property.title}{" "}
-                  — {statement.property.addressLine}, {statement.property.city}
+                  — {statement.property.location}
                 </p>
                 <p className="mt-1">
                   <span className="font-semibold text-navy">Unit:</span> {statement.unit.label}
