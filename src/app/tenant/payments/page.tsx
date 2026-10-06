@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, AlertTriangle, CalendarClock, CheckCircle2, Download, Eye, Wallet } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, Eye, Wallet } from "lucide-react";
 import {
   getPaymentReceipt,
   listInvoices,
@@ -21,30 +21,17 @@ import type {
   PaymentStatus,
   Property,
 } from "@/lib/api/types";
-import { formatStatusLabel, INVOICE_STATUS_STYLES, PAYMENT_STATUS_STYLES } from "@/lib/paymentStatus";
-import { useAuth } from "@/components/auth/AuthContext";
+import { formatStatusLabel, PAYMENT_STATUS_STYLES } from "@/lib/paymentStatus";
 import { Modal } from "@/components/admin/Modal";
 import { PayNowForm } from "@/components/tenant/PayNowForm";
-import { InvoiceDetail } from "@/components/tenant/InvoiceDetail";
 import { LeaseStatementModal } from "@/components/leases/LeaseStatementModal";
-import { IconStatCard } from "@/components/dashboard/IconStatCard";
+import { AlertBanner } from "@/components/dashboard/AlertBanner";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { downloadCSV } from "@/lib/csv";
-import { downloadTablePdf } from "@/lib/pdfExport";
 import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { Translations } from "@/lib/i18n/translations";
-
-const TABS = [
-  { id: "invoices", labelKey: "tabInvoices" },
-  { id: "payments", labelKey: "tabPayments" },
-] as const satisfies readonly {
-  id: string;
-  labelKey: keyof Translations["dashboard"]["tenant"]["payments"];
-}[];
-
-type TabId = (typeof TABS)[number]["id"];
 
 const METHOD_CODES: Record<PaymentMethod, string> = {
   mobile_money: "MOMO",
@@ -76,12 +63,6 @@ function monthLabel(dateStr: string) {
   });
 }
 
-/** "2026-09-07" -> "07-09-2026" — compact, matches the statement PDF's date style. */
-function shortDate(dateStr: string) {
-  const [year, month, day] = dateStr.split("-");
-  return `${day}-${month}-${year}`;
-}
-
 function invoiceNumber(invoice: Invoice) {
   return invoice.invoiceNumber;
 }
@@ -109,7 +90,6 @@ function paymentReference(payment: Payment) {
 }
 
 export default function TenantPaymentsPage() {
-  const { user } = useAuth();
   const { t } = useLanguage();
   const c = t.dashboard.tenant.payments;
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -119,12 +99,9 @@ export default function TenantPaymentsPage() {
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [tab, setTab] = useState<TabId>("invoices");
   const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
-  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [showStatement, setShowStatement] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [invoicePage, setInvoicePage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
   const [paymentTotalPages, setPaymentTotalPages] = useState(1);
   const [paymentTotalItems, setPaymentTotalItems] = useState(0);
@@ -182,15 +159,6 @@ export default function TenantPaymentsPage() {
   const primaryLease =
     leaseById.get((pendingInvoice ?? invoices[0])?.leaseId ?? "") ?? leases[0];
 
-  const invoiceTotalPages = Math.max(1, Math.ceil(invoices.length / DEFAULT_PAGE_SIZE));
-  useEffect(() => {
-    if (invoicePage > invoiceTotalPages) setInvoicePage(invoiceTotalPages);
-  }, [invoicePage, invoiceTotalPages]);
-  const pagedInvoices = invoices.slice(
-    (invoicePage - 1) * DEFAULT_PAGE_SIZE,
-    invoicePage * DEFAULT_PAGE_SIZE,
-  );
-
   // Overdue invoices from earlier periods than the one being paid — the
   // payment endpoint only ever settles one invoice at a time, so this is
   // shown to the tenant for awareness, not folded into what gets submitted.
@@ -218,41 +186,6 @@ export default function TenantPaymentsPage() {
     }
   };
 
-  const handleDownloadInvoices = async () => {
-    await downloadTablePdf({
-      title: "My Invoices",
-      meta: [
-        ...(primaryProperty
-          ? [
-              {
-                label: "Property",
-                value: `${primaryProperty.title} — ${primaryProperty.location}`,
-              },
-            ]
-          : []),
-        ...(user ? [{ label: "Tenant", value: `${user.firstName} ${user.lastName}` }] : []),
-      ],
-      filename: `my-invoices-${new Date().toISOString().slice(0, 10)}.pdf`,
-      columns: [
-        { header: "Sn#", width: 30, align: "center" },
-        { header: "Invoice #", width: 110 },
-        { header: "Month", width: 95 },
-        { header: "Date Due", width: 75 },
-        { header: "Total Amount", width: 100, align: "right" },
-        { header: "Status", width: 75 },
-      ],
-      rows: invoices.map((inv, i) => [
-        i + 1,
-        invoiceNumber(inv),
-        monthLabel(inv.dueDate),
-        shortDate(inv.dueDate),
-        `RWF ${Number(inv.amountDue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        formatStatusLabel(inv.status),
-      ]),
-    });
-    setNotice(c.invoicesDownloadedNotice);
-  };
-
   const handleDownloadPayments = () => {
     downloadCSV(
       "my-payments.csv",
@@ -270,6 +203,12 @@ export default function TenantPaymentsPage() {
     setNotice(c.paymentsDownloadedNotice);
   };
 
+  const statusMessage = hasOverdue
+    ? invoiceStatusLabel("overdue")
+    : pendingInvoice
+      ? invoiceStatusLabel("unpaid")
+      : c.allCaughtUp;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -281,72 +220,14 @@ export default function TenantPaymentsPage() {
               : c.subtitleFallback}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => pendingInvoice && setPayingInvoice(pendingInvoice)}
-            disabled={!pendingInvoice || !isPayable(pendingInvoice)}
-            title={
-              !pendingInvoice
-                ? "No payment due yet"
-                : !isPayable(pendingInvoice)
-                  ? `Opens ${PAY_NOW_WINDOW_DAYS} days before the due date`
-                  : undefined
-            }
-            className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:hover:bg-slate-200"
-          >
-            <Wallet className="h-4 w-4" />
-            {c.payNow}
-          </button>
-          <button
-            type="button"
-            onClick={
-              tab === "invoices"
-                ? handleDownloadInvoices
-                : primaryLease
-                  ? () => setShowStatement(true)
-                  : handleDownloadPayments
-            }
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-          >
-            <Download className="h-4 w-4" />
-            {tab === "invoices" ? c.downloadInvoices : c.downloadStatement}
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-        <IconStatCard
-          icon={Wallet}
-          label={c.amountDue}
-          value={`${formatMoney(totalOutstanding)} RWF`}
-          subtitle={
-            otherPendingCount > 0
-              ? c.moreInvoicesDueTemplate
-                  .replaceAll("{count}", String(otherPendingCount))
-                  .replaceAll("{plural}", otherPendingCount === 1 ? "" : "s")
-              : undefined
-          }
-          accent={hasOverdue ? "red" : totalOutstanding > 0 ? "amber" : "emerald"}
-        />
-        <IconStatCard
-          icon={CalendarClock}
-          label={c.dueDate}
-          value={pendingInvoice ? formatDate(pendingInvoice.dueDate) : "—"}
-          accent={hasOverdue ? "red" : "blue"}
-        />
-        <IconStatCard
-          icon={hasOverdue ? AlertTriangle : CheckCircle2}
-          label={t.dashboard.table.status}
-          value={
-            hasOverdue
-              ? invoiceStatusLabel("overdue")
-              : pendingInvoice
-                ? invoiceStatusLabel("unpaid")
-                : c.allCaughtUp
-          }
-          accent={hasOverdue ? "red" : pendingInvoice ? "amber" : "emerald"}
-        />
+        <button
+          type="button"
+          onClick={primaryLease ? () => setShowStatement(true) : handleDownloadPayments}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+        >
+          <Download className="h-4 w-4" />
+          {c.downloadStatement}
+        </button>
       </div>
 
       {notice && (
@@ -370,199 +251,113 @@ export default function TenantPaymentsPage() {
         </div>
       )}
 
-      <div className="flex items-center gap-6 overflow-x-auto border-b border-slate-200">
-        {TABS.map((tabItem) => {
-          const isActive = tab === tabItem.id;
-          return (
-            <button
-              key={tabItem.id}
-              type="button"
-              onClick={() => setTab(tabItem.id)}
-              className={`flex shrink-0 items-center gap-2 border-b-2 pb-3 text-sm font-medium transition-colors ${
-                isActive
-                  ? "border-gold text-navy"
-                  : "border-transparent text-slate-500 hover:text-navy"
-              }`}
-            >
-              {c[tabItem.labelKey]}
-            </button>
-          );
-        })}
-      </div>
+      <AlertBanner
+        isAlert={hasOverdue || !!pendingInvoice}
+        stats={[
+          { label: c.amountDue, value: `${formatMoney(totalOutstanding)} RWF` },
+          { label: c.dueDate, value: pendingInvoice ? formatDate(pendingInvoice.dueDate) : "—" },
+          { label: t.dashboard.table.status, value: statusMessage },
+        ]}
+        message={
+          otherPendingCount > 0
+            ? c.moreInvoicesDueTemplate
+                .replaceAll("{count}", String(otherPendingCount))
+                .replaceAll("{plural}", otherPendingCount === 1 ? "" : "s")
+            : undefined
+        }
+      >
+        <button
+          type="button"
+          onClick={() => pendingInvoice && setPayingInvoice(pendingInvoice)}
+          disabled={!pendingInvoice || !isPayable(pendingInvoice)}
+          title={
+            !pendingInvoice
+              ? "No payment due yet"
+              : !isPayable(pendingInvoice)
+                ? `Opens ${PAY_NOW_WINDOW_DAYS} days before the due date`
+                : undefined
+          }
+          className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:hover:bg-slate-200"
+        >
+          <Wallet className="h-4 w-4" />
+          {c.payNow}
+        </button>
+      </AlertBanner>
 
-      {tab === "invoices" && (
-        <>
-          <Table variant="standalone">
-            <THead>
-              <Tr>
-                <Th className="px-4 py-3 text-center sm:px-6">{c.snNumber}</Th>
-                <Th className="max-w-[8rem] px-4 py-3 sm:px-6">{c.invoiceNumber}</Th>
-                <Th className="hidden px-6 py-3 sm:table-cell">{c.month}</Th>
-                <Th className="hidden px-6 py-3 md:table-cell">{c.dateDue}</Th>
-                <Th className="hidden px-6 py-3 sm:table-cell">{c.totalAmountRwf}</Th>
-                <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
-                <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
+      <Table variant="standalone">
+        <THead>
+          <Tr>
+            <Th className="px-4 py-3 text-center sm:px-6">{c.noNumber}</Th>
+            <Th className="max-w-[8rem] px-4 py-3 sm:px-6">{c.paymentId}</Th>
+            <Th className="hidden px-6 py-3 sm:table-cell">{c.amountPaidRwf}</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">{c.reference}</Th>
+            <Th className="hidden px-6 py-3 md:table-cell">{c.paymentDate}</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">{c.paymentMethod}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
+            <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
+          </Tr>
+        </THead>
+        <TBody>
+          {isLoading ? (
+            <EmptyRow colSpan={8}>Loading payments...</EmptyRow>
+          ) : payments.length === 0 ? (
+            <EmptyRow colSpan={8}>{c.noConfirmedPayments}</EmptyRow>
+          ) : (
+            payments.map((payment, i) => (
+              <Tr key={payment.id}>
+                <Td className="px-4 py-3 text-center text-slate-500 sm:px-6">
+                  {(paymentPage - 1) * DEFAULT_PAGE_SIZE + i + 1}
+                </Td>
+                <Td className="max-w-[8rem] px-4 py-3 sm:max-w-none sm:px-6">
+                  <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                    {paymentId(payment)}
+                  </p>
+                  <p className="truncate text-xs text-slate-400 sm:hidden">
+                    {formatMoney(Number(payment.amount))} RWF · {payment.paidAt ?? "—"}
+                  </p>
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
+                  {formatMoney(Number(payment.amount))}
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                  {paymentReference(payment)}
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
+                  {payment.paidAt ? formatDate(payment.paidAt) : "—"}
+                </Td>
+                <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                  {formatStatusLabel(payment.method)}
+                </Td>
+                <Td className="px-4 py-3 sm:px-6">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${PAYMENT_STATUS_STYLES[payment.status]}`}
+                  >
+                    {paymentStatusLabel(payment.status)}
+                  </span>
+                </Td>
+                <Td className="px-4 py-3 sm:px-6">
+                  <button
+                    type="button"
+                    onClick={() => viewReceipt(payment)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Receipt</span>
+                  </button>
+                </Td>
               </Tr>
-            </THead>
-            <TBody>
-              {isLoading ? (
-                <EmptyRow colSpan={7}>Loading invoices...</EmptyRow>
-              ) : pagedInvoices.length === 0 ? (
-                <EmptyRow colSpan={7}>{c.noInvoices}</EmptyRow>
-              ) : (
-                pagedInvoices.map((invoice, i) => (
-                  <Tr key={invoice.id}>
-                    <Td className="px-4 py-3 text-center text-slate-500 sm:px-6">
-                      {(invoicePage - 1) * DEFAULT_PAGE_SIZE + i + 1}
-                    </Td>
-                    <Td className="max-w-[8rem] px-4 py-3 sm:max-w-none sm:px-6">
-                      <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                        {invoiceNumber(invoice)}
-                      </p>
-                      <p className="truncate text-xs text-slate-400 sm:hidden">
-                        {monthLabel(invoice.dueDate)} · {formatMoney(Number(invoice.amountDue))} RWF
-                      </p>
-                    </Td>
-                    <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                      {monthLabel(invoice.dueDate)}
-                    </Td>
-                    <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                      {formatDate(invoice.dueDate)}
-                    </Td>
-                    <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                      {formatMoney(Number(invoice.amountDue))}
-                    </Td>
-                    <Td className="px-4 py-3 sm:px-6">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${INVOICE_STATUS_STYLES[invoice.status]}`}
-                      >
-                        {invoiceStatusLabel(invoice.status)}
-                      </span>
-                    </Td>
-                    <Td className="px-4 py-3 sm:px-6">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setViewingInvoice(invoice)}
-                          aria-label={`View invoice ${invoiceNumber(invoice)}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">{c.viewInvoice}</span>
-                        </button>
-                        {(invoice.status === "unpaid" || invoice.status === "overdue") && (
-                          <button
-                            type="button"
-                            onClick={() => setPayingInvoice(invoice)}
-                            disabled={!isPayable(invoice)}
-                            aria-label={`Pay now for ${propertyForInvoice(invoice)?.title ?? "this invoice"}`}
-                            title={
-                              isPayable(invoice)
-                                ? undefined
-                                : `Opens ${PAY_NOW_WINDOW_DAYS} days before the due date`
-                            }
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1 text-xs font-semibold text-white hover:bg-gold/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:hover:bg-slate-200"
-                          >
-                            <Wallet className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">{c.payNow}</span>
-                          </button>
-                        )}
-                      </div>
-                    </Td>
-                  </Tr>
-                ))
-              )}
-            </TBody>
-          </Table>
+            ))
+          )}
+        </TBody>
+      </Table>
 
-          <Pagination
-            page={invoicePage}
-            totalPages={invoiceTotalPages}
-            totalItems={invoices.length}
-            pageSize={DEFAULT_PAGE_SIZE}
-            onPageChange={setInvoicePage}
-          />
-        </>
-      )}
-
-      {tab === "payments" && (
-        <>
-          <Table variant="standalone">
-            <THead>
-              <Tr>
-                <Th className="px-4 py-3 text-center sm:px-6">{c.noNumber}</Th>
-                <Th className="max-w-[8rem] px-4 py-3 sm:px-6">{c.paymentId}</Th>
-                <Th className="hidden px-6 py-3 sm:table-cell">{c.amountPaidRwf}</Th>
-                <Th className="hidden px-6 py-3 lg:table-cell">{c.reference}</Th>
-                <Th className="hidden px-6 py-3 md:table-cell">{c.paymentDate}</Th>
-                <Th className="hidden px-6 py-3 lg:table-cell">{c.paymentMethod}</Th>
-                <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
-                <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.actions}</Th>
-              </Tr>
-            </THead>
-            <TBody>
-              {isLoading ? (
-                <EmptyRow colSpan={8}>Loading payments...</EmptyRow>
-              ) : payments.length === 0 ? (
-                <EmptyRow colSpan={8}>{c.noConfirmedPayments}</EmptyRow>
-              ) : (
-                payments.map((payment, i) => (
-                  <Tr key={payment.id}>
-                    <Td className="px-4 py-3 text-center text-slate-500 sm:px-6">
-                      {(paymentPage - 1) * DEFAULT_PAGE_SIZE + i + 1}
-                    </Td>
-                    <Td className="max-w-[8rem] px-4 py-3 sm:max-w-none sm:px-6">
-                      <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
-                        {paymentId(payment)}
-                      </p>
-                      <p className="truncate text-xs text-slate-400 sm:hidden">
-                        {formatMoney(Number(payment.amount))} RWF · {payment.paidAt ?? "—"}
-                      </p>
-                    </Td>
-                    <Td className="hidden px-6 py-3 text-slate-500 sm:table-cell">
-                      {formatMoney(Number(payment.amount))}
-                    </Td>
-                    <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                      {paymentReference(payment)}
-                    </Td>
-                    <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
-                      {payment.paidAt ? formatDate(payment.paidAt) : "—"}
-                    </Td>
-                    <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
-                      {formatStatusLabel(payment.method)}
-                    </Td>
-                    <Td className="px-4 py-3 sm:px-6">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${PAYMENT_STATUS_STYLES[payment.status]}`}
-                      >
-                        {paymentStatusLabel(payment.status)}
-                      </span>
-                    </Td>
-                    <Td className="px-4 py-3 sm:px-6">
-                      <button
-                        type="button"
-                        onClick={() => viewReceipt(payment)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Receipt</span>
-                      </button>
-                    </Td>
-                  </Tr>
-                ))
-              )}
-            </TBody>
-          </Table>
-
-          <Pagination
-            page={paymentPage}
-            totalPages={paymentTotalPages}
-            totalItems={paymentTotalItems}
-            pageSize={DEFAULT_PAGE_SIZE}
-            onPageChange={setPaymentPage}
-          />
-        </>
-      )}
+      <Pagination
+        page={paymentPage}
+        totalPages={paymentTotalPages}
+        totalItems={paymentTotalItems}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPaymentPage}
+      />
 
       {payingInvoice && (
         <Modal
@@ -584,19 +379,6 @@ export default function TenantPaymentsPage() {
             defaultPhone={leaseById.get(payingInvoice.leaseId)?.momoNumber ?? undefined}
             onCancel={() => setPayingInvoice(null)}
             onSuccess={(values) => handlePay(values, payingInvoice)}
-          />
-        </Modal>
-      )}
-
-      {viewingInvoice && (
-        <Modal
-          title={c.invoiceDetailsTitle}
-          description={invoiceNumber(viewingInvoice)}
-          onClose={() => setViewingInvoice(null)}
-        >
-          <InvoiceDetail
-            invoice={viewingInvoice}
-            propertyLabel={propertyForInvoice(viewingInvoice)?.title}
           />
         </Modal>
       )}
