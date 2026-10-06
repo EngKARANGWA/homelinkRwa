@@ -40,6 +40,15 @@ function shortDate(dateStr: string): string {
   });
 }
 
+const PAY_NOW_WINDOW_DAYS = 5;
+
+/** Pay Now only unlocks once the due date is close (or already past) — not
+ * so a tenant can pay a month of rent that isn't due for weeks yet. */
+function isPayable(dueDate: string): boolean {
+  const daysUntilDue = Math.ceil((new Date(dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  return daysUntilDue <= PAY_NOW_WINDOW_DAYS;
+}
+
 const STAT_META: Record<
   keyof Translations["dashboard"]["tenant"]["overview"]["statLabels"],
   {
@@ -190,7 +199,13 @@ export default function TenantOverviewPage() {
           <button
             type="button"
             onClick={() => setPaying(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+            disabled={!isPayable(nextDueInvoice.dueDate)}
+            title={
+              isPayable(nextDueInvoice.dueDate)
+                ? undefined
+                : `Opens ${PAY_NOW_WINDOW_DAYS} days before the due date`
+            }
+            className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:hover:bg-slate-200"
           >
             <Wallet className="h-4 w-4" />
             {c.payNow}

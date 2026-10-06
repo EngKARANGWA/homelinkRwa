@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Download, Eye, Wallet } from "lucide-react";
+import { AlertCircle, AlertTriangle, CalendarClock, CheckCircle2, Download, Eye, Wallet } from "lucide-react";
 import {
   getPaymentReceipt,
   listInvoices,
@@ -27,7 +27,7 @@ import { Modal } from "@/components/admin/Modal";
 import { PayNowForm } from "@/components/tenant/PayNowForm";
 import { InvoiceDetail } from "@/components/tenant/InvoiceDetail";
 import { LeaseStatementModal } from "@/components/leases/LeaseStatementModal";
-import { AlertBanner } from "@/components/dashboard/AlertBanner";
+import { IconStatCard } from "@/components/dashboard/IconStatCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
 import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination";
 import { downloadCSV } from "@/lib/csv";
@@ -84,6 +84,19 @@ function shortDate(dateStr: string) {
 
 function invoiceNumber(invoice: Invoice) {
   return invoice.invoiceNumber;
+}
+
+const PAY_NOW_WINDOW_DAYS = 5;
+
+/** Pay Now only unlocks once the due date is close (or already overdue) — not
+ * so a tenant can't pay a month of rent that isn't due for weeks yet. */
+function isPayable(invoice: Invoice): boolean {
+  if (invoice.status === "overdue") return true;
+  if (invoice.status !== "unpaid") return false;
+  const daysUntilDue = Math.ceil(
+    (new Date(invoice.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+  );
+  return daysUntilDue <= PAY_NOW_WINDOW_DAYS;
 }
 
 function paymentId(payment: Payment) {
@@ -162,6 +175,8 @@ export default function TenantPaymentsPage() {
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   const pendingInvoice = outstandingInvoices[0] ?? null;
   const otherPendingCount = Math.max(outstandingInvoices.length - 1, 0);
+  const totalOutstanding = outstandingInvoices.reduce((sum, inv) => sum + Number(inv.amountDue), 0);
+  const hasOverdue = outstandingInvoices.some((inv) => inv.status === "overdue");
 
   const primaryProperty = propertyForInvoice(pendingInvoice ?? invoices[0]) ?? properties[0];
   const primaryLease =
@@ -266,20 +281,72 @@ export default function TenantPaymentsPage() {
               : c.subtitleFallback}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={
-            tab === "invoices"
-              ? handleDownloadInvoices
-              : primaryLease
-                ? () => setShowStatement(true)
-                : handleDownloadPayments
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => pendingInvoice && setPayingInvoice(pendingInvoice)}
+            disabled={!pendingInvoice || !isPayable(pendingInvoice)}
+            title={
+              !pendingInvoice
+                ? "No payment due yet"
+                : !isPayable(pendingInvoice)
+                  ? `Opens ${PAY_NOW_WINDOW_DAYS} days before the due date`
+                  : undefined
+            }
+            className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:hover:bg-slate-200"
+          >
+            <Wallet className="h-4 w-4" />
+            {c.payNow}
+          </button>
+          <button
+            type="button"
+            onClick={
+              tab === "invoices"
+                ? handleDownloadInvoices
+                : primaryLease
+                  ? () => setShowStatement(true)
+                  : handleDownloadPayments
+            }
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+          >
+            <Download className="h-4 w-4" />
+            {tab === "invoices" ? c.downloadInvoices : c.downloadStatement}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <IconStatCard
+          icon={Wallet}
+          label={c.amountDue}
+          value={`${formatMoney(totalOutstanding)} RWF`}
+          subtitle={
+            otherPendingCount > 0
+              ? c.moreInvoicesDueTemplate
+                  .replaceAll("{count}", String(otherPendingCount))
+                  .replaceAll("{plural}", otherPendingCount === 1 ? "" : "s")
+              : undefined
           }
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-        >
-          <Download className="h-4 w-4" />
-          {tab === "invoices" ? c.downloadInvoices : c.downloadStatement}
-        </button>
+          accent={hasOverdue ? "red" : totalOutstanding > 0 ? "amber" : "emerald"}
+        />
+        <IconStatCard
+          icon={CalendarClock}
+          label={c.dueDate}
+          value={pendingInvoice ? formatDate(pendingInvoice.dueDate) : "—"}
+          accent={hasOverdue ? "red" : "blue"}
+        />
+        <IconStatCard
+          icon={hasOverdue ? AlertTriangle : CheckCircle2}
+          label={t.dashboard.table.status}
+          value={
+            hasOverdue
+              ? invoiceStatusLabel("overdue")
+              : pendingInvoice
+                ? invoiceStatusLabel("unpaid")
+                : c.allCaughtUp
+          }
+          accent={hasOverdue ? "red" : pendingInvoice ? "amber" : "emerald"}
+        />
       </div>
 
       {notice && (
@@ -387,8 +454,14 @@ export default function TenantPaymentsPage() {
                           <button
                             type="button"
                             onClick={() => setPayingInvoice(invoice)}
+                            disabled={!isPayable(invoice)}
                             aria-label={`Pay now for ${propertyForInvoice(invoice)?.title ?? "this invoice"}`}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1 text-xs font-semibold text-white hover:bg-gold/90"
+                            title={
+                              isPayable(invoice)
+                                ? undefined
+                                : `Opens ${PAY_NOW_WINDOW_DAYS} days before the due date`
+                            }
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-2.5 py-1 text-xs font-semibold text-white hover:bg-gold/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:hover:bg-slate-200"
                           >
                             <Wallet className="h-3.5 w-3.5" />
                             <span className="hidden sm:inline">{c.payNow}</span>
@@ -414,42 +487,6 @@ export default function TenantPaymentsPage() {
 
       {tab === "payments" && (
         <>
-          {pendingInvoice ? (
-            <AlertBanner
-              isAlert
-              stats={[
-                { label: c.amountDue, value: `${formatMoney(Number(pendingInvoice.amountDue))} RWF` },
-                { label: c.dueDate, value: formatDate(pendingInvoice.dueDate) },
-                { label: t.dashboard.table.status, value: invoiceStatusLabel(pendingInvoice.status) },
-              ]}
-              message={
-                pendingInvoice.status === "overdue"
-                  ? c.overdueMessage
-                  : c.rentDueTemplate
-                      .replace("{property}", propertyForInvoice(pendingInvoice)?.title ?? "")
-                      .replace("{date}", formatDate(pendingInvoice.dueDate))
-              }
-            >
-              <button
-                type="button"
-                onClick={() => setPayingInvoice(pendingInvoice)}
-                className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
-              >
-                <Wallet className="h-4 w-4" />
-                {c.payNow}
-              </button>
-              {otherPendingCount > 0 && (
-                <span className="text-sm text-slate-500">
-                  {c.moreInvoicesDueTemplate
-                    .replaceAll("{count}", String(otherPendingCount))
-                    .replaceAll("{plural}", otherPendingCount === 1 ? "" : "s")}
-                </span>
-              )}
-            </AlertBanner>
-          ) : (
-            <AlertBanner isAlert={false} stats={[]} message={c.allCaughtUp} />
-          )}
-
           <Table variant="standalone">
             <THead>
               <Tr>
