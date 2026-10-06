@@ -59,10 +59,10 @@ export async function logout(): Promise<void> {
   }
 }
 
-export async function forgotPassword(email: string): Promise<void> {
+export async function forgotPassword(identifier: string): Promise<void> {
   await apiFetch("/auth/forgot-password", {
     method: "POST",
-    body: { email },
+    body: { identifier },
     auth: false,
   });
 }

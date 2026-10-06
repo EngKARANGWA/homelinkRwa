@@ -11,7 +11,7 @@ import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 export default function ForgotPasswordPage() {
   const { t } = useLanguage();
   const c = t.forgotPasswordPage;
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setSubmitting] = useState(false);
@@ -21,7 +21,7 @@ export default function ForgotPasswordPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await forgotPassword(email.trim());
+      await forgotPassword(identifier.trim());
       setSuccess(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong.");
@@ -82,12 +82,12 @@ export default function ForgotPasswordPage() {
               <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 focus-within:border-gold">
                 <Mail className="h-4 w-4 text-slate-400" />
                 <input
-                  type="email"
+                  type="text"
                   required
                   autoFocus
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="you@example.com or your login code"
                   className="w-full bg-transparent text-navy placeholder:text-slate-400 focus:outline-none"
                 />
               </div>

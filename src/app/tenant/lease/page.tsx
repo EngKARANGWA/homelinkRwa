@@ -260,7 +260,7 @@ export default function TenantLeasePage() {
                         <FileStack className="h-3.5 w-3.5" />
                         Documents
                       </button>
-                      {lease.status === "pending_signatures" && !lease.tenantSignedAt && (
+                      {lease.status === "pending_signatures" && (
                         <button
                           type="button"
                           onClick={() => handleSign(lease)}

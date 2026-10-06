@@ -25,7 +25,7 @@ export default function LoginPage() {
   const { refreshUser } = useAuth();
   const { t } = useLanguage();
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [challengeId, setChallengeId] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export default function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      const result = await login({ email: email.trim(), password });
+      const result = await login({ identifier: identifier.trim(), password });
       if (isLoginChallenge(result)) {
         setChallengeId(result.challengeId);
       } else {
@@ -124,7 +124,7 @@ export default function LoginPage() {
         {challengeId ? (
           <form className="mt-8 flex flex-col gap-4" onSubmit={handleVerify}>
             <p className="text-center text-sm text-slate-500">
-              We sent a verification code to {email}. Enter it below to finish
+              We sent a verification code to your email. Enter it below to finish
               signing in.
             </p>
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
@@ -172,11 +172,12 @@ export default function LoginPage() {
                 <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 focus-within:border-gold">
                   <Mail className="h-4 w-4 text-slate-400" />
                   <input
-                    type="email"
+                    type="text"
+                    autoCapitalize="characters"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="you@example.com or your login code"
                     className="w-full bg-transparent text-navy placeholder:text-slate-400 focus:outline-none"
                   />
                 </div>

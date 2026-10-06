@@ -3,6 +3,8 @@ export type Role = "tenant" | "owner" | "agent" | "admin" | "superadmin" | "hous
 export type User = {
   id: string;
   email: string;
+  // Only set for tenants — their permanent login identifier in place of email.
+  loginCode?: string | null;
   firstName: string;
   lastName: string;
   phone: string;
@@ -57,11 +59,16 @@ export type RegisterInput = {
   firstName: string;
   lastName: string;
   phone: string;
-  role: "tenant" | "owner" | "agent";
+  // Tenant self-registration is retired — tenant accounts are only ever
+  // created by a landlord/agent (via createLease's newTenant), which hands
+  // them a permanent login code instead of an email identity.
+  role: "owner" | "agent";
 };
 
 export type LoginInput = {
-  email: string;
+  // An email (owner/agent/admin) or a tenant's permanent login code — the
+  // backend tells them apart by whether it contains "@".
+  identifier: string;
   password: string;
 };
 
@@ -277,6 +284,9 @@ export type Lease = {
   // `newTenant` — a one-time temp password the landlord can hand to the
   // tenant directly (they're forced to change it on first login).
   temporaryPassword?: string;
+  // Only present alongside temporaryPassword — the tenant's new permanent
+  // login identifier (they log in with this + their password, not email).
+  loginCode?: string;
   // Present on GET /leases/:id and on the response to createLease — the
   // backend resolves this from the tenant's user record since the requester
   // already has proven access to this specific lease. Absent on list

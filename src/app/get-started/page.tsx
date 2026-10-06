@@ -27,10 +27,12 @@ export default function GetStartedPage() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<RegisterInput["role"]>("owner");
 
+  // Tenant self-registration is retired — tenant accounts are only ever
+  // created by a landlord/agent adding them to a unit, which hands them a
+  // login code instead of an email-based account.
   const ROLE_OPTIONS: { label: string; value: RegisterInput["role"] }[] = [
     { label: t.getStartedPage.form.optionLandlord, value: "owner" },
     { label: t.getStartedPage.form.optionManager, value: "agent" },
-    { label: t.getStartedPage.form.optionTenant, value: "tenant" },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {

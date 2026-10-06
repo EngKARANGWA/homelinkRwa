@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, CheckCircle2, Copy, MessageCircle, Search, Send, UserRoundSearch, UserRoundPlus } from "lucide-react";
+import { Check, CheckCircle2, Copy, MessageCircle, Send } from "lucide-react";
 import { listAvailableUnits } from "@/lib/api/properties";
 import { createLease } from "@/lib/api/leases";
-import { searchTenants } from "@/lib/api/iam";
 import { ApiError } from "@/lib/api/client";
-import type { AvailableUnit, Lease, TenantSummary } from "@/lib/api/types";
+import type { AvailableUnit, Lease } from "@/lib/api/types";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { formatMoney } from "@/lib/money";
@@ -52,8 +51,12 @@ function CopyField({ label, value }: { label: string; value: string }) {
 }
 
 const TODAY = new Date().toISOString().slice(0, 10);
-type Mode = "existing" | "new";
 
+// Every "add tenant" always registers a brand-new tenant account — there's
+// no "find an existing tenant" step anymore, since a tenant account is no
+// longer a unique identity to look up: the same person can legitimately
+// hold several separate accounts (one per lease), each with its own login
+// code, so searching for "the" existing tenant doesn't make sense.
 export function AddTenantForm({
   propertyId,
   defaultRentAmount,
@@ -71,19 +74,10 @@ export function AddTenantForm({
   const { t } = useLanguage();
   const c = t.dashboard.landlord.addTenantForm;
 
-  const [mode, setMode] = useState<Mode>("existing");
-
   const [units, setUnits] = useState<AvailableUnit[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(true);
   const [unitId, setUnitId] = useState("");
 
-  // Existing tenant — search and select
-  const [tenantQuery, setTenantQuery] = useState("");
-  const [tenantResults, setTenantResults] = useState<TenantSummary[]>([]);
-  const [searchingTenants, setSearchingTenants] = useState(false);
-  const [selectedTenant, setSelectedTenant] = useState<TenantSummary | null>(null);
-
-  // New tenant — register on the spot
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -118,31 +112,6 @@ export function AddTenantForm({
     };
   }, [propertyId]);
 
-  useEffect(() => {
-    if (selectedTenant || !tenantQuery.trim()) {
-      setTenantResults([]);
-      return;
-    }
-    let cancelled = false;
-    setSearchingTenants(true);
-    const timer = setTimeout(() => {
-      searchTenants(tenantQuery)
-        .then((results) => {
-          if (!cancelled) setTenantResults(results);
-        })
-        .catch(() => {
-          if (!cancelled) setTenantResults([]);
-        })
-        .finally(() => {
-          if (!cancelled) setSearchingTenants(false);
-        });
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [tenantQuery, selectedTenant]);
-
   const selectedUnit = units.find((u) => u.id === unitId);
 
   const handleUnitChange = (id: string) => {
@@ -151,22 +120,13 @@ export function AddTenantForm({
     if (unit) setRent(unit.rentAmount);
   };
 
-  const switchMode = (next: Mode) => {
-    setMode(next);
-    setError(null);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUnit) {
       setError(c.errorNoVacantUnits);
       return;
     }
-    if (mode === "existing" && !selectedTenant) {
-      setError("Search for and select a tenant, or switch to \"New tenant\".");
-      return;
-    }
-    if (mode === "new" && (!firstName.trim() || !lastName.trim() || !email.trim() || !phone.trim())) {
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !phone.trim()) {
       setError("Please enter the tenant's name, email, and phone number.");
       return;
     }
@@ -181,16 +141,12 @@ export function AddTenantForm({
       const lease = await createLease({
         propertyId: propertyId ?? selectedUnit.propertyId,
         unitId: selectedUnit.id,
-        ...(mode === "existing"
-          ? { tenantId: selectedTenant!.id }
-          : {
-              newTenant: {
-                email: email.trim(),
-                firstName: firstName.trim(),
-                lastName: lastName.trim(),
-                phone: phone.trim(),
-              },
-            }),
+        newTenant: {
+          email: email.trim(),
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: phone.trim(),
+        },
         startDate,
         rentAmount: rentValue,
         deposit: deposit.trim() ? Number(deposit) : undefined,
@@ -206,9 +162,9 @@ export function AddTenantForm({
 
   if (createdLease) {
     const tempPassword = createdLease.temporaryPassword;
+    const loginCode = createdLease.loginCode;
     const tenant = createdLease.tenant;
     const tenantFirstName = tenant?.firstName ?? firstName.trim();
-    const tenantEmail = tenant?.email ?? email.trim();
     const tenantPhone = tenant?.phone ?? phone.trim();
 
     return (
@@ -218,21 +174,22 @@ export function AddTenantForm({
           Tenant added and assigned to their unit.
         </div>
 
-        {tempPassword ? (
+        {tempPassword && loginCode ? (
           (() => {
-            const message = `Hi ${tenantFirstName}, here are your HomeLink login details:\nEmail: ${tenantEmail}\nPassword: ${tempPassword}\nLog in at: ${typeof window !== "undefined" ? window.location.origin : ""}/login`;
+            const message = `Hi ${tenantFirstName}, here are your HomeLink login details:\nLogin code: ${loginCode}\nPassword: ${tempPassword}\nLog in at: ${typeof window !== "undefined" ? window.location.origin : ""}/login`;
             const digits = tenantPhone.replace(/[^\d+]/g, "");
             const waDigits = digits.replace(/^\+/, "");
             const encoded = encodeURIComponent(message);
             return (
               <div className="flex flex-col gap-3">
                 <p className="text-sm text-slate-600">
-                  Share these with the tenant so they can log in. This password won&apos;t be
-                  shown again after you close this window.
+                  We&apos;ve already emailed these to the tenant, but you can also share them
+                  directly. This login code is permanent — the password won&apos;t be shown
+                  again after you close this window.
                 </p>
-                <CopyField label="Email" value={tenantEmail} />
+                <CopyField label="Login code" value={loginCode} />
                 <CopyField label="Temporary password" value={tempPassword} />
-                <CopyField label="Email + password (both)" value={message} />
+                <CopyField label="Login code + password (both)" value={message} />
 
                 {digits && (
                   <div className="flex flex-wrap gap-2">
@@ -302,147 +259,51 @@ export function AddTenantForm({
         />
       </label>
 
-      <div className="flex gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
-        <button
-          type="button"
-          onClick={() => switchMode("existing")}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-            mode === "existing" ? "bg-white text-navy shadow-sm" : "text-slate-500"
-          }`}
-        >
-          <UserRoundSearch className="h-4 w-4" />
-          Existing tenant
-        </button>
-        <button
-          type="button"
-          onClick={() => switchMode("new")}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-            mode === "new" ? "bg-white text-navy shadow-sm" : "text-slate-500"
-          }`}
-        >
-          <UserRoundPlus className="h-4 w-4" />
-          New tenant
-        </button>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          First name
+          <input
+            type="text"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            placeholder="e.g. Claudine"
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          Last name
+          <input
+            type="text"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            placeholder="e.g. Uwase"
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          Email
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="tenant@example.com"
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          {c.phoneNumber}
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+250 7XX XXX XXX"
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+          />
+        </label>
       </div>
-
-      {mode === "existing" ? (
-        selectedTenant ? (
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-            <div>
-              <p className="text-sm font-semibold text-navy">
-                {selectedTenant.firstName} {selectedTenant.lastName}
-              </p>
-              <p className="text-xs text-slate-500">
-                {selectedTenant.email} · {selectedTenant.phone}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedTenant(null);
-                setTenantQuery("");
-              }}
-              className="text-xs font-medium text-gold hover:underline"
-            >
-              Change
-            </button>
-          </div>
-        ) : (
-          <div className="relative flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-slate-700">Search by name, email, or phone</label>
-            <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 focus-within:border-gold">
-              <Search className="h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                value={tenantQuery}
-                onChange={(e) => setTenantQuery(e.target.value)}
-                placeholder="e.g. Claudine, claudine@example.com, 07..."
-                className="w-full bg-transparent text-sm text-navy placeholder:text-slate-400 focus:outline-none"
-              />
-            </div>
-
-            {tenantQuery.trim().length >= 2 && (
-              <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-                {searchingTenants ? (
-                  <p className="px-3 py-2.5 text-sm text-slate-400">Searching...</p>
-                ) : tenantResults.length === 0 ? (
-                  <p className="px-3 py-2.5 text-sm text-slate-400">
-                    No tenant found. Switch to &quot;New tenant&quot; to register them.
-                  </p>
-                ) : (
-                  <ul className="max-h-48 overflow-y-auto">
-                    {tenantResults.map((tenant) => (
-                      <li key={tenant.id}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedTenant(tenant);
-                            setTenantResults([]);
-                          }}
-                          className="flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-slate-50"
-                        >
-                          <span className="font-medium text-navy">
-                            {tenant.firstName} {tenant.lastName}
-                          </span>
-                          <span className="text-xs text-slate-400">
-                            {tenant.email} · {tenant.phone}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-        )
-      ) : (
-        <div className="grid gap-5 sm:grid-cols-2">
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            First name
-            <input
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              placeholder="e.g. Claudine"
-              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Last name
-            <input
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              placeholder="e.g. Uwase"
-              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Email
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="tenant@example.com"
-              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            {c.phoneNumber}
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+250 7XX XXX XXX"
-              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-            />
-          </label>
-        </div>
-      )}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
@@ -492,9 +353,8 @@ export function AddTenantForm({
       </div>
 
       <p className="text-xs text-slate-400">
-        {mode === "existing"
-          ? "The tenant will be notified to log in and review the lease."
-          : "The tenant will receive an email to set their own password and access their account."}
+        The tenant will receive an email with their login code and a link to set their own
+        password.
       </p>
 
       <div className="mt-1 flex justify-end gap-3">
