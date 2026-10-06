@@ -284,6 +284,7 @@ export default function FloorDetailPage() {
         >
           <EditUnitForm
             propertyId={property.id}
+            propertyType={property.type}
             unit={editingUnit}
             floors={floors}
             onCancel={() => setEditingUnit(null)}
@@ -304,6 +305,7 @@ export default function FloorDetailPage() {
         >
           <UnitSetupForm
             propertyId={property.id}
+            propertyType={property.type}
             floorId={floor.id}
             floorName={floor.name}
             units={units}

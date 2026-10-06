@@ -4,8 +4,9 @@ import { useState } from "react";
 import { Equal, ListPlus, Plus, Wand2 } from "lucide-react";
 import { createUnit, deleteUnit, generateUnits } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
-import type { PropertyUnit } from "@/lib/api/types";
+import type { PropertyType, PropertyUnit } from "@/lib/api/types";
 import { formatMoney } from "@/lib/money";
+import { unitTypeSuggestions } from "@/lib/propertyType";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
 
 type Mode = "manual" | "generate" | "exact";
@@ -18,6 +19,7 @@ type Mode = "manual" | "generate" | "exact";
  */
 export function UnitSetupForm({
   propertyId,
+  propertyType,
   floorId,
   floorName,
   units,
@@ -25,6 +27,7 @@ export function UnitSetupForm({
   onSkip,
 }: {
   propertyId: string;
+  propertyType: PropertyType;
   floorId: string;
   floorName: string;
   /** This floor's current real unit records — powers the "Set exact total" mode. */
@@ -32,12 +35,15 @@ export function UnitSetupForm({
   onDone: (result: { created: number; removed: number }) => void;
   onSkip: () => void;
 }) {
+  const isCommercial = propertyType === "commercial";
+  const typeSuggestions = unitTypeSuggestions(propertyType);
   const [mode, setMode] = useState<Mode>("generate");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Manual, one-at-a-time
   const [label, setLabel] = useState("");
+  const [unitUnitType, setUnitUnitType] = useState("");
   const [unitBedrooms, setUnitBedrooms] = useState("");
   const [unitBathrooms, setUnitBathrooms] = useState("");
   const [unitRent, setUnitRent] = useState("");
@@ -45,12 +51,14 @@ export function UnitSetupForm({
 
   // Bulk generate
   const [count, setCount] = useState("10");
+  const [genUnitType, setGenUnitType] = useState("");
   const [rentAmount, setRentAmount] = useState("");
   const [bedrooms, setBedrooms] = useState("");
   const [bathrooms, setBathrooms] = useState("");
 
   // Set exact total
   const [exactTarget, setExactTarget] = useState("");
+  const [exactUnitType, setExactUnitType] = useState("");
   const [exactRentAmount, setExactRentAmount] = useState("");
   const [exactBedrooms, setExactBedrooms] = useState("");
   const [exactBathrooms, setExactBathrooms] = useState("");
@@ -74,12 +82,14 @@ export function UnitSetupForm({
       const unit = await createUnit(propertyId, {
         label: label.trim(),
         floorId,
-        bedrooms: unitBedrooms.trim() ? Number(unitBedrooms) : undefined,
-        bathrooms: unitBathrooms.trim() ? Number(unitBathrooms) : undefined,
+        unitType: unitUnitType.trim() || undefined,
+        bedrooms: !isCommercial && unitBedrooms.trim() ? Number(unitBedrooms) : undefined,
+        bathrooms: !isCommercial && unitBathrooms.trim() ? Number(unitBathrooms) : undefined,
         rentAmount: Number(unitRent),
       });
       setAddedUnits((prev) => [...prev, { label: unit.label, rentAmount: Number(unit.rentAmount) }]);
       setLabel("");
+      setUnitUnitType("");
       setUnitBedrooms("");
       setUnitBathrooms("");
       setUnitRent("");
@@ -105,8 +115,9 @@ export function UnitSetupForm({
       const createdUnits = await generateUnits(propertyId, {
         floorId,
         count: Number(count),
-        bedrooms: bedrooms.trim() ? Number(bedrooms) : undefined,
-        bathrooms: bathrooms.trim() ? Number(bathrooms) : undefined,
+        unitType: genUnitType.trim() || undefined,
+        bedrooms: !isCommercial && bedrooms.trim() ? Number(bedrooms) : undefined,
+        bathrooms: !isCommercial && bathrooms.trim() ? Number(bathrooms) : undefined,
         rentAmount: Number(rentAmount),
       });
       onDone({ created: createdUnits.length, removed: 0 });
@@ -156,8 +167,9 @@ export function UnitSetupForm({
       const createdUnits = await generateUnits(propertyId, {
         floorId,
         count: diff,
-        bedrooms: exactBedrooms.trim() ? Number(exactBedrooms) : undefined,
-        bathrooms: exactBathrooms.trim() ? Number(exactBathrooms) : undefined,
+        unitType: exactUnitType.trim() || undefined,
+        bedrooms: !isCommercial && exactBedrooms.trim() ? Number(exactBedrooms) : undefined,
+        bathrooms: !isCommercial && exactBathrooms.trim() ? Number(exactBathrooms) : undefined,
         rentAmount: Number(exactRentAmount),
       });
       onDone({ created: createdUnits.length, removed: 0 });
@@ -258,6 +270,23 @@ export function UnitSetupForm({
                 className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
               />
             </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+              Unit type
+              <input
+                type="text"
+                list="manual-unit-type-suggestions"
+                value={unitUnitType}
+                onChange={(e) => setUnitUnitType(e.target.value)}
+                placeholder={isCommercial ? "e.g. Shop" : "e.g. 2 Bedroom"}
+                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+              />
+              <datalist id="manual-unit-type-suggestions">
+                {typeSuggestions.map((suggestion) => (
+                  <option key={suggestion} value={suggestion} />
+                ))}
+              </datalist>
+            </label>
+            {!isCommercial && (
             <div className="grid grid-cols-2 gap-4 sm:col-span-2">
               <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
                 Bedrooms
@@ -280,6 +309,7 @@ export function UnitSetupForm({
                 />
               </label>
             </div>
+            )}
           </div>
 
           <button
@@ -334,25 +364,45 @@ export function UnitSetupForm({
             />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Bedrooms (optional)
+            Unit type
             <input
-              type="number"
-              min={0}
-              value={bedrooms}
-              onChange={(e) => setBedrooms(e.target.value)}
-              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+              type="text"
+              list="generate-unit-type-suggestions"
+              value={genUnitType}
+              onChange={(e) => setGenUnitType(e.target.value)}
+              placeholder={isCommercial ? "e.g. Shop" : "e.g. 2 Bedroom"}
+              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
             />
+            <datalist id="generate-unit-type-suggestions">
+              {typeSuggestions.map((suggestion) => (
+                <option key={suggestion} value={suggestion} />
+              ))}
+            </datalist>
           </label>
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-            Bathrooms (optional)
-            <input
-              type="number"
-              min={0}
-              value={bathrooms}
-              onChange={(e) => setBathrooms(e.target.value)}
-              className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-            />
-          </label>
+          {!isCommercial && (
+            <>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Bedrooms (optional)
+                <input
+                  type="number"
+                  min={0}
+                  value={bedrooms}
+                  onChange={(e) => setBedrooms(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Bathrooms (optional)
+                <input
+                  type="number"
+                  min={0}
+                  value={bathrooms}
+                  onChange={(e) => setBathrooms(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                />
+              </label>
+            </>
+          )}
         </div>
       )}
 
@@ -395,25 +445,45 @@ export function UnitSetupForm({
                 />
               </label>
               <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-                Bedrooms (optional)
+                Unit type
                 <input
-                  type="number"
-                  min={0}
-                  value={exactBedrooms}
-                  onChange={(e) => setExactBedrooms(e.target.value)}
-                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                  type="text"
+                  list="exact-unit-type-suggestions"
+                  value={exactUnitType}
+                  onChange={(e) => setExactUnitType(e.target.value)}
+                  placeholder={isCommercial ? "e.g. Shop" : "e.g. 2 Bedroom"}
+                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
                 />
+                <datalist id="exact-unit-type-suggestions">
+                  {typeSuggestions.map((suggestion) => (
+                    <option key={suggestion} value={suggestion} />
+                  ))}
+                </datalist>
               </label>
-              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-                Bathrooms (optional)
-                <input
-                  type="number"
-                  min={0}
-                  value={exactBathrooms}
-                  onChange={(e) => setExactBathrooms(e.target.value)}
-                  className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
-                />
-              </label>
+              {!isCommercial && (
+                <>
+                  <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                    Bedrooms (optional)
+                    <input
+                      type="number"
+                      min={0}
+                      value={exactBedrooms}
+                      onChange={(e) => setExactBedrooms(e.target.value)}
+                      className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                    Bathrooms (optional)
+                    <input
+                      type="number"
+                      min={0}
+                      value={exactBathrooms}
+                      onChange={(e) => setExactBathrooms(e.target.value)}
+                      className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+                    />
+                  </label>
+                </>
+              )}
             </div>
           )}
 

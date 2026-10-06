@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { updateUnit } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
-import type { Floor, ManualUnitStatus, PropertyUnit } from "@/lib/api/types";
+import type { Floor, ManualUnitStatus, PropertyType, PropertyUnit } from "@/lib/api/types";
+import { unitTypeSuggestions } from "@/lib/propertyType";
 
 /**
  * Edits one unit's own fields via PATCH /properties/:id/units/:unitId.
@@ -12,19 +13,23 @@ import type { Floor, ManualUnitStatus, PropertyUnit } from "@/lib/api/types";
  */
 export function EditUnitForm({
   propertyId,
+  propertyType,
   unit,
   floors,
   onCancel,
   onSuccess,
 }: {
   propertyId: string;
+  propertyType: PropertyType;
   unit: PropertyUnit;
   floors: Floor[];
   onCancel: () => void;
   onSuccess: (updated: PropertyUnit) => void;
 }) {
+  const isCommercial = propertyType === "commercial";
   const [label, setLabel] = useState(unit.label);
   const [floorId, setFloorId] = useState(unit.floorId);
+  const [unitType, setUnitType] = useState(unit.unitType ?? "");
   const [bedrooms, setBedrooms] = useState(unit.bedrooms != null ? String(unit.bedrooms) : "");
   const [bathrooms, setBathrooms] = useState(unit.bathrooms != null ? String(unit.bathrooms) : "");
   const [rentAmount, setRentAmount] = useState(unit.rentAmount);
@@ -49,8 +54,9 @@ export function EditUnitForm({
       const updated = await updateUnit(propertyId, unit.id, {
         label: label.trim(),
         floorId,
-        bedrooms: bedrooms.trim() ? Number(bedrooms) : undefined,
-        bathrooms: bathrooms.trim() ? Number(bathrooms) : undefined,
+        unitType: unitType.trim() || undefined,
+        bedrooms: !isCommercial && bedrooms.trim() ? Number(bedrooms) : undefined,
+        bathrooms: !isCommercial && bathrooms.trim() ? Number(bathrooms) : undefined,
         rentAmount: Number(rentAmount),
         ...(unit.status === "occupied" ? {} : { status }),
       });
@@ -104,6 +110,23 @@ export function EditUnitForm({
             ))}
           </select>
         </label>
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          Unit type
+          <input
+            type="text"
+            list="edit-unit-type-suggestions"
+            value={unitType}
+            onChange={(e) => setUnitType(e.target.value)}
+            placeholder={isCommercial ? "e.g. Shop" : "e.g. 2 Bedroom"}
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+          />
+          <datalist id="edit-unit-type-suggestions">
+            {unitTypeSuggestions(propertyType).map((suggestion) => (
+              <option key={suggestion} value={suggestion} />
+            ))}
+          </datalist>
+        </label>
+        {!isCommercial && (
         <div className="grid grid-cols-2 gap-4">
           <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
             Bedrooms
@@ -126,6 +149,7 @@ export function EditUnitForm({
             />
           </label>
         </div>
+        )}
         {unit.status === "occupied" ? (
           <p className="text-sm text-slate-500 sm:col-span-2">
             Status: <strong>Occupied</strong> — end the lease on this unit to change its status.

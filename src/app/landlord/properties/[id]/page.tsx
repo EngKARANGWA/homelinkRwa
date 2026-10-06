@@ -7,16 +7,14 @@ import { ArrowLeft, ArrowRight, Eye, Pencil, Plus, UploadCloud } from "lucide-re
 import {
   getProperty,
   listFloors,
-  listUnitsByFloor,
   updateFloor,
   updateProperty,
   uploadPropertyDocument,
 } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
-import type { Floor, Property, PropertyUnit, UpdatePropertyInput } from "@/lib/api/types";
+import type { Floor, Property, UpdatePropertyInput } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
-import { UnitSetupForm } from "@/components/admin/UnitSetupForm";
 import { ImportUnitsForm } from "@/components/admin/ImportUnitsForm";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
@@ -40,13 +38,10 @@ export default function PropertyDetailPage() {
   const [isEditing, setEditing] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [isImporting, setImporting] = useState(false);
-  const [managingFloor, setManagingFloor] = useState<Floor | null>(null);
   const [editingFloor, setEditingFloor] = useState<Floor | null>(null);
   const [floorError, setFloorError] = useState<string | null>(null);
   const [floorName, setFloorName] = useState("");
   const [floorScale, setFloorScale] = useState("");
-  const [floorUnits, setFloorUnits] = useState<PropertyUnit[]>([]);
-  const [loadingFloorUnits, setLoadingFloorUnits] = useState(false);
 
   const load = () => {
     if (!id) return;
@@ -128,13 +123,8 @@ export default function PropertyDetailPage() {
     setEditingFloor(floor);
   };
 
-  const openManageFloor = (floor: Floor) => {
-    setManagingFloor(floor);
-    setLoadingFloorUnits(true);
-    listUnitsByFloor(property.id, floor.id)
-      .then(setFloorUnits)
-      .catch(() => setFloorUnits([]))
-      .finally(() => setLoadingFloorUnits(false));
+  const goToFloor = (floor: Floor) => {
+    router.push(`/landlord/properties/${property.id}/floors/${floor.id}`);
   };
 
   const handleSaveFloor = async () => {
@@ -219,9 +209,13 @@ export default function PropertyDetailPage() {
           {floors.map((floor) => (
             <Tr key={floor.id}>
               <Td className="max-w-[9rem] px-4 py-3 sm:max-w-none sm:px-6">
-                <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
+                <button
+                  type="button"
+                  onClick={() => goToFloor(floor)}
+                  className="truncate text-left font-medium text-navy hover:underline sm:overflow-visible sm:whitespace-normal"
+                >
                   {floor.name}
-                </p>
+                </button>
                 <p className="truncate text-xs text-slate-400 sm:hidden">
                   {floor.unitsCount} unit{floor.unitsCount === 1 ? "" : "s"}
                 </p>
@@ -236,10 +230,8 @@ export default function PropertyDetailPage() {
                 <div className="flex items-center justify-end gap-1">
                   <button
                     type="button"
-                    onClick={() =>
-                      router.push(`/landlord/properties/${property.id}/floors/${floor.id}`)
-                    }
-                    title="View this floor's units"
+                    onClick={() => goToFloor(floor)}
+                    title="View and manage this floor's units"
                     className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy"
                   >
                     <Eye className="h-4 w-4" />
@@ -247,14 +239,14 @@ export default function PropertyDetailPage() {
                   <button
                     type="button"
                     onClick={() => openEditFloor(floor)}
-                    title="Edit this floor"
+                    title="Edit this floor's name/scale"
                     className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => openManageFloor(floor)}
+                    onClick={() => goToFloor(floor)}
                     className="ml-1 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   >
                     Manage Floor
@@ -378,36 +370,6 @@ export default function PropertyDetailPage() {
               </button>
             </div>
           </div>
-        </Modal>
-      )}
-
-      {managingFloor && (
-        <Modal
-          title={`Manage Floor — ${managingFloor.name}`}
-          description={
-            loadingFloorUnits
-              ? "Loading this floor's current units..."
-              : `Add units to ${managingFloor.name} in ${property.title}.`
-          }
-          onClose={() => setManagingFloor(null)}
-        >
-          <UnitSetupForm
-            propertyId={property.id}
-            floorId={managingFloor.id}
-            floorName={managingFloor.name}
-            units={floorUnits ?? []}
-            onSkip={() => setManagingFloor(null)}
-            onDone={({ created, removed }) => {
-              setManagingFloor(null);
-              reload();
-              const parts: string[] = [];
-              if (created > 0) parts.push(`${created} unit${created === 1 ? "" : "s"} added`);
-              if (removed > 0) parts.push(`${removed} unit${removed === 1 ? "" : "s"} removed`);
-              if (parts.length > 0) {
-                toast.success(`${parts.join(" and ")} on ${managingFloor.name}.`);
-              }
-            }}
-          />
         </Modal>
       )}
     </div>
