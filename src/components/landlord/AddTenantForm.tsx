@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Check, CheckCircle2, Copy, MessageCircle, Send } from "lucide-react";
-import { listAvailableUnits } from "@/lib/api/properties";
+import { listAvailableUnits, listProperties } from "@/lib/api/properties";
 import { createLease } from "@/lib/api/leases";
 import { ApiError } from "@/lib/api/client";
-import type { AvailableUnit, Lease } from "@/lib/api/types";
+import type { AvailableUnit, Lease, Property } from "@/lib/api/types";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { useAuth } from "@/components/auth/AuthContext";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { formatMoney } from "@/lib/money";
 
@@ -71,8 +72,18 @@ export function AddTenantForm({
   onSuccess: (lease: Lease) => void;
   onCancel: () => void;
 }) {
+  const { user } = useAuth();
   const { t } = useLanguage();
   const c = t.dashboard.landlord.addTenantForm;
+
+  // Only relevant when `propertyId` isn't fixed by the caller — picking a
+  // property first is how the unit list gets narrowed down instead of
+  // showing every vacant unit across the whole portfolio at once.
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loadingProperties, setLoadingProperties] = useState(!propertyId);
+  const [selectedPropertyId, setSelectedPropertyId] = useState("");
+
+  const effectivePropertyId = propertyId ?? selectedPropertyId;
 
   const [units, setUnits] = useState<AvailableUnit[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(true);
@@ -93,9 +104,36 @@ export function AddTenantForm({
   const [createdLease, setCreatedLease] = useState<Lease | null>(null);
 
   useEffect(() => {
+    if (propertyId) return;
+    let cancelled = false;
+    setLoadingProperties(true);
+    listProperties(user?.role === "owner" ? { ownerId: user.id, limit: 100 } : { limit: 100 })
+      .then((res) => {
+        if (!cancelled) setProperties(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setProperties([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProperties(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [propertyId, user?.id, user?.role]);
+
+  useEffect(() => {
+    // No fixed property and none picked yet — nothing to load, and nothing
+    // vacant to show until the caller narrows it down to one property.
+    if (!effectivePropertyId) {
+      setUnits([]);
+      setUnitId("");
+      setLoadingUnits(false);
+      return;
+    }
     let cancelled = false;
     setLoadingUnits(true);
-    listAvailableUnits(propertyId ? { propertyId } : {})
+    listAvailableUnits({ propertyId: effectivePropertyId })
       .then((result) => {
         if (cancelled) return;
         setUnits(result);
@@ -110,7 +148,7 @@ export function AddTenantForm({
     return () => {
       cancelled = true;
     };
-  }, [propertyId]);
+  }, [effectivePropertyId]);
 
   const selectedUnit = units.find((u) => u.id === unitId);
 
@@ -122,6 +160,10 @@ export function AddTenantForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!propertyId && !selectedPropertyId) {
+      setError(c.errorSelectProperty);
+      return;
+    }
     if (!selectedUnit) {
       setError(c.errorNoVacantUnits);
       return;
@@ -242,18 +284,41 @@ export function AddTenantForm({
         </p>
       )}
 
+      {!propertyId && (
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          {c.property}
+          <SearchableSelect
+            value={selectedPropertyId}
+            onChange={(id) => setSelectedPropertyId(id)}
+            disabled={loadingProperties || properties.length === 0}
+            placeholder={loadingProperties ? "Loading properties..." : c.selectProperty}
+            options={properties.map((property) => ({
+              value: property.id,
+              label: `${property.title} — ${property.location}`,
+            }))}
+          />
+        </label>
+      )}
+
       <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
         {c.unit}
         <SearchableSelect
           value={unitId}
           onChange={handleUnitChange}
-          disabled={loadingUnits || units.length === 0}
-          placeholder={loadingUnits ? "Loading units..." : units.length === 0 ? c.noVacantUnits : c.selectUnit}
+          disabled={!effectivePropertyId || loadingUnits || units.length === 0}
+          placeholder={
+            !effectivePropertyId
+              ? c.selectProperty
+              : loadingUnits
+                ? "Loading units..."
+                : units.length === 0
+                  ? c.noVacantUnits
+                  : c.selectUnit
+          }
           options={units.map((unit) => {
-            const propertyPart = propertyId ? "" : ` — ${unit.propertyTitle}`;
             return {
               value: unit.id,
-              label: `${unit.label}${propertyPart} — ${formatMoney(Number(unit.rentAmount))} RWF`,
+              label: `${unit.label} — ${formatMoney(Number(unit.rentAmount))} RWF`,
             };
           })}
         />
@@ -367,7 +432,7 @@ export function AddTenantForm({
         </button>
         <button
           type="submit"
-          disabled={submitting || loadingUnits || units.length === 0}
+          disabled={submitting || !effectivePropertyId || loadingUnits || units.length === 0}
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? "Adding..." : c.submit}
