@@ -55,13 +55,15 @@ export function isLoginChallenge(
 
 export type RegisterInput = {
   email: string;
-  password: string;
   firstName: string;
   lastName: string;
   phone: string;
   // Tenant self-registration is retired — tenant accounts are only ever
   // created by a landlord/agent (via createLease's newTenant), which hands
   // them a permanent login code instead of an email identity.
+  // No password here either — this creates a pending request with no
+  // tokens issued; the password is set later via the link emailed once an
+  // admin approves it.
   role: "owner" | "agent";
 };
 

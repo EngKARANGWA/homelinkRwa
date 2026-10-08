@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
+  Check,
   CheckCircle2,
   ChevronDown,
   Loader2,
@@ -12,7 +13,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
-import { listUsers, updateUserRole } from "@/lib/api/admin";
+import { approveUser, listUsers, updateUserRole } from "@/lib/api/admin";
 import { ApiError } from "@/lib/api/client";
 import type { Role, User } from "@/lib/api/types";
 
@@ -265,6 +266,7 @@ export default function RoleManagementPage() {
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState<AssignableRole | "all">("all");
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
   let nextToastId = useRef(0);
 
   const addToast = (type: "success" | "error", message: string) => {
@@ -295,6 +297,19 @@ export default function RoleManagementPage() {
 
   const handleError = (message: string) => {
     addToast("error", message);
+  };
+
+  const handleApprove = async (id: string) => {
+    setApprovingId(id);
+    try {
+      await approveUser(id);
+      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, isApproved: true } : u)));
+      addToast("success", "Account approved — they've been emailed a set-password link.");
+    } catch (err) {
+      addToast("error", err instanceof ApiError ? err.message : "Failed to approve account.");
+    } finally {
+      setApprovingId(null);
+    }
   };
 
   // Filter + search
@@ -479,26 +494,47 @@ export default function RoleManagementPage() {
                     <td className="px-6 py-3.5">
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                          user.isActive
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-slate-100 text-slate-500"
+                          user.isApproved === false
+                            ? "bg-amber-50 text-amber-700"
+                            : user.isActive
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-slate-100 text-slate-500"
                         }`}
                       >
-                        {user.isActive ? "Active" : "Inactive"}
+                        {user.isApproved === false
+                          ? "Pending approval"
+                          : user.isActive
+                            ? "Active"
+                            : "Inactive"}
                       </span>
                     </td>
                     <td className="px-6 py-3.5">
-                      <RoleDropdown
-                        userId={user.id}
-                        currentRole={user.role}
-                        assignableRoles={assignableRoles}
-                        disabled={
-                          (user.role === "admin" || user.role === "superadmin") &&
-                          viewer?.role !== "superadmin"
-                        }
-                        onRoleChanged={handleRoleChanged}
-                        onError={handleError}
-                      />
+                      <div className="flex items-center gap-2">
+                        {user.isApproved === false &&
+                          (user.role === "owner" || user.role === "agent") && (
+                            <button
+                              type="button"
+                              onClick={() => handleApprove(user.id)}
+                              disabled={approvingId === user.id}
+                              aria-label={`Approve ${user.firstName} ${user.lastName}`}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                              {approvingId === user.id ? "Approving..." : "Approve"}
+                            </button>
+                          )}
+                        <RoleDropdown
+                          userId={user.id}
+                          currentRole={user.role}
+                          assignableRoles={assignableRoles}
+                          disabled={
+                            (user.role === "admin" || user.role === "superadmin") &&
+                            viewer?.role !== "superadmin"
+                          }
+                          onRoleChanged={handleRoleChanged}
+                          onError={handleError}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))

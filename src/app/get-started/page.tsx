@@ -1,20 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, CheckCircle2, Home } from "lucide-react";
 import { register } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import type { RegisterInput } from "@/lib/api/types";
-import { ROLE_ROUTES } from "@/lib/api/roleRoute";
-import { useAuth } from "@/components/auth/AuthContext";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 
 export default function GetStartedPage() {
-  const router = useRouter();
-  const { refreshUser } = useAuth();
   const { t } = useLanguage();
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +19,6 @@ export default function GetStartedPage() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
   const [role, setRole] = useState<RegisterInput["role"]>("owner");
 
   // Tenant self-registration is retired — tenant accounts are only ever
@@ -40,20 +34,16 @@ export default function GetStartedPage() {
     setError(null);
     setSubmitting(true);
     try {
+      // No password here, and no auto-login — this is a pending request.
+      // An admin reviews it and, on approval, emails a set-password link.
       await register({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim(),
         phone: phone.trim(),
-        password,
         role,
       });
       setSubmitted(true);
-      const me = await refreshUser();
-      const route = me ? ROLE_ROUTES[me.role] : undefined;
-      if (route) {
-        router.push(route);
-      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong.");
     } finally {
@@ -83,22 +73,19 @@ export default function GetStartedPage() {
           {t.getStartedPage.title}
         </h1>
         <p className="mt-2 text-center text-sm text-slate-500">
-          Create your account to manage properties, leases, and payments.
+          {t.getStartedPage.description}
         </p>
 
         {submitted ? (
           <div className="mt-8 flex flex-col items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-6 py-8 text-center">
             <CheckCircle2 className="h-8 w-8 text-emerald-600" />
-            <p className="font-semibold text-emerald-800">Account created!</p>
-            <p className="text-sm text-emerald-700">
-              You can now log in. Some accounts may need a brief approval
-              before full access is granted.
-            </p>
+            <p className="font-semibold text-emerald-800">{t.getStartedPage.success.title}</p>
+            <p className="text-sm text-emerald-700">{t.getStartedPage.success.description}</p>
             <Link
               href="/login"
               className="mt-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
             >
-              Go to login
+              {t.getStartedPage.logIn}
             </Link>
           </div>
         ) : (
@@ -161,19 +148,6 @@ export default function GetStartedPage() {
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-              Password
-              <input
-                type="password"
-                required
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 8 characters"
-                className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
               {t.getStartedPage.form.iAmA}
               <select
                 value={role}
@@ -193,7 +167,7 @@ export default function GetStartedPage() {
               disabled={isSubmitting}
               className="mt-2 rounded-lg bg-gold px-6 py-3 font-semibold text-white transition-colors hover:bg-gold/90 disabled:opacity-60"
             >
-              {isSubmitting ? "Requesting account..." : "Request an account"}
+              {isSubmitting ? "Requesting..." : t.getStartedPage.form.requestAccess}
             </button>
           </form>
         )}

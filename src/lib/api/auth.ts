@@ -10,15 +10,14 @@ import type {
   User,
 } from "./types";
 
+// No tokens are issued here — a self-registration is a pending request
+// until an admin approves it, which emails the user a set-password link.
 export async function register(input: RegisterInput): Promise<User> {
-  const res = await apiFetch<SuccessResponse<AuthTokens>>("/auth/register", {
+  const res = await apiFetch<SuccessResponse<{ user: User }>>("/auth/register", {
     method: "POST",
     body: input,
     auth: false,
   });
-  if (res.data.accessToken) {
-    setTokens(res.data.accessToken, res.data.refreshToken);
-  }
   return res.data.user;
 }
 

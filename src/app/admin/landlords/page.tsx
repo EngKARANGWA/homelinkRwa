@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Eye, Plus } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, Eye, Plus } from "lucide-react";
 import {
+  approveUser,
   countPropertiesForOwner,
   createHouseOwner,
   listUsers,
@@ -50,6 +51,8 @@ export default function LandlordsPage() {
   const [justRegistered, setJustRegistered] = useState(false);
   const [viewingLandlord, setViewingLandlord] = useState<User | null>(null);
   const [page, setPage] = useState(1);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -80,6 +83,19 @@ export default function LandlordsPage() {
     (page - 1) * DEFAULT_PAGE_SIZE,
     page * DEFAULT_PAGE_SIZE,
   );
+
+  const handleApprove = async (id: string) => {
+    setActionError(null);
+    setApprovingId(id);
+    try {
+      await approveUser(id);
+      load();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Failed to approve landlord.");
+    } finally {
+      setApprovingId(null);
+    }
+  };
 
   const registerLandlord = async (values: CreateHouseOwnerInput) => {
     setSubmitting(true);
@@ -120,15 +136,17 @@ export default function LandlordsPage() {
         </div>
       )}
 
-      {error && (
+      {(error || actionError) && (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
           <span className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4" />
-            {error}
+            {error ?? actionError}
           </span>
-          <button type="button" onClick={load} className="underline hover:no-underline">
-            Retry
-          </button>
+          {error && (
+            <button type="button" onClick={load} className="underline hover:no-underline">
+              Retry
+            </button>
+          )}
         </div>
       )}
 
@@ -186,14 +204,28 @@ export default function LandlordsPage() {
                     {landlord.createdAt?.slice(0, 10)}
                   </Td>
                   <Td className="whitespace-nowrap px-4 py-3 text-right sm:px-6">
-                    <button
-                      type="button"
-                      onClick={() => setViewingLandlord(landlord)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      {t.dashboard.actions.view}
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      {status === "Pending" && (
+                        <button
+                          type="button"
+                          onClick={() => handleApprove(landlord.id)}
+                          disabled={approvingId === landlord.id}
+                          aria-label={`Approve ${landlord.firstName} ${landlord.lastName}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          {approvingId === landlord.id ? "Approving..." : "Approve"}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setViewingLandlord(landlord)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        {t.dashboard.actions.view}
+                      </button>
+                    </div>
                   </Td>
                 </Tr>
               );

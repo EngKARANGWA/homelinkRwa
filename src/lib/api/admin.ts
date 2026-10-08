@@ -56,6 +56,16 @@ export async function countPropertiesForOwner(ownerId: string): Promise<number> 
   return res.meta.total;
 }
 
+// Approves a pending landlord/property-manager sign-up request (POST
+// /get-started) — flips isApproved and emails the user a set-password link,
+// since a self-registered account has no usable password until then.
+export async function approveUser(id: string): Promise<User> {
+  const res = await apiFetch<SuccessResponse<User>>(`/admin/users/${id}/approve`, {
+    method: "PATCH",
+  });
+  return res.data;
+}
+
 export async function updateUserRole(id: string, role: Role): Promise<User> {
   const res = await apiFetch<SuccessResponse<User>>(`/admin/users/${id}/role`, {
     method: "PATCH",
