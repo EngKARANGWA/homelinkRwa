@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { AppLink as Link } from "@/components/shared/AppLink";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Eye, Pencil, Plus, UploadCloud } from "lucide-react";
+import { ArrowLeft, ArrowRight, Eye, Pencil, Plus } from "lucide-react";
 import {
   getProperty,
   listFloors,
@@ -15,7 +15,6 @@ import { ApiError } from "@/lib/api/client";
 import type { Floor, Property, UpdatePropertyInput } from "@/lib/api/types";
 import { Modal } from "@/components/admin/Modal";
 import { PropertyForm } from "@/components/admin/PropertyForm";
-import { ImportUnitsForm } from "@/components/admin/ImportUnitsForm";
 import { AddTenantForm } from "@/components/landlord/AddTenantForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { EmptyRow, Table, TBody, Td, Th, THead, Tr } from "@/components/dashboard/Table";
@@ -37,7 +36,6 @@ export default function PropertyDetailPage() {
   const [isAddingTenant, setAddingTenant] = useState(false);
   const [isEditing, setEditing] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const [isImporting, setImporting] = useState(false);
   const [editingFloor, setEditingFloor] = useState<Floor | null>(null);
   const [floorError, setFloorError] = useState<string | null>(null);
   const [floorName, setFloorName] = useState("");
@@ -173,14 +171,6 @@ export default function PropertyDetailPage() {
           </button>
           <button
             type="button"
-            onClick={() => setImporting(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-          >
-            <UploadCloud className="h-4 w-4" />
-            Import from Excel
-          </button>
-          <button
-            type="button"
             onClick={() => setAddingTenant(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
           >
@@ -270,14 +260,10 @@ export default function PropertyDetailPage() {
       {isAddingTenant && (
         <Modal
           title={c.addTenant}
-          description={c.addTenantDescriptionTemplate.replace("{property}", property.title)}
+          description="Register a new tenant and assign them to an available unit."
           onClose={() => setAddingTenant(false)}
         >
-          <AddTenantForm
-            propertyId={property.id}
-            onCancel={() => setAddingTenant(false)}
-            onSuccess={handleAddTenant}
-          />
+          <AddTenantForm onCancel={() => setAddingTenant(false)} onSuccess={handleAddTenant} />
         </Modal>
       )}
 
@@ -299,25 +285,6 @@ export default function PropertyDetailPage() {
             initialProperty={property}
             onCancel={() => setEditing(false)}
             onSuccess={handleEditProperty}
-          />
-        </Modal>
-      )}
-
-      {isImporting && (
-        <Modal
-          title="Import units from Excel"
-          description={`Bulk-create units across ${property.title}'s floors from a spreadsheet.`}
-          onClose={() => setImporting(false)}
-        >
-          <ImportUnitsForm
-            propertyId={property.id}
-            floors={floors}
-            onCancel={() => setImporting(false)}
-            onDone={(createdCount) => {
-              setImporting(false);
-              reload();
-              toast.success(`${createdCount} unit${createdCount === 1 ? "" : "s"} imported.`);
-            }}
           />
         </Modal>
       )}

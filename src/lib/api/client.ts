@@ -16,6 +16,25 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The backend's Zod validation failures (400s) carry a generic top-level
+ * message ("Validation failed") plus a per-field `errors: [{ path, message
+ * }]` array — this surfaces the actual field-level reason instead of just
+ * the generic one, so "why" is visible without opening devtools.
+ */
+export function formatApiError(err: unknown, fallback: string): string {
+  if (!(err instanceof ApiError)) return fallback;
+  if (Array.isArray(err.errors) && err.errors.length > 0) {
+    const details = err.errors
+      .map((e) =>
+        e && typeof e === "object" && "message" in e ? String((e as { message: unknown }).message) : null,
+      )
+      .filter((m): m is string => Boolean(m));
+    if (details.length > 0) return details.join(" ");
+  }
+  return err.message;
+}
+
 let refreshPromise: Promise<string | null> | null = null;
 
 async function refreshAccessToken(): Promise<string | null> {

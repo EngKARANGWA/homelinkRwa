@@ -169,7 +169,7 @@ export function ImportUnitsForm({
                     </td>
                     <td className="px-3 py-2 text-slate-500">{row.bedrooms ?? "—"}</td>
                     <td className="px-3 py-2 text-slate-500">{row.bathrooms ?? "—"}</td>
-                    <td className="px-3 py-2 text-slate-500">{formatMoney(row.rentAmount)}</td>
+                    <td className="px-3 py-2 text-slate-500">{formatMoney(row.rentAmount ?? 0)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -3,25 +3,30 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, Check, Pencil, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, Pencil, UploadCloud, X } from "lucide-react";
 import { getUser, listUsers } from "@/lib/api/admin";
 import {
   approveProperty,
   getProperty,
+  listFloors,
   rejectProperty,
   updateProperty,
 } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
-import type { Property, UpdatePropertyInput, User } from "@/lib/api/types";
+import type { Floor, Property, UpdatePropertyInput, User } from "@/lib/api/types";
 import { PropertyDetail } from "@/components/admin/PropertyDetail";
 import { PropertyForm } from "@/components/admin/PropertyForm";
+import { ImportUnitsForm } from "@/components/admin/ImportUnitsForm";
 import { Modal } from "@/components/admin/Modal";
+import { useToast } from "@/components/shared/ToastContext";
 
 export default function PropertyDetailPage() {
   const params = useParams<{ id: string }>();
+  const toast = useToast();
   const [property, setProperty] = useState<Property | null>(null);
   const [owner, setOwner] = useState<User | null>(null);
   const [owners, setOwners] = useState<User[]>([]);
+  const [floors, setFloors] = useState<Floor[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -29,6 +34,7 @@ export default function PropertyDetailPage() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [isEditing, setEditing] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [isImporting, setImporting] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -40,8 +46,12 @@ export default function PropertyDetailPage() {
       .then(async ([p, ownersRes]) => {
         setProperty(p);
         setOwners(ownersRes.data);
-        const u = await getUser(p.ownerId).catch(() => null);
+        const [u, floorsRes] = await Promise.all([
+          getUser(p.ownerId).catch(() => null),
+          listFloors(p.id).catch(() => []),
+        ]);
         setOwner(u);
+        setFloors(floorsRes);
       })
       .catch((err) =>
         setError(err instanceof ApiError ? err.message : "Failed to load property."),
@@ -135,6 +145,14 @@ export default function PropertyDetailPage() {
                 <Pencil className="h-4 w-4" />
                 Edit
               </button>
+              <button
+                type="button"
+                onClick={() => setImporting(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                <UploadCloud className="h-4 w-4" />
+                Import from Excel
+              </button>
               {property.approvalStatus === "pending" && (
                 <>
                   <button
@@ -191,6 +209,25 @@ export default function PropertyDetailPage() {
             initialProperty={property}
             onCancel={() => setEditing(false)}
             onSuccess={handleUpdateProperty}
+          />
+        </Modal>
+      )}
+
+      {isImporting && property && (
+        <Modal
+          title="Import units from Excel"
+          description={`Bulk-create units across ${property.title}'s floors from a spreadsheet.`}
+          onClose={() => setImporting(false)}
+        >
+          <ImportUnitsForm
+            propertyId={property.id}
+            floors={floors}
+            onCancel={() => setImporting(false)}
+            onDone={(createdCount) => {
+              setImporting(false);
+              load();
+              toast.success(`${createdCount} unit${createdCount === 1 ? "" : "s"} imported.`);
+            }}
           />
         </Modal>
       )}

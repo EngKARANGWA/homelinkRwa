@@ -222,7 +222,7 @@ export default function UnitDetailPage() {
 
         {unit.unitType && <p className="mt-1 text-sm text-slate-500">{unit.unitType}</p>}
 
-        <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-5">
+        <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6">
           <Field label={c.monthlyRent}>{formatMoney(Number(unit.rentAmount))} RWF</Field>
           <Field label={c.deposit}>
             {unit.deposit != null ? `${formatMoney(Number(unit.deposit))} RWF` : "—"}
@@ -230,6 +230,7 @@ export default function UnitDetailPage() {
           <Field label="Floor">{unit.floor?.name ?? "—"}</Field>
           <Field label="Bedrooms">{unit.bedrooms ?? "—"}</Field>
           <Field label="Bathrooms">{unit.bathrooms ?? "—"}</Field>
+          <Field label="Scale">{unit.scale ?? "—"}</Field>
         </div>
 
         {unit.description && (
@@ -443,11 +444,10 @@ export default function UnitDetailPage() {
       {isAddingTenant && (
         <Modal
           title={c.addTenant}
-          description={`Assign a new tenant to ${unit.label} in ${property.title}.`}
+          description="Register a new tenant and assign them to an available unit."
           onClose={() => setAddingTenant(false)}
         >
           <AddTenantForm
-            propertyId={property.id}
             defaultRentAmount={Number(unit.rentAmount)}
             onCancel={() => setAddingTenant(false)}
             onSuccess={() => {

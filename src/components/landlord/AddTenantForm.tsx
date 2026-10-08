@@ -59,15 +59,10 @@ const TODAY = new Date().toISOString().slice(0, 10);
 // hold several separate accounts (one per lease), each with its own login
 // code, so searching for "the" existing tenant doesn't make sense.
 export function AddTenantForm({
-  propertyId,
   defaultRentAmount,
   onSuccess,
   onCancel,
 }: {
-  /** Pre-selects the property picker when opened from a property's own page
-   * — the picker still shows and can be changed, it just starts here
-   * instead of blank. Omit when opened from a portfolio-wide context. */
-  propertyId?: string;
   defaultRentAmount?: number;
   onSuccess: (lease: Lease) => void;
   onCancel: () => void;
@@ -76,13 +71,12 @@ export function AddTenantForm({
   const { t } = useLanguage();
   const c = t.dashboard.landlord.addTenantForm;
 
-  // Picking a property first is how the unit list gets narrowed down,
-  // whether this form was opened from a specific property's page (where
-  // `propertyId` just seeds the initial selection) or from a portfolio-wide
-  // context (where it starts blank).
+  // Always starts blank — picking a property first, then a unit from it, is
+  // a deliberate two-step flow even when this form was opened from that
+  // property's own page.
   const [properties, setProperties] = useState<Property[]>([]);
   const [loadingProperties, setLoadingProperties] = useState(true);
-  const [selectedPropertyId, setSelectedPropertyId] = useState(propertyId ?? "");
+  const [selectedPropertyId, setSelectedPropertyId] = useState("");
 
   const [units, setUnits] = useState<AvailableUnit[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(true);

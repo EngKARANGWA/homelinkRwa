@@ -204,6 +204,7 @@ export default function FloorDetailPage() {
           <Tr>
             <Th className="max-w-[9rem] px-4 py-3 sm:px-6">{t.dashboard.table.unit}</Th>
             <Th className="hidden px-6 py-3 md:table-cell">Monthly Rent</Th>
+            <Th className="hidden px-6 py-3 lg:table-cell">Scale</Th>
             <Th className="px-4 py-3 sm:px-6">{t.dashboard.table.status}</Th>
             <Th className="px-4 py-3 text-right sm:px-6">Action</Th>
           </Tr>
@@ -221,6 +222,9 @@ export default function FloorDetailPage() {
               </Td>
               <Td className="hidden px-6 py-3 text-slate-500 md:table-cell">
                 {formatMoney(Number(unit.rentAmount))}
+              </Td>
+              <Td className="hidden px-6 py-3 text-slate-500 lg:table-cell">
+                {unit.scale ?? "—"}
               </Td>
               <Td className="px-4 py-3 sm:px-6">
                 <span
@@ -264,7 +268,7 @@ export default function FloorDetailPage() {
               </Td>
             </Tr>
           ))}
-          {pagedUnits.length === 0 && <EmptyRow colSpan={4}>No units match these filters.</EmptyRow>}
+          {pagedUnits.length === 0 && <EmptyRow colSpan={5}>No units match these filters.</EmptyRow>}
         </TBody>
       </Table>
 
@@ -308,15 +312,13 @@ export default function FloorDetailPage() {
             propertyType={property.type}
             floorId={floor.id}
             floorName={floor.name}
-            units={units}
-            onSkip={() => setManaging(false)}
-            onDone={({ created, removed }) => {
+            existingUnitsCount={units.length}
+            onDone={({ created }) => {
               setManaging(false);
               reloadUnits();
-              const parts: string[] = [];
-              if (created > 0) parts.push(`${created} unit${created === 1 ? "" : "s"} added`);
-              if (removed > 0) parts.push(`${removed} unit${removed === 1 ? "" : "s"} removed`);
-              if (parts.length > 0) toast.success(`${parts.join(" and ")} on ${floor.name}.`);
+              if (created > 0) {
+                toast.success(`${created} unit${created === 1 ? "" : "s"} added on ${floor.name}.`);
+              }
             }}
           />
         </Modal>

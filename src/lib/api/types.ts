@@ -176,6 +176,8 @@ export type PropertyUnit = {
   bedrooms: number | null;
   bathrooms: number | null;
   rentAmount: string;
+  // Unit size/area — same "scale" concept as Floor.scale, optional.
+  scale: string | null;
   deposit: string | null;
   status: UnitStatus;
   createdAt: string;
@@ -209,7 +211,10 @@ export type CreateUnitInput = {
   description?: string;
   bedrooms?: number;
   bathrooms?: number;
-  rentAmount: number;
+  // Omit to leave it at the backend's default (0) — meant for bulk
+  // creation where the real rent gets set per unit afterward.
+  rentAmount?: number;
+  scale?: number;
   deposit?: number;
 };
 
@@ -223,6 +228,7 @@ export type UpdateUnitInput = {
   bedrooms?: number;
   bathrooms?: number;
   rentAmount?: number;
+  scale?: number;
   deposit?: number;
   status?: ManualUnitStatus;
 };
@@ -233,8 +239,14 @@ export type GenerateUnitsInput = {
   unitType?: string;
   bedrooms?: number;
   bathrooms?: number;
-  rentAmount: number;
+  // Omit to leave every generated unit at the backend's default (0) — the
+  // real rent gets set per unit afterward.
+  rentAmount?: number;
+  scale?: number;
   deposit?: number;
+  // Omit to auto-continue from the floor's current unit count. Pass 0 to
+  // force numbering from Unit 1 regardless of what's already there.
+  startAt?: number;
 };
 
 export type ImportUnitsRowError = { row: number; message: string };

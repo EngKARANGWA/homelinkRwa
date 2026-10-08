@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { updateUnit } from "@/lib/api/properties";
-import { ApiError } from "@/lib/api/client";
+import { formatApiError } from "@/lib/api/client";
 import type { Floor, ManualUnitStatus, PropertyType, PropertyUnit } from "@/lib/api/types";
 import { unitTypeSuggestions } from "@/lib/propertyType";
+import { SuggestionInput } from "@/components/shared/SuggestionInput";
 
 /**
  * Edits one unit's own fields via PATCH /properties/:id/units/:unitId.
@@ -33,6 +34,7 @@ export function EditUnitForm({
   const [bedrooms, setBedrooms] = useState(unit.bedrooms != null ? String(unit.bedrooms) : "");
   const [bathrooms, setBathrooms] = useState(unit.bathrooms != null ? String(unit.bathrooms) : "");
   const [rentAmount, setRentAmount] = useState(unit.rentAmount);
+  const [scale, setScale] = useState(unit.scale ?? "");
   const [status, setStatus] = useState<ManualUnitStatus>(
     unit.status === "occupied" ? "available" : unit.status,
   );
@@ -58,11 +60,12 @@ export function EditUnitForm({
         bedrooms: !isCommercial && bedrooms.trim() ? Number(bedrooms) : undefined,
         bathrooms: !isCommercial && bathrooms.trim() ? Number(bathrooms) : undefined,
         rentAmount: Number(rentAmount),
+        scale: scale.toString().trim() ? Number(scale) : undefined,
         ...(unit.status === "occupied" ? {} : { status }),
       });
       onSuccess(updated);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to update this unit.");
+      setError(formatApiError(err, "Failed to update this unit."));
     } finally {
       setSubmitting(false);
     }
@@ -97,6 +100,17 @@ export function EditUnitForm({
           />
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          Scale (size/area, optional)
+          <input
+            type="number"
+            min={0}
+            value={scale}
+            onChange={(e) => setScale(e.target.value)}
+            placeholder="e.g. 20"
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+          />
+        </label>
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
           Floor
           <select
             value={floorId}
@@ -112,19 +126,13 @@ export function EditUnitForm({
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
           Unit type
-          <input
-            type="text"
-            list="edit-unit-type-suggestions"
+          <SuggestionInput
             value={unitType}
-            onChange={(e) => setUnitType(e.target.value)}
+            onChange={setUnitType}
+            suggestions={unitTypeSuggestions(propertyType)}
             placeholder={isCommercial ? "e.g. Shop" : "e.g. 2 Bedroom"}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
+            otherPlaceholder="Enter unit type"
           />
-          <datalist id="edit-unit-type-suggestions">
-            {unitTypeSuggestions(propertyType).map((suggestion) => (
-              <option key={suggestion} value={suggestion} />
-            ))}
-          </datalist>
         </label>
         {!isCommercial && (
         <div className="grid grid-cols-2 gap-4">
