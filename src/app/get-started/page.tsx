@@ -193,7 +193,7 @@ export default function GetStartedPage() {
               disabled={isSubmitting}
               className="mt-2 rounded-lg bg-gold px-6 py-3 font-semibold text-white transition-colors hover:bg-gold/90 disabled:opacity-60"
             >
-              {isSubmitting ? "Creating account..." : "Create Account"}
+              {isSubmitting ? "Requesting account..." : "Request an account"}
             </button>
           </form>
         )}

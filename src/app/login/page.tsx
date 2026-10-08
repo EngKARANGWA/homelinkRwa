@@ -236,12 +236,20 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <p className="mt-6 text-center text-sm text-slate-500">
-              Don&apos;t have an account?{" "}
-              <Link href="/get-started" className="font-medium text-gold hover:underline">
-                Get started
-              </Link>
-            </p>
+            <div className="mt-6 flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-200" />
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                New here?
+              </span>
+              <div className="h-px flex-1 bg-slate-200" />
+            </div>
+
+            <Link
+              href="/get-started"
+              className="mt-4 flex items-center justify-center gap-2 rounded-lg border-2 border-gold px-6 py-3 font-semibold text-gold transition-colors hover:bg-gold hover:text-white"
+            >
+              Request an account
+            </Link>
           </>
         )}
       </div>

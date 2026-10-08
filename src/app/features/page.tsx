@@ -128,7 +128,7 @@ export default function FeaturesPage() {
               {t.featuresPage.cta.title}
             </h2>
             <Link
-              href="/get-started"
+              href="/login"
               className="inline-flex items-center gap-2 rounded-lg bg-gold px-6 py-3 font-semibold text-white transition-colors hover:bg-gold/90"
             >
               {t.featuresPage.cta.button}

@@ -66,7 +66,7 @@ export function Navbar() {
               {t.common.login}
             </Link>
             <Link
-              href="/get-started"
+              href="/login"
               className="rounded-lg bg-gold px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
             >
               {t.common.getStarted}
@@ -148,7 +148,7 @@ export function Navbar() {
 
             <div className="mt-auto flex flex-col gap-3 border-t border-white/10 pt-6">
               <Link
-                href="/get-started"
+                href="/login"
                 onClick={() => setMenuOpen(false)}
                 className="rounded-lg bg-gold px-5 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-gold/90"
               >
