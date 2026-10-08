@@ -64,9 +64,9 @@ export function AddTenantForm({
   onSuccess,
   onCancel,
 }: {
-  /** Omit to search available units across the landlord's whole portfolio
-   * instead of one fixed property — each result then shows which property
-   * it belongs to. */
+  /** Pre-selects the property picker when opened from a property's own page
+   * — the picker still shows and can be changed, it just starts here
+   * instead of blank. Omit when opened from a portfolio-wide context. */
   propertyId?: string;
   defaultRentAmount?: number;
   onSuccess: (lease: Lease) => void;
@@ -76,14 +76,13 @@ export function AddTenantForm({
   const { t } = useLanguage();
   const c = t.dashboard.landlord.addTenantForm;
 
-  // Only relevant when `propertyId` isn't fixed by the caller — picking a
-  // property first is how the unit list gets narrowed down instead of
-  // showing every vacant unit across the whole portfolio at once.
+  // Picking a property first is how the unit list gets narrowed down,
+  // whether this form was opened from a specific property's page (where
+  // `propertyId` just seeds the initial selection) or from a portfolio-wide
+  // context (where it starts blank).
   const [properties, setProperties] = useState<Property[]>([]);
-  const [loadingProperties, setLoadingProperties] = useState(!propertyId);
-  const [selectedPropertyId, setSelectedPropertyId] = useState("");
-
-  const effectivePropertyId = propertyId ?? selectedPropertyId;
+  const [loadingProperties, setLoadingProperties] = useState(true);
+  const [selectedPropertyId, setSelectedPropertyId] = useState(propertyId ?? "");
 
   const [units, setUnits] = useState<AvailableUnit[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(true);
@@ -104,7 +103,6 @@ export function AddTenantForm({
   const [createdLease, setCreatedLease] = useState<Lease | null>(null);
 
   useEffect(() => {
-    if (propertyId) return;
     let cancelled = false;
     setLoadingProperties(true);
     listProperties(user?.role === "owner" ? { ownerId: user.id, limit: 100 } : { limit: 100 })
@@ -120,12 +118,12 @@ export function AddTenantForm({
     return () => {
       cancelled = true;
     };
-  }, [propertyId, user?.id, user?.role]);
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
-    // No fixed property and none picked yet — nothing to load, and nothing
-    // vacant to show until the caller narrows it down to one property.
-    if (!effectivePropertyId) {
+    // Nothing picked yet — nothing to load, and nothing vacant to show
+    // until a property is selected.
+    if (!selectedPropertyId) {
       setUnits([]);
       setUnitId("");
       setLoadingUnits(false);
@@ -133,7 +131,7 @@ export function AddTenantForm({
     }
     let cancelled = false;
     setLoadingUnits(true);
-    listAvailableUnits({ propertyId: effectivePropertyId })
+    listAvailableUnits({ propertyId: selectedPropertyId })
       .then((result) => {
         if (cancelled) return;
         setUnits(result);
@@ -148,7 +146,7 @@ export function AddTenantForm({
     return () => {
       cancelled = true;
     };
-  }, [effectivePropertyId]);
+  }, [selectedPropertyId]);
 
   const selectedUnit = units.find((u) => u.id === unitId);
 
@@ -160,7 +158,7 @@ export function AddTenantForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!propertyId && !selectedPropertyId) {
+    if (!selectedPropertyId) {
       setError(c.errorSelectProperty);
       return;
     }
@@ -181,7 +179,7 @@ export function AddTenantForm({
     setSubmitting(true);
     try {
       const lease = await createLease({
-        propertyId: propertyId ?? selectedUnit.propertyId,
+        propertyId: selectedPropertyId,
         unitId: selectedUnit.id,
         newTenant: {
           email: email.trim(),
@@ -284,30 +282,28 @@ export function AddTenantForm({
         </p>
       )}
 
-      {!propertyId && (
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          {c.property}
-          <SearchableSelect
-            value={selectedPropertyId}
-            onChange={(id) => setSelectedPropertyId(id)}
-            disabled={loadingProperties || properties.length === 0}
-            placeholder={loadingProperties ? "Loading properties..." : c.selectProperty}
-            options={properties.map((property) => ({
-              value: property.id,
-              label: `${property.title} — ${property.location}`,
-            }))}
-          />
-        </label>
-      )}
+      <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+        {c.property}
+        <SearchableSelect
+          value={selectedPropertyId}
+          onChange={(id) => setSelectedPropertyId(id)}
+          disabled={loadingProperties || properties.length === 0}
+          placeholder={loadingProperties ? "Loading properties..." : c.selectProperty}
+          options={properties.map((property) => ({
+            value: property.id,
+            label: `${property.title} — ${property.location}`,
+          }))}
+        />
+      </label>
 
       <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
         {c.unit}
         <SearchableSelect
           value={unitId}
           onChange={handleUnitChange}
-          disabled={!effectivePropertyId || loadingUnits || units.length === 0}
+          disabled={!selectedPropertyId || loadingUnits || units.length === 0}
           placeholder={
-            !effectivePropertyId
+            !selectedPropertyId
               ? c.selectProperty
               : loadingUnits
                 ? "Loading units..."
@@ -432,7 +428,7 @@ export function AddTenantForm({
         </button>
         <button
           type="submit"
-          disabled={submitting || !effectivePropertyId || loadingUnits || units.length === 0}
+          disabled={submitting || !selectedPropertyId || loadingUnits || units.length === 0}
           className="rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? "Adding..." : c.submit}
