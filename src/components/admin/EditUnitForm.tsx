@@ -28,12 +28,11 @@ export function EditUnitForm({
   onSuccess: (updated: PropertyUnit) => void;
 }) {
   const isCommercial = propertyType === "commercial";
-  const [label, setLabel] = useState(unit.label);
+  const [name, setName] = useState(unit.name ?? "");
   const [floorId, setFloorId] = useState(unit.floorId);
   const [unitType, setUnitType] = useState(unit.unitType ?? "");
   const [bedrooms, setBedrooms] = useState(unit.bedrooms != null ? String(unit.bedrooms) : "");
   const [bathrooms, setBathrooms] = useState(unit.bathrooms != null ? String(unit.bathrooms) : "");
-  const [rentAmount, setRentAmount] = useState(unit.rentAmount);
   const [scale, setScale] = useState(unit.scale ?? "");
   const [status, setStatus] = useState<ManualUnitStatus>(
     unit.status === "occupied" ? "available" : unit.status,
@@ -42,24 +41,15 @@ export function EditUnitForm({
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    if (!label.trim()) {
-      setError("Enter a unit number/name.");
-      return;
-    }
-    if (!rentAmount.toString().trim() || Number(rentAmount) <= 0) {
-      setError("Enter a valid monthly rent.");
-      return;
-    }
     setSubmitting(true);
     setError(null);
     try {
       const updated = await updateUnit(propertyId, unit.id, {
-        label: label.trim(),
+        name: name.trim() || undefined,
         floorId,
         unitType: unitType.trim() || undefined,
         bedrooms: !isCommercial && bedrooms.trim() ? Number(bedrooms) : undefined,
         bathrooms: !isCommercial && bathrooms.trim() ? Number(bathrooms) : undefined,
-        rentAmount: Number(rentAmount),
         scale: scale.toString().trim() ? Number(scale) : undefined,
         ...(unit.status === "occupied" ? {} : { status }),
       });
@@ -81,22 +71,23 @@ export function EditUnitForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Unit number/name
+          Unit ID
           <input
             type="text"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+            value={unit.label}
+            disabled
+            title="System-generated — not editable"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-500 disabled:cursor-not-allowed"
           />
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Monthly rent
+          Unit name (optional)
           <input
-            type="number"
-            min={0}
-            value={rentAmount}
-            onChange={(e) => setRentAmount(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Shop A"
+            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy placeholder:text-slate-400 focus:border-gold focus:outline-none"
           />
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">

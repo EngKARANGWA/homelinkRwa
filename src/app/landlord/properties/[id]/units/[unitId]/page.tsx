@@ -189,6 +189,7 @@ export default function UnitDetailPage() {
             {c.back}
           </button>
           <h1 className="mt-2 text-2xl font-bold text-navy">{unit.label}</h1>
+          {unit.name && <p className="mt-0.5 text-base font-medium text-slate-600">{unit.name}</p>}
           <p className="mt-1 text-sm text-slate-500">
             {property.title} · {property.location}
           </p>

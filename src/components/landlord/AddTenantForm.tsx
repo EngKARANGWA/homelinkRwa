@@ -306,9 +306,10 @@ export function AddTenantForm({
                   : c.selectUnit
           }
           options={units.map((unit) => {
+            const namePart = unit.name ? ` (${unit.name})` : "";
             return {
               value: unit.id,
-              label: `${unit.label} — ${formatMoney(Number(unit.rentAmount))} RWF`,
+              label: `${unit.label}${namePart} — ${formatMoney(Number(unit.rentAmount))} RWF`,
             };
           })}
         />

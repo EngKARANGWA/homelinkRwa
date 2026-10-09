@@ -169,7 +169,10 @@ export type UpdateFloorInput = {
 export type PropertyUnit = {
   id: string;
   propertyId: string;
+  // System-generated identifier (e.g. "Ground - Unit 1"), immutable after
+  // creation. `name` below is the user-editable custom display name.
   label: string;
+  name: string | null;
   unitType: string | null;
   description: string | null;
   floorId: string;
@@ -206,6 +209,7 @@ export type AvailableUnit = PropertyUnit & {
 
 export type CreateUnitInput = {
   label: string;
+  name?: string;
   floorId: string;
   unitType?: string;
   description?: string;
@@ -220,8 +224,10 @@ export type CreateUnitInput = {
 
 export type ManualUnitStatus = Exclude<UnitStatus, "occupied">;
 
+// No `label` — it's the system-generated identifier and is never
+// user-editable. `name` is the custom display name field instead.
 export type UpdateUnitInput = {
-  label?: string;
+  name?: string;
   floorId?: string;
   unitType?: string;
   description?: string;

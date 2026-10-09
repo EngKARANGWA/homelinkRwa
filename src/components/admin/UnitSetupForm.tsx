@@ -89,8 +89,8 @@ export function UnitSetupForm({
   return (
     <div className="flex flex-col gap-5">
       <p className="text-sm text-slate-500">
-        Generate units for <strong>{floorName}</strong> in bulk — rent and size can be set per
-        unit afterward via Edit.
+        Generate units for <strong>{floorName}</strong> in bulk — size can be set per unit
+        afterward via Edit.
       </p>
 
       {error && (

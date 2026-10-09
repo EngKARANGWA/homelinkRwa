@@ -216,6 +216,11 @@ export default function FloorDetailPage() {
                 <p className="truncate font-medium text-navy sm:overflow-visible sm:whitespace-normal">
                   {unit.label}
                 </p>
+                {unit.name && (
+                  <p className="truncate text-xs text-slate-400 sm:overflow-visible sm:whitespace-normal">
+                    {unit.name}
+                  </p>
+                )}
                 <p className="truncate text-xs text-slate-400 md:hidden">
                   {formatMoney(Number(unit.rentAmount))} RWF
                 </p>
