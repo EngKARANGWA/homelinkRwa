@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { AlertCircle, Check, CheckCircle2, Eye, FileStack, Plus, X } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AlertCircle, Check, CheckCircle2, Eye, FileStack, Plus, X, XCircle } from "lucide-react";
+import { AppLink as Link } from "@/components/shared/AppLink";
 import { listProperties } from "@/lib/api/properties";
 import {
   approveLeaseChangeRequest,
@@ -22,9 +23,11 @@ import { DEFAULT_PAGE_SIZE, Pagination } from "@/components/dashboard/Pagination
 import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
-export default function LandlordLeasesPage() {
+function LandlordLeasesPageContent() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const propertyId = searchParams.get("propertyId");
   const { t } = useLanguage();
   const c = t.dashboard.landlord.leases;
   const lc = t.dashboard.admin.leases;
@@ -51,7 +54,7 @@ export default function LandlordLeasesPage() {
     setLoading(true);
     setError(null);
     Promise.all([
-      listLeases({ page, limit: DEFAULT_PAGE_SIZE }),
+      listLeases({ page, limit: DEFAULT_PAGE_SIZE, propertyId: propertyId ?? undefined }),
       listProperties({ ownerId: user.id, limit: 100 }),
     ])
       .then(([leasesRes, propertiesRes]) => {
@@ -66,7 +69,13 @@ export default function LandlordLeasesPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [user, page]);
+  useEffect(load, [user, page, propertyId]);
+  // Switching which property is filtered (or clearing it) should land back
+  // on page 1 — a stale page number from a longer, unfiltered list could be
+  // out of range for the filtered result.
+  useEffect(() => setPage(1), [propertyId]);
+
+  const filteredProperty = propertyId ? propertyFor(propertyId) : undefined;
 
   const handleTenantAdded = () => {
     setModalOpen(false);
@@ -122,6 +131,22 @@ export default function LandlordLeasesPage() {
           {lc.createLease}
         </button>
       </div>
+
+      {propertyId && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+          <span className="text-slate-600">
+            Showing leases for{" "}
+            <strong className="font-semibold text-navy">{filteredProperty?.title ?? "this property"}</strong>
+          </span>
+          <Link
+            href="/landlord/leases"
+            className="inline-flex items-center gap-1.5 font-medium text-gold hover:underline"
+          >
+            <XCircle className="h-3.5 w-3.5" />
+            Clear filter
+          </Link>
+        </div>
+      )}
 
       {justCreated && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
@@ -279,5 +304,13 @@ export default function LandlordLeasesPage() {
       )}
 
     </div>
+  );
+}
+
+export default function LandlordLeasesPage() {
+  return (
+    <Suspense fallback={null}>
+      <LandlordLeasesPageContent />
+    </Suspense>
   );
 }

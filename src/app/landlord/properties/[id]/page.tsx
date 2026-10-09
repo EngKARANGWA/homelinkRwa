@@ -250,7 +250,7 @@ export default function PropertyDetailPage() {
       </Table>
 
       <Link
-        href="/landlord/leases"
+        href={`/landlord/leases?propertyId=${property.id}`}
         className="inline-flex items-center gap-1 self-start text-sm font-medium text-gold hover:underline"
       >
         {c.viewLeasesLink}
