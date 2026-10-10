@@ -122,16 +122,28 @@ export function PayNowForm({
           </div>
 
           {overdueAmount > 0 && (
-            <div className="mt-1.5 flex items-center justify-between text-sm">
-              <span className="text-red-600">
-                {overdueCount
-                  ? c.previousOverdueTemplate.replace("{count}", String(overdueCount))
-                  : c.previousOverdueLabel}
-              </span>
-              <span className="font-medium text-red-600">
-                {exactAmount(overdueAmount)} RWF
-              </span>
-            </div>
+            <>
+              <div className="mt-1.5 flex items-center justify-between text-sm">
+                <span className="text-red-600">
+                  {overdueCount
+                    ? c.previousOverdueTemplate.replace("{count}", String(overdueCount))
+                    : c.previousOverdueLabel}
+                </span>
+                <span className="font-medium text-red-600">
+                  {exactAmount(overdueAmount)} RWF
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-center justify-between text-sm">
+                <span className="text-red-600">
+                  {overdueCount
+                    ? c.outstandingTemplate.replace("{count}", String(overdueCount))
+                    : c.outstandingLabel}
+                </span>
+                <span className="font-medium text-red-600">
+                  {exactAmount(overdueAmount)} RWF
+                </span>
+              </div>
+            </>
           )}
 
           <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-2">

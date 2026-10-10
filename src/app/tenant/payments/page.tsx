@@ -159,13 +159,27 @@ export default function TenantPaymentsPage() {
   const primaryLease =
     leaseById.get((pendingInvoice ?? invoices[0])?.leaseId ?? "") ?? leases[0];
 
-  // Overdue invoices from earlier periods than the one being paid — the
-  // payment endpoint only ever settles one invoice at a time, so this is
-  // shown to the tenant for awareness, not folded into what gets submitted.
-  const overdueForInvoice = (invoice: Invoice | null) =>
-    invoice
-      ? outstandingInvoices.filter((inv) => inv.id !== invoice.id && inv.dueDate < invoice.dueDate)
-      : [];
+  // Every OTHER outstanding invoice besides this one — e.g. when settling
+  // the oldest unpaid invoice (always what Pay Now targets, below), this is
+  // every other still-unpaid period regardless of date, shown to the tenant
+  // for awareness since the payment endpoint only ever settles one invoice
+  // at a time and doesn't fold these in automatically.
+  const otherOutstandingInvoices = (invoice: Invoice | null) =>
+    invoice ? outstandingInvoices.filter((inv) => inv.id !== invoice.id) : [];
+
+  // This period's own charge vs. everything still unpaid from before it —
+  // e.g. 35,000 due last month + 35,000 due this month = 70,000 total, shown
+  // as separate lines rather than one lump sum so it's clear why. "This
+  // period" is the most recently due invoice, not necessarily the one Pay
+  // Now actually settles first (that's always the oldest unpaid one, below).
+  const latestInvoice =
+    invoices.length > 0
+      ? [...invoices].sort((a, b) => b.dueDate.localeCompare(a.dueDate))[0]!
+      : null;
+  const latestIsOutstanding =
+    !!latestInvoice && (latestInvoice.status === "unpaid" || latestInvoice.status === "overdue");
+  const currentInvoiceAmount = latestIsOutstanding ? Number(latestInvoice!.amountDue) : 0;
+  const broughtForward = totalOutstanding - currentInvoiceAmount;
 
   const handlePay = async (values: PayInvoiceInput, invoice: Invoice) => {
     await payInvoice(invoice.id, values);
@@ -254,7 +268,10 @@ export default function TenantPaymentsPage() {
       <AlertBanner
         isAlert={hasOverdue || !!pendingInvoice}
         stats={[
-          { label: c.amountDue, value: `${formatMoney(totalOutstanding)} RWF` },
+          { label: c.totalToPay, value: `${formatMoney(currentInvoiceAmount)} RWF` },
+          { label: c.balanceBroughtForward, value: `${formatMoney(broughtForward)} RWF` },
+          { label: c.outstanding, value: `${formatMoney(broughtForward)} RWF` },
+          { label: c.totalAmountToPay, value: `${formatMoney(totalOutstanding)} RWF` },
           { label: c.dueDate, value: pendingInvoice ? formatDate(pendingInvoice.dueDate) : "—" },
           { label: t.dashboard.table.status, value: statusMessage },
         ]}
@@ -371,11 +388,11 @@ export default function TenantPaymentsPage() {
             dueDateLabel={formatDate(payingInvoice.dueDate)}
             propertyTitle={propertyForInvoice(payingInvoice)?.title}
             amount={Number(payingInvoice.amountDue)}
-            overdueAmount={overdueForInvoice(payingInvoice).reduce(
+            overdueAmount={otherOutstandingInvoices(payingInvoice).reduce(
               (sum, inv) => sum + Number(inv.amountDue),
               0,
             )}
-            overdueCount={overdueForInvoice(payingInvoice).length}
+            overdueCount={otherOutstandingInvoices(payingInvoice).length}
             defaultPhone={leaseById.get(payingInvoice.leaseId)?.momoNumber ?? undefined}
             onCancel={() => setPayingInvoice(null)}
             onSuccess={(values) => handlePay(values, payingInvoice)}

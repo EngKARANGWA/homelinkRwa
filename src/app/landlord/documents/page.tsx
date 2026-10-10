@@ -48,12 +48,15 @@ export default function LandlordDocumentsPage() {
   const { landlordName, unitOverrides, documents, addDocument, removeDocument } = useLandlord();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"All" | DocumentCategory>("All");
-  const [propertyFilter, setPropertyFilter] = useState(t.dashboard.landlord.payments.allProperties);
+  // "all" sentinel, otherwise a property id — titles aren't unique (two
+  // properties can share a name), so filtering/keying by id is the only
+  // way to pick exactly one.
+  const [propertyFilter, setPropertyFilter] = useState("all");
   const [isUploading, setUploading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const myProperties = PROPERTIES.filter((p) => p.owner === landlordName);
-  const propertyOptions = [t.dashboard.landlord.payments.allProperties, ...myProperties.map((p) => p.name)];
+  const propertyOptions = myProperties.map((p) => ({ id: p.id, title: p.name }));
 
   const allDocuments: LandlordDocument[] = useMemo(() => {
     const base = getBaseDocuments(myProperties);
@@ -69,8 +72,7 @@ export default function LandlordDocumentsPage() {
       doc.name.toLowerCase().includes(search.toLowerCase()) ||
       (doc.tenant?.toLowerCase().includes(search.toLowerCase()) ?? false);
     const matchesCategory = categoryFilter === "All" || doc.category === categoryFilter;
-    const matchesProperty =
-      propertyFilter === t.dashboard.landlord.payments.allProperties || doc.propertyName === propertyFilter;
+    const matchesProperty = propertyFilter === "all" || doc.propertyId === propertyFilter;
     return matchesSearch && matchesCategory && matchesProperty;
   });
 
@@ -176,8 +178,11 @@ export default function LandlordDocumentsPage() {
             onChange={(e) => setPropertyFilter(e.target.value)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            {propertyOptions.map((name) => (
-              <option key={name}>{name}</option>
+            <option value="all">{t.dashboard.landlord.payments.allProperties}</option>
+            {propertyOptions.map((property) => (
+              <option key={property.id} value={property.id}>
+                {property.title}
+              </option>
             ))}
           </select>
         </label>

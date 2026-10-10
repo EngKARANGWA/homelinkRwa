@@ -68,7 +68,10 @@ export default function LandlordMaintenancePage() {
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [viewingRequest, setViewingRequest] = useState<MaintenanceRequest | null>(null);
 
-  const [propertyFilter, setPropertyFilter] = useState(t.dashboard.landlord.payments.allProperties);
+  // "all" sentinel, otherwise a property id — titles aren't unique (two
+  // properties can share a name), so filtering/keying by id is the only
+  // way to pick exactly one.
+  const [propertyFilter, setPropertyFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"All" | MaintenanceStatus>("All");
   const [priorityFilter, setPriorityFilter] = useState<"All" | MaintenancePriority>("All");
   const [dateFrom, setDateFrom] = useState("");
@@ -76,8 +79,7 @@ export default function LandlordMaintenancePage() {
   const [page, setPage] = useState(1);
 
   const propertyById = new Map(properties.map((p) => [p.id, p]));
-  const propertyOptions = [t.dashboard.landlord.payments.allProperties, ...properties.map((p) => p.title)];
-  const propertyIdFor = (name: string) => properties.find((p) => p.title === name)?.id;
+  const propertyOptions = properties.map((p) => ({ id: p.id, title: p.title }));
 
   const load = () => {
     if (!user) return;
@@ -87,10 +89,7 @@ export default function LandlordMaintenancePage() {
       listMaintenanceRequests({
         limit: 100,
         status: statusFilter === "All" ? undefined : statusFilter,
-        propertyId:
-          propertyFilter === t.dashboard.landlord.payments.allProperties
-            ? undefined
-            : propertyIdFor(propertyFilter),
+        propertyId: propertyFilter === "all" ? undefined : propertyFilter,
       }),
       listProperties({ ownerId: user.id, limit: 100 }),
     ])
@@ -210,8 +209,11 @@ export default function LandlordMaintenancePage() {
             onChange={(e) => setPropertyFilter(e.target.value)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            {propertyOptions.map((name) => (
-              <option key={name}>{name}</option>
+            <option value="all">{t.dashboard.landlord.payments.allProperties}</option>
+            {propertyOptions.map((property) => (
+              <option key={property.id} value={property.id}>
+                {property.title}
+              </option>
             ))}
           </select>
         </label>
@@ -267,7 +269,7 @@ export default function LandlordMaintenancePage() {
           />
         </label>
 
-        {(propertyFilter !== t.dashboard.landlord.payments.allProperties ||
+        {(propertyFilter !== "all" ||
           statusFilter !== "All" ||
           priorityFilter !== "All" ||
           dateFrom ||
@@ -275,7 +277,7 @@ export default function LandlordMaintenancePage() {
           <button
             type="button"
             onClick={() => {
-              setPropertyFilter(t.dashboard.landlord.payments.allProperties);
+              setPropertyFilter("all");
               setStatusFilter("All");
               setPriorityFilter("All");
               setDateFrom("");

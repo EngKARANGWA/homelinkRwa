@@ -60,7 +60,10 @@ export default function LandlordTenantsPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [propertyFilter, setPropertyFilter] = useState(t.dashboard.landlord.payments.allProperties);
+  // "all" sentinel, otherwise a property id — titles aren't unique (two
+  // properties can share a name), so filtering/keying by id is the only
+  // way to pick exactly one.
+  const [propertyFilter, setPropertyFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"All" | TenantStatus>("All");
   const [isInviting, setInviting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -118,16 +121,14 @@ export default function LandlordTenantsPage() {
     };
   });
 
-  const propertyOptions = [t.dashboard.landlord.payments.allProperties, ...properties.map((p) => p.title)];
+  const propertyOptions = properties.map((p) => ({ id: p.id, title: p.title }));
 
   const filteredRows = rows.filter((row) => {
     const matchesSearch =
       !search.trim() ||
       row.tenantLabel.toLowerCase().includes(search.toLowerCase()) ||
       row.unitLabel.toLowerCase().includes(search.toLowerCase());
-    const matchesProperty =
-      propertyFilter === t.dashboard.landlord.payments.allProperties ||
-      row.propertyTitle === propertyFilter;
+    const matchesProperty = propertyFilter === "all" || row.propertyId === propertyFilter;
     const matchesStatus = statusFilter === "All" || row.status === statusFilter;
     return matchesSearch && matchesProperty && matchesStatus;
   });
@@ -243,8 +244,11 @@ export default function LandlordTenantsPage() {
             onChange={(e) => setPropertyFilter(e.target.value)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            {propertyOptions.map((name) => (
-              <option key={name}>{name}</option>
+            <option value="all">{t.dashboard.landlord.payments.allProperties}</option>
+            {propertyOptions.map((property) => (
+              <option key={property.id} value={property.id}>
+                {property.title}
+              </option>
             ))}
           </select>
         </label>

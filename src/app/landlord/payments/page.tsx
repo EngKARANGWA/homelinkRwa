@@ -106,7 +106,10 @@ function LandlordPaymentsPageContent() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [propertyFilter, setPropertyFilter] = useState(c.allProperties);
+  // "all" sentinel, otherwise a property id — titles aren't unique (two
+  // properties can share a name), so filtering/keying by id is the only
+  // way to pick exactly one.
+  const [propertyFilter, setPropertyFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"All" | RowStatus>(
     isValidStatusFilter(statusParam) ? statusParam : "All",
   );
@@ -129,7 +132,7 @@ function LandlordPaymentsPageContent() {
   const invoiceById = new Map(invoices.map((i) => [i.id, i]));
   const propertyById = new Map(properties.map((p) => [p.id, p]));
   const tenantName = (id: string) => `Tenant ${id.slice(0, 8).toUpperCase()}`;
-  const propertyOptions = [c.allProperties, ...properties.map((p) => p.title)];
+  const propertyOptions = properties.map((p) => ({ id: p.id, title: p.title }));
 
   const leaseForInvoice = (invoice: Invoice) => leaseById.get(invoice.leaseId);
   const leaseForPayment = (payment: Payment) => {
@@ -184,8 +187,8 @@ function LandlordPaymentsPageContent() {
 
   const propertyFilteredOverdueInvoices = overdueInvoices.filter(
     (inv) =>
-      propertyFilter === c.allProperties ||
-      propertyForInvoice(inv)?.title === propertyFilter,
+      propertyFilter === "all" ||
+      propertyForInvoice(inv)?.id === propertyFilter,
   );
   const filteredOverdueInvoices =
     methodFilter === "All" && (statusFilter === "All" || statusFilter === "overdue")
@@ -194,8 +197,8 @@ function LandlordPaymentsPageContent() {
 
   const propertyMethodFilteredPayments = payments.filter((p) => {
     const matchesProperty =
-      propertyFilter === c.allProperties ||
-      propertyForPayment(p)?.title === propertyFilter;
+      propertyFilter === "all" ||
+      propertyForPayment(p)?.id === propertyFilter;
     const matchesMethod = methodFilter === "All" || p.method === methodFilter;
     return matchesProperty && matchesMethod;
   });
@@ -429,8 +432,11 @@ function LandlordPaymentsPageContent() {
             onChange={(e) => setPropertyFilter(e.target.value)}
             className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-navy focus:border-gold focus:outline-none"
           >
-            {propertyOptions.map((name) => (
-              <option key={name}>{name}</option>
+            <option value="all">{c.allProperties}</option>
+            {propertyOptions.map((property) => (
+              <option key={property.id} value={property.id}>
+                {property.title}
+              </option>
             ))}
           </select>
         </label>

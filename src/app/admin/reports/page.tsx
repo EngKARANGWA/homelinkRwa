@@ -268,7 +268,11 @@ export default function AdminReportsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportId, dateFrom, dateTo]);
 
-  const propertyOptions = [c.allProperties, ...properties.map((p) => p.title)];
+  // Report rows only carry the property's title (not its id), so filtering
+  // here can't tell apart two properties that happen to share a name — but
+  // the option list is still deduped so it doesn't render the same title
+  // twice (which would also collide as a React list key).
+  const propertyOptions = [c.allProperties, ...new Set(properties.map((p) => p.title))];
 
   const hasPropertyField = (row: unknown): row is { Property: string } =>
     typeof row === "object" && row !== null && "Property" in row;

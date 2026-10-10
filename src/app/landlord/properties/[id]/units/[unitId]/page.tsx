@@ -223,14 +223,9 @@ export default function UnitDetailPage() {
 
         {unit.unitType && <p className="mt-1 text-sm text-slate-500">{unit.unitType}</p>}
 
-        <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6">
-          <Field label={c.monthlyRent}>{formatMoney(Number(unit.rentAmount))} RWF</Field>
-          <Field label={c.deposit}>
-            {unit.deposit != null ? `${formatMoney(Number(unit.deposit))} RWF` : "—"}
-          </Field>
+        <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-3">
+          <Field label="Unit Name">{unit.name ?? "—"}</Field>
           <Field label="Floor">{unit.floor?.name ?? "—"}</Field>
-          <Field label="Bedrooms">{unit.bedrooms ?? "—"}</Field>
-          <Field label="Bathrooms">{unit.bathrooms ?? "—"}</Field>
           <Field label="Scale">{unit.scale ?? "—"}</Field>
         </div>
 
