@@ -113,6 +113,7 @@ export default function FloorDetailPage() {
   }
 
   const occupied = units.filter((u) => u.status === "occupied").length;
+  const isApproved = property.approvalStatus === "approved";
 
   const handleDeleteUnit = async () => {
     if (!deletingUnit) return;
@@ -146,12 +147,38 @@ export default function FloorDetailPage() {
         <button
           type="button"
           onClick={() => setManaging(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90"
+          disabled={!isApproved}
+          title={isApproved ? undefined : "Unlocks once this property is approved"}
+          className="inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gold/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:hover:bg-slate-200"
         >
           <LayoutGrid className="h-4 w-4" />
           Manage Floor
         </button>
       </div>
+
+      {!isApproved && (
+        <div
+          className={`rounded-lg border px-4 py-3 text-sm font-medium ${
+            property.approvalStatus === "rejected"
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-amber-200 bg-amber-50 text-amber-700"
+          }`}
+        >
+          <p>
+            {property.approvalStatus === "rejected"
+              ? t.dashboard.landlord.propertyDetail.rejectedApprovalBanner
+              : t.dashboard.landlord.propertyDetail.pendingApprovalBanner}
+          </p>
+          {property.approvalStatus === "rejected" && property.rejectionReason && (
+            <p className="mt-1">
+              {t.dashboard.landlord.propertyDetail.rejectedApprovalReasonTemplate.replace(
+                "{reason}",
+                property.rejectionReason,
+              )}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-5 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -251,17 +278,20 @@ export default function FloorDetailPage() {
                   <button
                     type="button"
                     onClick={() => setEditingUnit(unit)}
-                    title="Edit this unit"
-                    className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy"
+                    disabled={!isApproved}
+                    title={isApproved ? "Edit this unit" : "Unlocks once this property is approved"}
+                    className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
-                    disabled={unit.status === "occupied"}
+                    disabled={!isApproved || unit.status === "occupied"}
                     onClick={() => setDeletingUnit(unit)}
                     title={
-                      unit.status === "occupied"
+                      !isApproved
+                        ? "Unlocks once this property is approved"
+                        : unit.status === "occupied"
                         ? "End the lease on this unit before deleting it"
                         : "Delete this unit"
                     }

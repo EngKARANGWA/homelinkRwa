@@ -10,7 +10,6 @@ import {
   Home,
   MessageCircle,
   Receipt,
-  ShieldCheck,
   Wallet,
   Wrench,
 } from "lucide-react";

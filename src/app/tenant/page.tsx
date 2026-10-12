@@ -115,7 +115,14 @@ export default function TenantOverviewPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, []);
+  useEffect(() => {
+    // load() itself sets state synchronously (loading/error reset before
+    // the fetch starts) — deferring the initial call to a microtask keeps
+    // that out of the effect's own synchronous execution, same as the
+    // canonical `fetch().then(setState)` shape the lint rule expects,
+    // without changing load()'s behavior for its other caller (payNow).
+    void Promise.resolve().then(load);
+  }, []);
 
   const payNow = async (values: PayInvoiceInput) => {
     if (!dashboard?.nextDueInvoice) return;

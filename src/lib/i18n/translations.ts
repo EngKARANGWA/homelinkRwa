@@ -1165,6 +1165,11 @@ const en = {
         monthlyAmount: "Monthly Amount",
         viewLeasesLink: "View leases for this property",
         noUnitsMatch: "No units match these filters.",
+        pendingApprovalBanner:
+          "This property is awaiting admin approval. Floor and unit management unlocks once it's approved.",
+        rejectedApprovalBanner:
+          "This property's approval was rejected. Floor and unit management is locked until you update the details and it's re-reviewed.",
+        rejectedApprovalReasonTemplate: "Reason: {reason}",
       },
       unitDetail: {
         unitNotFound: "Unit not found.",
@@ -2856,6 +2861,11 @@ const fr: typeof en = {
         monthlyAmount: "Montant mensuel",
         viewLeasesLink: "Voir les baux de cette propriété",
         noUnitsMatch: "Aucune unité ne correspond à ces filtres.",
+        pendingApprovalBanner:
+          "Cette propriété est en attente d'approbation par l'administrateur. La gestion des étages et des unités se débloquera une fois approuvée.",
+        rejectedApprovalBanner:
+          "L'approbation de cette propriété a été rejetée. La gestion des étages et des unités est verrouillée jusqu'à ce que vous mettiez à jour les détails et qu'elle soit réexaminée.",
+        rejectedApprovalReasonTemplate: "Motif : {reason}",
       },
       unitDetail: {
         unitNotFound: "Unité introuvable.",

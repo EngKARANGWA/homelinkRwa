@@ -91,6 +91,7 @@ export default function PropertyDetailPage() {
   }
 
   const totalUnits = floors.reduce((sum, f) => sum + f.unitsCount, 0);
+  const isApproved = property.approvalStatus === "approved";
 
   const handleAddTenant = () => {
     setAddingTenant(false);
@@ -115,6 +116,7 @@ export default function PropertyDetailPage() {
   };
 
   const openEditFloor = (floor: Floor) => {
+    if (!isApproved) return;
     setFloorError(null);
     setFloorName(floor.name);
     setFloorScale(floor.scale != null ? String(floor.scale) : "");
@@ -122,6 +124,7 @@ export default function PropertyDetailPage() {
   };
 
   const goToFloor = (floor: Floor) => {
+    if (!isApproved) return;
     router.push(`/landlord/properties/${property.id}/floors/${floor.id}`);
   };
 
@@ -180,6 +183,27 @@ export default function PropertyDetailPage() {
         </div>
       </div>
 
+      {!isApproved && (
+        <div
+          className={`rounded-lg border px-4 py-3 text-sm font-medium ${
+            property.approvalStatus === "rejected"
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-amber-200 bg-amber-50 text-amber-700"
+          }`}
+        >
+          <p>
+            {property.approvalStatus === "rejected"
+              ? c.rejectedApprovalBanner
+              : c.pendingApprovalBanner}
+          </p>
+          {property.approvalStatus === "rejected" && property.rejectionReason && (
+            <p className="mt-1">
+              {c.rejectedApprovalReasonTemplate.replace("{reason}", property.rejectionReason)}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-5 lg:grid-cols-3">
         <SummaryCard label="Floors" value={property.numberOfFloors} />
         <SummaryCard label={c.summaryUnits} value={totalUnits} />
@@ -202,7 +226,8 @@ export default function PropertyDetailPage() {
                 <button
                   type="button"
                   onClick={() => goToFloor(floor)}
-                  className="truncate text-left font-medium text-navy hover:underline sm:overflow-visible sm:whitespace-normal"
+                  disabled={!isApproved}
+                  className="truncate text-left font-medium text-navy hover:underline disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline sm:overflow-visible sm:whitespace-normal"
                 >
                   {floor.name}
                 </button>
@@ -221,23 +246,35 @@ export default function PropertyDetailPage() {
                   <button
                     type="button"
                     onClick={() => goToFloor(floor)}
-                    title="View and manage this floor's units"
-                    className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy"
+                    disabled={!isApproved}
+                    title={
+                      isApproved
+                        ? "View and manage this floor's units"
+                        : "Unlocks once this property is approved"
+                    }
+                    className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                   >
                     <Eye className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
                     onClick={() => openEditFloor(floor)}
-                    title="Edit this floor's name/scale"
-                    className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy"
+                    disabled={!isApproved}
+                    title={
+                      isApproved
+                        ? "Edit this floor's name/scale"
+                        : "Unlocks once this property is approved"
+                    }
+                    className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
                     onClick={() => goToFloor(floor)}
-                    className="ml-1 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    disabled={!isApproved}
+                    title={isApproved ? undefined : "Unlocks once this property is approved"}
+                    className="ml-1 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                   >
                     Manage Floor
                   </button>

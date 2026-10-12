@@ -5,7 +5,6 @@ import {
   ArrowRight,
   BarChart3,
   Building2,
-  ClipboardCheck,
   CreditCard,
   FileSignature,
   Search,

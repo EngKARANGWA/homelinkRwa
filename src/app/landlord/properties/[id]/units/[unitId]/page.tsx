@@ -164,6 +164,8 @@ export default function UnitDetailPage() {
     );
   }
 
+  const isApproved = property.approvalStatus === "approved";
+
   const totalExpenses = maintenanceRequests.reduce(
     (sum, r) => sum + Number(r.itemsCost ?? 0) + Number(r.laborCost ?? 0),
     0,
@@ -197,12 +199,38 @@ export default function UnitDetailPage() {
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+          disabled={!isApproved}
+          title={isApproved ? undefined : "Unlocks once this property is approved"}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
         >
           <Pencil className="h-4 w-4" />
           {c.edit}
         </button>
       </div>
+
+      {!isApproved && (
+        <div
+          className={`rounded-lg border px-4 py-3 text-sm font-medium ${
+            property.approvalStatus === "rejected"
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-amber-200 bg-amber-50 text-amber-700"
+          }`}
+        >
+          <p>
+            {property.approvalStatus === "rejected"
+              ? t.dashboard.landlord.propertyDetail.rejectedApprovalBanner
+              : t.dashboard.landlord.propertyDetail.pendingApprovalBanner}
+          </p>
+          {property.approvalStatus === "rejected" && property.rejectionReason && (
+            <p className="mt-1">
+              {t.dashboard.landlord.propertyDetail.rejectedApprovalReasonTemplate.replace(
+                "{reason}",
+                property.rejectionReason,
+              )}
+            </p>
+          )}
+        </div>
+      )}
 
       {editNotice && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
