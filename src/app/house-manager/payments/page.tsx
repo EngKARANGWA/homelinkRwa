@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Download,
   Eye,
+  Paperclip,
   Wallet,
   X,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import { listLeases } from "@/lib/api/leases";
 import {
   approvePayment,
   exportPaymentsWorkbook,
+  getPaymentProof,
   getPaymentReceipt,
   listInvoices,
   listPayments,
@@ -249,6 +251,16 @@ export default function HouseManagerPaymentsPage() {
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Failed to load receipt.");
+    }
+  };
+
+  const viewProof = async (payment: Payment) => {
+    setActionError(null);
+    try {
+      const { url } = await getPaymentProof(payment.id);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Failed to load the uploaded receipt.");
     }
   };
 
@@ -502,6 +514,17 @@ export default function HouseManagerPaymentsPage() {
                                 >
                                   <Eye className="h-3.5 w-3.5" />
                                   {c.receipt}
+                                </button>
+                              )}
+                              {payment.proofOfPaymentUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => viewProof(payment)}
+                                  title="Tenant-uploaded receipt photo"
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                                >
+                                  <Paperclip className="h-3.5 w-3.5" />
+                                  Proof
                                 </button>
                               )}
                               {payment.approvalStatus === "pending" && (

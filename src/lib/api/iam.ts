@@ -72,10 +72,17 @@ export interface AcceptInviteInput {
   password: string;
 }
 
-export async function acceptInvite(input: AcceptInviteInput): Promise<void> {
-  await apiFetch("/iam/invites/accept", {
+export interface AcceptedInviteUser {
+  role: string;
+  // Only set for tenants, who log in with this code instead of their email.
+  loginCode: string | null;
+}
+
+export async function acceptInvite(input: AcceptInviteInput): Promise<AcceptedInviteUser> {
+  const res = await apiFetch<{ data: AcceptedInviteUser }>("/iam/invites/accept", {
     method: "POST",
     body: input,
     auth: false,
   });
+  return res.data;
 }

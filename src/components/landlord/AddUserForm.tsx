@@ -28,7 +28,7 @@ export function AddUserForm({
     try {
       if (role === "house_manager") {
         await inviteManager(email);
-        onSuccess(`Invitation sent to ${email} as House Manager.`);
+        onSuccess(`Invitation sent to ${email} as Property Manager.`);
       } else {
         await inviteTenant(email);
         onSuccess(`Invitation sent to ${email} as Tenant.`);
@@ -74,7 +74,7 @@ export function AddUserForm({
             className="w-full rounded-lg border-slate-300 shadow-sm focus:border-gold focus:ring-gold sm:text-sm"
             disabled={isSubmitting}
           >
-            <option value="house_manager">House Manager</option>
+            <option value="house_manager">Property Manager</option>
             <option value="tenant">Tenant</option>
           </select>
         </div>

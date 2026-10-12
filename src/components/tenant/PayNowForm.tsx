@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   AlertTriangle,
   Banknote,
   Building2,
   Loader2,
+  Paperclip,
   Send,
   Smartphone,
+  X,
 } from "lucide-react";
 import type { PayInvoiceInput, PaymentMethod } from "@/lib/api/types";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -51,8 +53,10 @@ export function PayNowForm({
   const c = t.dashboard.tenant.payNowForm;
   const [method, setMethod] = useState<TenantPaymentMethod>("mobile_money");
   const [payerPhone, setPayerPhone] = useState(defaultPhone ?? "");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isMobileMoney = method === "mobile_money";
   const totalOwed = amount + overdueAmount;
@@ -70,6 +74,7 @@ export function PayNowForm({
         method,
         carrier: isMobileMoney ? "mtn" : undefined,
         payerPhone: isMobileMoney ? payerPhone.trim() : undefined,
+        receiptFile: !isMobileMoney && receiptFile ? receiptFile : undefined,
       });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to submit payment.");
@@ -220,9 +225,51 @@ export function PayNowForm({
           <p className="text-xs text-slate-400">{c.momoHint}</p>
         </div>
       ) : (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-          {c.cashHint}
-        </p>
+        <div className="flex flex-col gap-3">
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            {c.cashHint}
+          </p>
+
+          <div className="flex flex-col gap-1.5">
+            <p className="text-sm font-medium text-slate-700">{c.uploadReceiptLabel}</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf"
+              className="hidden"
+              onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+            />
+            {receiptFile ? (
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm">
+                <span className="flex items-center gap-2 truncate text-navy">
+                  <Paperclip className="h-4 w-4 shrink-0 text-slate-400" />
+                  <span className="truncate">{receiptFile.name}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReceiptFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  className="shrink-0 rounded-md p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+                  aria-label={c.removeFile}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 self-start rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                <Paperclip className="h-4 w-4" />
+                {c.chooseFile}
+              </button>
+            )}
+            <p className="text-xs text-slate-400">{c.uploadReceiptHint}</p>
+          </div>
+        </div>
       )}
 
       <div className="mt-1 flex justify-end gap-3">

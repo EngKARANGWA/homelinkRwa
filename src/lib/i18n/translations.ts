@@ -449,6 +449,8 @@ const en = {
     submit: "Join HomeLink",
     submitting: "Joining...",
     success: "Your account is ready. You can now log in.",
+    loginCodeLabel: "Your login code",
+    loginCodeHint: "Use this code (not your email) with your password to log in. Keep it somewhere safe.",
     goToLogin: "Go to login",
     errorMissingToken: "This invite link is invalid or missing its token — please use the link from your email.",
   },
@@ -458,7 +460,7 @@ const en = {
       plainAdmin: "ADMIN",
       landlord: "LANDLORD",
       tenant: "TENANT",
-      houseManager: "HOUSE MANAGER",
+      houseManager: "PROPERTY MANAGER",
       agent: "AGENT",
     },
     nav: {
@@ -487,7 +489,7 @@ const en = {
       propertyOwner: "Property Owner",
       tenant: "Tenant",
       superAdmin: "Super Admin",
-      houseManager: "House Manager",
+      houseManager: "Property Manager",
       agent: "Agent",
     },
     status: {
@@ -1683,6 +1685,10 @@ const en = {
         phoneRequiredError: "Please enter the phone number to pay from.",
         cashHint:
           "Pay your landlord directly in cash, then submit this to notify them. They'll confirm receipt before it's marked paid.",
+        uploadReceiptLabel: "Receipt photo (optional)",
+        uploadReceiptHint: "Have a photo or scan of the receipt? Attach it so your landlord can verify it faster.",
+        chooseFile: "Choose file",
+        removeFile: "Remove",
         sendPrompt: "Send Payment Prompt to Phone",
         sending: "Sending prompt...",
         submitForApproval: "Submit for Approval",
@@ -2143,6 +2149,8 @@ const fr: typeof en = {
     submit: "Rejoindre HomeLink",
     submitting: "Inscription...",
     success: "Votre compte est prêt. Vous pouvez maintenant vous connecter.",
+    loginCodeLabel: "Votre code de connexion",
+    loginCodeHint: "Utilisez ce code (et non votre e-mail) avec votre mot de passe pour vous connecter. Conservez-le en lieu sûr.",
     goToLogin: "Aller à la connexion",
     errorMissingToken: "Ce lien d'invitation est invalide ou son jeton est manquant — veuillez utiliser le lien de votre e-mail.",
   },
@@ -2181,7 +2189,7 @@ const fr: typeof en = {
       propertyOwner: "Propriétaire",
       tenant: "Locataire",
       superAdmin: "Super Admin",
-      houseManager: "Gestionnaire",
+      houseManager: "Gestionnaire immobilier",
       agent: "Agent",
     },
     status: {
@@ -3381,6 +3389,11 @@ const fr: typeof en = {
         phoneRequiredError: "Veuillez saisir le numéro de téléphone à débiter.",
         cashHint:
           "Payez directement votre propriétaire en espèces, puis soumettez ceci pour l'en informer. Il confirmera la réception avant que ce soit marqué comme payé.",
+        uploadReceiptLabel: "Photo du reçu (facultatif)",
+        uploadReceiptHint:
+          "Vous avez une photo ou un scan du reçu ? Joignez-le pour que votre propriétaire puisse le vérifier plus rapidement.",
+        chooseFile: "Choisir un fichier",
+        removeFile: "Retirer",
         sendPrompt: "Envoyer la demande de paiement au téléphone",
         sending: "Envoi en cours...",
         submitForApproval: "Soumettre pour approbation",

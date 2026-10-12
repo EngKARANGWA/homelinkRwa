@@ -5,6 +5,7 @@ import type {
   PaginatedResponse,
   PayInvoiceInput,
   Payment,
+  PaymentProofUrl,
   PaymentReceiptUrl,
   PaymentStatus,
   RecordPaymentInput,
@@ -34,9 +35,19 @@ export async function payInvoice(
   id: string,
   input: PayInvoiceInput,
 ): Promise<Payment> {
+  const { receiptFile, ...rest } = input;
+  let body: PayInvoiceInput | FormData = rest;
+  if (receiptFile) {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries(rest)) {
+      if (value !== undefined) formData.append(key, String(value));
+    }
+    formData.append("receipt", receiptFile);
+    body = formData;
+  }
   const res = await apiFetch<SuccessResponse<Payment>>(`/invoices/${id}/pay`, {
     method: "POST",
-    body: input,
+    body,
   });
   return res.data;
 }
@@ -71,6 +82,13 @@ export async function listPayments(
 export async function getPaymentReceipt(id: string): Promise<PaymentReceiptUrl> {
   const res = await apiFetch<SuccessResponse<PaymentReceiptUrl>>(
     `/payments/${id}/receipt`,
+  );
+  return res.data;
+}
+
+export async function getPaymentProof(id: string): Promise<PaymentProofUrl> {
+  const res = await apiFetch<SuccessResponse<PaymentProofUrl>>(
+    `/payments/${id}/proof`,
   );
   return res.data;
 }

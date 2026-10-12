@@ -166,7 +166,7 @@ export default function AdminOverviewPage() {
           <p className="mt-2 text-3xl font-bold text-navy">{data.properties.newThisMonth}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Active Managers (IAM)</p>
+          <p className="text-sm text-slate-500">Active Property Managers (IAM)</p>
           <p className="mt-2 text-3xl font-bold text-navy">{data.iam.activeManagers}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

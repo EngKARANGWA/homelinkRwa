@@ -465,6 +465,8 @@ export type Payment = {
   approvedAt: string | null;
   failureReason: string | null;
   receiptUrl: string | null;
+  /** Photo/scan the tenant optionally attached to a cash payment as proof — distinct from receiptUrl (HomeLink's own generated PDF, set once approved). */
+  proofOfPaymentUrl: string | null;
   paidAt: string | null;
   createdAt: string;
 };
@@ -472,6 +474,10 @@ export type Payment = {
 export type PaymentReceiptUrl = {
   url: string;
   expiresAt?: string;
+};
+
+export type PaymentProofUrl = {
+  url: string;
 };
 
 export type OwnerDashboard = {
@@ -516,6 +522,8 @@ export type PayInvoiceInput = {
   carrier?: PaymentCarrier;
   payerPhone?: string;
   payerAccount?: string;
+  /** Optional photo/scan of the receipt — cash payments only. */
+  receiptFile?: File;
 };
 export type RecordPaymentInput = {
   method: Extract<PaymentMethod, "cash" | "bank_transfer">;

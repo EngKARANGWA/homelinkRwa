@@ -22,6 +22,7 @@ function JoinForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [loginCode, setLoginCode] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
 
   if (!token) {
@@ -38,6 +39,13 @@ function JoinForm() {
       <div className="mt-8 flex flex-col items-center gap-3 text-center">
         <CheckCircle2 className="h-10 w-10 text-emerald-500" />
         <p className="text-sm font-medium text-slate-600">{c.success}</p>
+        {loginCode && (
+          <div className="mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{c.loginCodeLabel}</p>
+            <p className="mt-1 text-2xl font-bold tracking-widest text-navy">{loginCode}</p>
+            <p className="mt-2 text-xs text-slate-500">{c.loginCodeHint}</p>
+          </div>
+        )}
         <Link href="/login" className="mt-2 font-medium text-gold hover:underline">
           {c.goToLogin}
         </Link>
@@ -50,13 +58,14 @@ function JoinForm() {
     setError(null);
     setSubmitting(true);
     try {
-      await acceptInvite({
+      const user = await acceptInvite({
         token,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim(),
         password,
       });
+      setLoginCode(user.loginCode);
       setSuccess(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong.");
